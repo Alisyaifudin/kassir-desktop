@@ -21,8 +21,6 @@ import { InfoLive } from "./info/live";
 import { LocalStorageLive } from "./local-storage/live";
 import { MethodService } from "./method";
 import { MethodLive } from "./method/live";
-import { LogService } from "./log";
-import { LogLive } from "./log/live";
 import { ListingService } from "./listing";
 import { ListingLive } from "./listing/live";
 import { MoneyService } from "./money";
@@ -72,7 +70,6 @@ export function buildAppLive(hidden: HiddenLive) {
   const customerLive = CustomerLive.pipe(Layer.provide(hidden));
   const infoLive = InfoLive.pipe(Layer.provide(hidden));
   const methodLive = MethodLive.pipe(Layer.provide(hidden));
-  const logLive = LogLive;
   const moneyLive = MoneyLive.pipe(Layer.provide(hidden));
   const productLive = ProductLive.pipe(Layer.provide(hidden));
   // The POS catalogue is derived from `product`, so it has no state of its own.
@@ -127,7 +124,6 @@ export function buildAppLive(hidden: HiddenLive) {
     customerLive,
     extraLive,
     infoLive,
-    logLive,
     listingLive,
     methodLive,
     moneyLive,
@@ -167,7 +163,6 @@ export function makeService(live: typeof appLive) {
         extra: yield* ExtraService,
         info: yield* InfoService,
         listing: yield* ListingService,
-        logs: yield* LogService,
         method: yield* MethodService,
         money: yield* MoneyService,
         printer: yield* PrinterService,

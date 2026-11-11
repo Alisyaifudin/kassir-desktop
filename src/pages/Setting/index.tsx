@@ -2,7 +2,6 @@ import type { RouteObject } from "react-router";
 import { shopRoute } from "./Shop";
 import { dataRoute } from "./Data";
 import { profileRoute } from "./Profile";
-import { logRoute } from "./Log";
 import { printerRoute } from "./Printer";
 import { syncRoute } from "./Sync";
 import Layout from "./layout";
@@ -28,7 +27,6 @@ export const settingRoute: RouteObject = {
     shopRoute,
     dataRoute,
     syncRoute,
-    logRoute,
     printerRoute,
     { index: true, Component: Page },
   ],

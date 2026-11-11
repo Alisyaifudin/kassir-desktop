@@ -3,7 +3,6 @@ import {
   Database,
   Printer,
   RefreshCw,
-  ScrollText,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -77,15 +76,6 @@ const settingsNav: NavItem[] = [
     description: "Printer dan lebar kertas untuk cetak struk",
     icon: Printer,
     hue: 200,
-    section: "Sistem",
-    roles: ["admin"],
-  },
-  {
-    label: "Log",
-    path: "/setting/log",
-    description: "Aktivitas dan kesalahan aplikasi",
-    icon: ScrollText,
-    hue: 300,
     section: "Sistem",
     roles: ["admin"],
   },

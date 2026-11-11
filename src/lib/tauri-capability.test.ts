@@ -21,8 +21,6 @@ const CAPABILITIES = "src-tauri/capabilities";
 const ALLOWED_PATHS = new Set([
   "$APPDATA/images",
   "$APPDATA/images/**",
-  "$APPLOCALDATA/logs",
-  "$APPLOCALDATA/logs/**",
 ]);
 
 type Permission = string | { identifier: string; allow?: { path: string }[] };
@@ -64,7 +62,7 @@ describe("Tauri capability", () => {
     }
   });
 
-  test("scopes every filesystem path to images and logs", () => {
+  test("scopes every filesystem path to the images folder", () => {
     for (const capability of capabilities()) {
       for (const permission of capability.permissions) {
         if (typeof permission === "string") continue;

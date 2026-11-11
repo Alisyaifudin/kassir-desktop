@@ -18,16 +18,15 @@ describe("navOf", () => {
       "Data",
       "Sinkronisasi",
       "Printer",
-      "Log",
     ]);
   });
 });
 
 describe("navItemOf", () => {
   test("finds the destination a screen belongs to", () => {
-    const item = navItemOf("/setting/log");
+    const item = navItemOf("/setting/printer");
 
-    expect(item.label).toBe("Log");
+    expect(item.label).toBe("Printer");
     expect(item.section).toBe("Sistem");
     expect(item.description).not.toBe("");
   });
@@ -53,7 +52,6 @@ describe("navGroupsOf", () => {
       "Data",
       "Sinkronisasi",
       "Printer",
-      "Log",
     ]);
   });
 

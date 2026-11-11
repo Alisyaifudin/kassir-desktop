@@ -64,7 +64,7 @@
         <item name="sql" version="2">SQLite + migrations; preloads one database, `sqlite:data.db`</item>
         <item name="store" version="2">store.json — settings that outlive the database</item>
         <item name="log" version="2">log file under $APPLOCALDATA/logs</item>
-        <item name="fs" version="2">Scoped to $APPDATA/images and $APPLOCALDATA/logs only</item>
+        <item name="fs" version="2">Scoped to $APPDATA/images only</item>
         <item name="dialog" version="2">Save dialog used by the Rust `export_file` and `backup_data` commands</item>
         <item name="process" version="2">Cargo dependency only — not initialised in lib.rs and granted no permission; relaunch/exit are not used</item>
         <item name="single-instance" version="2">Instance lock + window focus</item>
@@ -1504,7 +1504,6 @@
         <subpage path="/setting/profile">Signed-in account: rename (cashier.set.name + auth.set) and change password (Rust hash, then cashier.set.password).</subpage>
         <subpage path="/setting/shop" guard="AdminOnly">Shop identity (owner, address, header, footer) through info, plus the show-cashier toggle; every field label and the save button are static and only the values pulse. The form patches the current info instead of overwriting it.</subpage>
         <subpage path="/setting/data" guard="AdminOnly">JSON export (Rust export_file) and import for products and records, with the skipped-row panel and a derived success/warning/error toast (describeUpload). Above them sits the whole-install backup (Rust backup_data): one .zip of data.db (VACUUM INTO snapshot), store.json and a manifest, written through a Save dialog.</subpage>
-        <subpage path="/setting/log" guard="AdminOnly">The log tail (bounded, newest first, warnings included) and a clear action, over the log service.</subpage>
         <subpage path="/setting/printer">Printer picker, paper width in mm (Lebar Struk) and a test print, over the printer service and the Rust printer commands. The width decides how the receipt PDF is laid out.</subpage>
         <subpage path="/setting/sync" guard="AdminOnly">The server address (editable, seeded with SYNC_DEFAULT_BASE_URL) + SYNC_TOKEN with a Cek button that pings /v2/health inline, the pull cursor, and the Sinkronisasi / Sinkronisasi Ulang actions with per-phase progress, over the sync service.</subpage>
       </subpages>
