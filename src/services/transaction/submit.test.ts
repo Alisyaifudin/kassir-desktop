@@ -1932,6 +1932,34 @@ describe("TransactionService.add.fromRecord", () => {
     expect(count(db, "product_events")).toBe(outcome.events);
   });
 
+  test("seeds a blank discount row for a record listing that had none", async () => {
+    const { db, transactionLayer } = setup();
+    seed(db);
+    const outcome = await Effect.runPromise(
+      Effect.gen(function* () {
+        const tx = yield* TransactionService;
+        const id = yield* tx.add.new("incoming");
+        // A line with no discounts at all: the record stores no discount rows.
+        yield* tx.listings.set(id, [makeLine()]);
+        yield* tx.methods.set(id, [makeMethod(40000)]);
+        const recordId = yield* tx.submit(id, { cashier: "Kasir" });
+        const draftId = yield* tx.add.fromRecord(recordId);
+        return yield* tx.get.byId(draftId);
+      }).pipe(Effect.provide(transactionLayer)),
+    );
+
+    // The cart's discount editor always keeps one blank trailing row; without
+    // it the dialog opens with an empty grid no new discount can be typed
+    // into (regression: a record turned back into a transaction).
+    expect(outcome.listings).toHaveLength(1);
+    expect(outcome.listings[0]!.discounts).toHaveLength(1);
+    expect(outcome.listings[0]!.discounts[0]).toMatchObject({
+      value: 0,
+      kind: "percent",
+      eff: 0,
+    });
+  });
+
   test("rings the goods up at the record's price, not the catalogue's", async () => {
     const { db, transactionLayer } = setup();
     seed(db);

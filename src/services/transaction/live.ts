@@ -743,17 +743,22 @@ export const TransactionLive = Layer.effect(
           // price the customer actually paid, not the listing's price today.
           const price = line.price * line.unit;
           const qty = line.unit > 0 ? Math.max(0, Math.round(line.qty / line.unit)) : line.qty;
-          const discounts = recalcDiscounts(
-            price,
-            qty,
-            line.discounts.map((discount) => ({
-              id: generateId(),
-              value: discount.value,
-              kind: discount.kind,
-              eff: 0,
-              total: 0,
-            })),
-          );
+          // The cart's discount editor always keeps one blank trailing row —
+          // the combo expansion below seeds one too, and every line born in
+          // the cart starts with one. A record without discounts copies none,
+          // and the editor cannot type into an empty grid: seed the blank row.
+          const discounts = recalcDiscounts(price, qty, [
+            ...line.discounts
+              .filter((discount) => discount.value !== 0)
+              .map((discount) => ({
+                id: generateId(),
+                value: discount.value,
+                kind: discount.kind,
+                eff: 0,
+                total: 0,
+              })),
+            { id: generateId(), value: 0, kind: "percent" as const, eff: 0, total: 0 },
+          ]);
           listings.push({
             id: generateId(),
             listingId: catalog?.listing_id ?? null,

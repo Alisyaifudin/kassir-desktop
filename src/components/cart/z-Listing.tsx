@@ -1195,7 +1195,21 @@ export function Listing({
   const toggleSelected = selection.row.kind === "header" && active.field === "toggle";
   // A zero extra total is not worth breaking the button into two lines.
   const showExtraTotal = extraTotal !== null && !extraTotal.isZero();
-  const discountLine = lines.find((line) => line.id === discountFor) ?? null;
+  // The cart's discount editor always keeps one blank trailing row (see the
+  // combo expansion in the transaction service). A draft restored from a
+  // record without discounts can still carry an empty stack — persisted
+  // before that was fixed — and the dialog would open with a grid nothing
+  // can be typed into, so the blank row is seeded here.
+  const found = lines.find((line) => line.id === discountFor) ?? null;
+  const discountLine =
+    found === null || found.discounts.length > 0
+      ? found
+      : {
+          ...found,
+          discounts: [
+            { id: generateId(), value: 0, kind: "percent" as const, eff: 0, total: 0 },
+          ],
+        };
 
   return (
     <div
