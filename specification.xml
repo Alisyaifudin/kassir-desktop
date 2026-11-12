@@ -14,13 +14,13 @@
     (src/components/page-data/). Includes thermal receipt printing (the layout and
     the PDF are built in Rust with printpdf, then handed to the Windows spooler),
     role-based access (admin/user), multi-cashier login,
-    and a seq-based cloud sync of all eight groups (money, customer, supplier,
-    method, social, extra, product, record) implemented as a background task
+    and a seq-based cloud sync of all nine groups (money, customer, supplier,
+    method, social, extra, product, combo, record) implemented as a background task
     (pull → merge → push → pull, manual trigger, status pill) whose contract is
     SYNC-V2.md — see &lt;sync_system&gt; and &lt;sync_ui_design&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>8.13.0</version>
+  <version>8.18.1</version>
   <language>id</language>
 
   <ui_notes>
@@ -110,7 +110,7 @@
       <file name="package.json">
         <entry key="name">kassir</entry>
         <entry key="private">true</entry>
-        <entry key="version">8.13.0</entry>
+        <entry key="version">8.18.1</entry>
         <entry key="type">module</entry>
         <script name="dev" command="vite" />
         <script name="build" command="tsc &amp;&amp; vite build" />
@@ -126,7 +126,7 @@
       </file>
       <file name="Cargo.toml">
         <entry key="package.name">kassir</entry>
-        <entry key="package.version">8.13.0</entry>
+        <entry key="package.version">8.18.1</entry>
         <entry key="package.edition">2021</entry>
         <entry key="lib.name">kassir_lib</entry>
         <entry key="lib.crate-type">staticlib, cdylib, rlib</entry>
@@ -327,7 +327,7 @@
       </command>
       <command name="sync_pull" module="sync">
         <signature>async fn(channel, base_url, token, group, after, limit, client) → Result&lt;StreamSummary, SyncFailure&gt;</signature>
-        <description>GET /v2/&lt;group&gt;/pull/:seq?limit=N: reads the response body chunk by chunk, cuts it into NDJSON lines at the newlines (holding a split line until it completes), and pushes one line per Channel message followed by an explicit end message. `group` is validated against the eight known groups before it becomes a path segment. Advertises Accept-Encoding: gzip and lets reqwest decode it, so the lines are always canonical plaintext. A non-2xx body's `floor` (on a 410) is carried through to the frontend. This is the polyfill for the Streams API the contract is written against; the webview cannot fetch the sync host at all under its CSP, nor read a streamed body under ipc:.</description>
+        <description>GET /v2/&lt;group&gt;/pull/:seq?limit=N: reads the response body chunk by chunk, cuts it into NDJSON lines at the newlines (holding a split line until it completes), and pushes one line per Channel message followed by an explicit end message. `group` is validated against the nine known groups (`GROUPS` in sync.rs, kept in step with `SYNC_GROUPS`) before it becomes a path segment. Advertises Accept-Encoding: gzip and lets reqwest decode it, so the lines are always canonical plaintext. A non-2xx body's `floor` (on a 410) is carried through to the frontend. This is the polyfill for the Streams API the contract is written against; the webview cannot fetch the sync host at all under its CSP, nor read a streamed body under ipc:.</description>
       </command>
       <command name="sync_push" module="sync">
         <signature>async fn(channel, base_url, token, group, body, client) → Result&lt;StreamSummary, SyncFailure&gt;</signature>
@@ -449,7 +449,7 @@
             property key and one live alias are rules of `ProductService`, not indexes, so a second till's row is
             stored instead of failing the page
           - 57: combo templates with ordered listing/quantity and Extra-preset children plus an optional cover reference;
-            the sync marker is reserved, but combos are not registered in a sync group
+            the combo group joined the protocol in migration 58, and its cover bytes in migration 60
           Read indexes for the hot queries (records' effective date, listings, product_events' product/stock/record)
           are created in 43.
 
@@ -709,7 +709,7 @@
       <guard name="design-tokens.test.ts">No raw text sizes, no lucide size={N}; the four text tokens are the hierarchy.</guard>
       <guard name="dialog-description.test.ts">Every DialogContent has a DialogDescription or an explicit aria-describedby={undefined}.</guard>
       <guard name="tauri-capability.test.ts">The shipped capability stays least-privilege (no fs:default, no updater, no process).</guard>
-      <guard name="constants.test.ts">The version constant matches package.json (a release that forgets one bump site fails).</guard>
+      <guard name="version-sync.test.ts">package.json, tauri.conf.json, Cargo.toml, Cargo.lock, constants.ts and this file's own &lt;version&gt; all carry the same number (a release that forgets one bump site fails).</guard>
     </guards>
     <commands>
       <command>bun test</command>
@@ -757,7 +757,7 @@
         <table name="product_events">append-only stock journal (manual/inc/dec), linked to the record and the stock lot; indexed by product, stock and record</table>
         <table name="categories">a product's labels: category_name + sync trio. Group-wide, so it carries no product_id and is outside the one-product scope. One live row per name is a rule of `CategoryService`, not an index: two tills may create the same name offline and both rows are kept (migration 55)</table>
         <table name="product_category">the many-to-many link (product_id, category_id) with an id of its own + sync trio; a dropped link is a tombstone. No key to `categories` and no unique pair: the scoped product sync never carries categories and two tills may tick the same box, so both rows are kept and the form draws one. See migrations 53 and 55</table>
-        <table name="combos">combo_id, name, active state, optional cover reference, update/sync/delete bookkeeping. `combo_sync_at` is reserved; no combo sync group is registered yet.</table>
+        <table name="combos">combo_id, name, active state, optional cover reference, update/sync/delete bookkeeping. Synced as the `combo` aggregate group (migration 58): header plus `combo_listings`, `combo_extras` and `combo_discounts`, merged by `combo_updated_at`. Since migration 60 the cover also carries the three client-only byte columns, like a product image.</table>
         <table name="combo_listings / combo_extras">ordered template children: listing_id + quantity, and references to existing Extra preset ids. These rows expand into ordinary cart rows when selected.</table>
         <table name="product_names / properties / images">alternative names, key/value properties, image references (name + mime under AppData/images); img_mimes is the allowed set (png/jpeg/webp). One live alias per value and one live property per key per product are rules of `ProductService`, not indexes (migration 56). Since migration 50 `images` also carries the three client-only byte columns: image_blob_version (the image_updated_at the local file belongs to), image_blob_sha256 (its digest) and image_blob_sync_at (NULL = the server never accepted the bytes). None of them is on the wire.</table>
       </group>
@@ -1166,7 +1166,7 @@
 
     <service name="sync" module="src/services/sync/">
       <description>
-        The device's mirror of all eight groups (see &lt;sync_system&gt;). Owns the pull → merge → push → pull
+        The device's mirror of all nine groups (see &lt;sync_system&gt;). Owns the pull → merge → push → pull
         cycle as a background task (a daemon fiber in the service, one run at a time, overlapping triggers
         coalesced into one more pass), the SQLite bookmark and park, and the mirror SQL. Files: schema.ts (every
         group's column dictionaries and limits), frames.ts (NDJSON encode/decode, rows and the record aggregate),
@@ -1236,9 +1236,9 @@
 
   <sync_system status="implemented">
     <description>
-      Sync v2, grouped by tables. All eight groups ship: `money` (pockets + ledger), `customer`, `supplier`,
-      `method`, `social`, `extra`, `product` (catalog, categories and stock journal) and `record` (the sale
-      aggregate).
+      Sync v2, grouped by tables. All nine groups ship: `money` (pockets + ledger), `customer`, `supplier`,
+      `method`, `social`, `extra`, `product` (catalog, categories and stock journal), `combo` (the catalogue
+      template aggregate) and `record` (the sale aggregate).
       Contract: SYNC-V2.md. A group is an independent stream: its own endpoint pair, its own column dictionaries,
       its own bookmark. The service runs pull → merge → push → pull per group, in `SYNC_GROUPS` order, and reports
       one `GroupState` per group so the UI shows a progress bar each. `cashiers`, `cashier_roles`, `stocks` (derived
@@ -1246,13 +1246,14 @@
       `product` group, and image **bytes** travel over that group's content-addressed side channel (§8.7.1) — no seq,
       no log entry, no bookmark.
     </description>
-    <note name="combo_future_sync">
-      Combo templates are not one of the eight implemented groups and must not be mistaken for synced catalog data.
-      A future parent aggregate, cross-group reference, deletion and image-byte design is documented in
-      docs/docs/architecture/combos.md; no combo sync code ships yet.
+    <note name="combo_sync">
+      Combo templates are a first-class group since migration 58: one aggregate (header plus `combo_listings`,
+      `combo_extras`, `combo_discounts`), merged by `combo_updated_at`, with a rule whose component is absent from
+      the same aggregate dropped rather than stored. Cover **bytes** ride the same content-addressed side channel as
+      product images (migrations 60 and server 0023). Design record: docs/docs/architecture/combos.md.
     </note>
     <schema_contract>
-      <item name="canonical_json">schema.ts freezes every entity's column order once (the 16 row entities, of which one is the record aggregate, plus its five child sets); the encoder (frames.ts), the merge statements (sql.ts) and the reset path all resolve through it. Every column is always present, `null` is explicit, timestamps are epoch-ms integers. Key order is not load-bearing: v2 has no hashing.</item>
+      <item name="canonical_json">schema.ts freezes every entity's column order once (the 17 top-level entities, of which two are aggregates — `record` and `combo` — plus their child sets); the encoder (frames.ts), the merge statements (sql.ts) and the reset path all resolve through it. Every column is always present, `null` is explicit, timestamps are epoch-ms integers. Key order is not load-bearing: v2 has no hashing.</item>
       <item name="bookmark">`sync_bookmark(group_name, seq)` in SQLite — one integer per group, advanced to `done.s` (not `meta.snapshot`: a page can stop early) and written in the SAME transaction as the page's rows. A pre-table database reads its `sync.&lt;group&gt;.bookmark` store key once and migrates it.</item>
       <item name="park">`sync_parked_money(money_id, seq, row_json)` holds money rows whose pocket is not on the device yet. They are never dropped and never abort a page; every later page retries them, keyed by id so a re-pulled page parks one row once. Written with the page's bookmark.</item>
       <item name="sync_at">`&lt;x&gt;_sync_at` is the push marker and holds the server's `seq`: NULL means owed. Merged rows are marked immediately so they are not pushed back. Every marker and `stale` write is guarded on the row's clock, so an edit that lands while its frame is in flight is not lost (§4.12).</item>

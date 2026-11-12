@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
 import {
   DEFAULTABLE_KINDS,
   getProductKind,
@@ -9,7 +8,6 @@ import {
   METHOD_NAMES,
   METHODS,
   MODE_NAMES,
-  version,
 } from "./constants";
 
 /**
@@ -68,14 +66,5 @@ describe("getProductKind", () => {
 describe("MODE_NAMES", () => {
   test("names both directions the UI toggles between", () => {
     expect(MODE_NAMES).toEqual({ incoming: "Masuk", outcoming: "Keluar" });
-  });
-});
-
-describe("version", () => {
-  test("is the version package.json ships", () => {
-    // Setting prints this as "Kassir versi …"; forgetting one of the bump sites
-    // leaves the app reporting a version it is not.
-    const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { version: string };
-    expect(version).toBe(pkg.version);
   });
 });

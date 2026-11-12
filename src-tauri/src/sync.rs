@@ -274,12 +274,14 @@ struct WireError {
     floor: Option<i64>,
 }
 
-/// The eight groups the desktop speaks, exactly as the routes name them (§1.4).
+/// The nine groups the desktop speaks, exactly as the routes name them (§1.4).
 ///
 /// Validated here rather than trusted from the frontend: `group` becomes a path
-/// segment, and an unvalidated value could escape the `/v2/` prefix.
-const GROUPS: [&str; 8] = [
-    "money", "customer", "supplier", "method", "social", "extra", "product", "record",
+/// segment, and an unvalidated value could escape the `/v2/` prefix. Keep this
+/// list in step with `SYNC_GROUPS` in `src/services/sync/schema.ts` — a group
+/// the frontend cycles but this list rejects fails the whole run.
+const GROUPS: [&str; 9] = [
+    "money", "customer", "supplier", "method", "social", "extra", "product", "combo", "record",
 ];
 
 fn valid_group(group: &str) -> bool {
@@ -905,16 +907,18 @@ mod tests {
     }
 
     #[test]
-    fn only_the_eight_groups_reach_a_path() {
+    fn only_the_nine_groups_reach_a_path() {
         for group in [
-            "money", "customer", "supplier", "method", "social", "extra", "product", "record",
+            "money", "customer", "supplier", "method", "social", "extra", "product", "combo",
+            "record",
         ] {
-            assert!(valid_group(group));
+            assert!(valid_group(group), "{group} must reach a /v2/ path");
         }
         // A path segment must not be able to escape `/v2/`.
         assert!(!valid_group("../admin"));
         assert!(!valid_group("money/pull/1"));
         assert!(!valid_group(""));
+        assert!(!valid_group("combos"));
     }
 
     #[test]

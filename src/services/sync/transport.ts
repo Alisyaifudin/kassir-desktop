@@ -2,10 +2,10 @@
  * The typed transport for the v2 sync commands in `src-tauri/src/sync.rs` and
  * `src-tauri/src/sync_blob.rs`.
  *
- * Two streaming calls, one atomic write and the three image-byte calls — nothing
- * else. There is no session, no upload id, no byte offset and no hash chain in v2
- * (§7.1 "state: none"), so this file is a thin promise wrapper around the IPC
- * commands.
+ * Two streaming calls, one atomic write and the five image-byte calls (three for
+ * product images, two for combo covers) — nothing else. There is no session, no
+ * upload id, no byte offset and no hash chain in v2 (§7.1 "state: none"), so this
+ * file is a thin promise wrapper around the IPC commands.
  *
  * The socket lives in Rust because the window CSP (`connect-src 'self' ipc:`)
  * blocks a webview `fetch` to the user-configured sync host. See `sync.rs`.

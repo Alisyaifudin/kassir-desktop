@@ -11,10 +11,12 @@ Aplikasi untuk kasir.
 
 # Sinkronisasi
 
-**Sync v2, all eight groups.** Contract: `SYNC-V2.md`. The desktop mirrors `money`
+**Sync v2, all nine groups.** Contract: `SYNC-V2.md`. The desktop mirrors `money`
 (pockets + ledger), `customer`, `supplier`, `method`, `social`, `extra`, `product`
-(catalog + stock journal) and `record` (the sale aggregate). It is **started
-manually**: the operator presses a button; there is no timer and no sync-on-launch.
+(catalog + stock journal), `combo` (the catalogue template aggregate) and `record`
+(the sale aggregate). It is **started manually by default**: the operator presses a
+button on Pengaturan → Sinkronisasi, or turns on the automatic scheduler there
+(interval and/or "on an edit"), which is off until someone switches it on.
 The run itself is a background task: it belongs to the sync service, not to the
 screen, so leaving Pengaturan → Sinkronisasi keeps it going, a small status pill in
 the bottom-left corner follows it on every screen, and only an explicit cancel stops
@@ -44,10 +46,16 @@ There is **no session, no upload id, no byte offset and no hash chain** in v2. E
 request stands alone, every frame — in both directions — is idempotent, and the only
 client state is one integer per group plus the parked money rows.
 
-The record group is the one aggregate: a pull line is `ag` and carries the 20-column
-header plus all five child arrays (`record_listings`, `record_methods`,
-`record_extras`, `record_images`, `discounts`); a push frame carries the same under
-`ch`. A record is never split across frames, and its children are never synced on
+Two groups are aggregates, and both use the same envelope: a pull line is `ag` and a
+push frame carries the child sets under `ch`.
+
+- `record` — the 20-column header plus all five child arrays (`record_listings`,
+  `record_methods`, `record_extras`, `record_images`, `discounts`).
+- `combo` — the 7-column header plus three child arrays (`combo_listings`,
+  `combo_extras`, `combo_discounts`), where a discount names its component
+  (`combo_listing_id`) rather than the combo.
+
+An aggregate is never split across frames, and its children are never synced on
 their own.
 
 ## Groups, and one progress bar each
@@ -67,7 +75,8 @@ cycle over the same bookmark (§9.11).
 | `method` | `method` | 5000 / 20000 | 1000 / 1 MB |
 | `social` | `social` | 5000 / 20000 | 1000 / 1 MB |
 | `extra` | `extra` | 5000 / 20000 | 1000 / 1 MB |
-| `product` | `product`, `product_name`, `property`, `listing`, `image`, `product_event` | 5000 / 20000 | 1000 / 1 MB |
+| `product` | `product`, `category`, `product_category`, `product_name`, `property`, `listing`, `image`, `product_event` | 5000 / 20000 | 1000 / 1 MB |
+| `combo` | the combo aggregate | 1000 / 5000 (+8 MB page budget) | 1000 / 8 MB |
 | `record` | the record aggregate | 1000 / 5000 (+8 MB page budget) | 1000 / 8 MB |
 
 A group's bar spans its **whole cycle**, not one phase: `pull`, `merge`, `push` and
@@ -101,16 +110,19 @@ One rule per merge kind, applied in three places (client pull, server apply, cli
 `stale` ack), so both sides always agree:
 
 - **plain LWW** — `pocket`, `customer`, `supplier`, `method`, `social`, `extra` and the
-  seven catalog entities (`product`, `category`, `product_category`, `product_name`,
-  `property`, `listing`, `image`): newer `*_updated_at` wins; a tie keeps the stored copy.
+  eight catalog entities (`product`, `category`, `product_category`, `product_name`,
+  `property`, `listing`, `image`, plus `combo`'s own header): newer `*_updated_at`
+  wins; a tie keeps the stored copy.
 - **`money`** — insert, note edit and soft delete only. `timestamp`, `money_value` and
   `pocket_id` are **immutable**: an amount that has been recorded is a fact, so a later
   push can never rewrite the ledger. A copy that disagrees on any of the three loses
   and is repaired from the server's row.
 - **`product_event`** — append-only: a new id is inserted, an existing id is a `noop`
   whatever its payload. A correction is a new event.
-- **`record`** — full LWW on the whole aggregate: header + five child sets replaced
-  wholesale. Child array order is not semantic.
+- **`record` / `combo`** — full LWW on the whole aggregate: header + child sets
+  replaced wholesale. Child array order is not semantic. A combo discount whose
+  component is absent from the same aggregate is dropped rather than stored
+  (§8.9); a record's is kept and only hidden (§10.4).
 
 Deletes are `*_deleted_at` tombstones and travel as ordinary rows; the clock that
 accompanies one is `max(now, stored + 1)` (§5.1.1), so an edit never ties with the

@@ -48,10 +48,10 @@ implementation code. The pseudo-code blocks are sequences of decisions, not
 code to paste.
 
 Sections marked **⚠ NOT IMPLEMENTED** describe agreed behaviour that does not
-exist yet. On the server there are none left: retention was the last one and is
-implemented (§15.1). On the client, two halves are still pending — the record
-aggregate (§15.3) and the image-byte side channel (§15.6) — and both are
-tracked as open items rather than as gaps in this contract.
+exist yet. There are none left on either side: retention was the server's last
+one (§15.1), and the desktop's last two — the record aggregate (§15.3) and the
+image-byte side channel (§15.6) — now ship too. §15 keeps them as closed
+entries so the record of what was pending stays readable.
 
 ---
 
@@ -512,7 +512,7 @@ compressed and re-encoding it would hide the byte count from the size bound
 
 ### 2.5 Authentication
 
-Both endpoints of every group — and all three image-byte routes — require a
+Both endpoints of every group — and all five image-byte routes — require a
 **sync token**:
 
 ```http
@@ -978,7 +978,7 @@ The decision depends on the entity's merge kind:
 
 | kind | entities | rule |
 | --- | --- | --- |
-| plain LWW | `customer`, `supplier`, `method`, `social`, `extra`, the product catalog (`product`, `product_name`, `property`, `listing`, `image`) | new → `applied`; identical → `noop`; newer `*_updated_at` → `applied`; tie/older → `stale` |
+| plain LWW | `customer`, `supplier`, `method`, `social`, `extra`, the product catalog (`product`, `category`, `product_category`, `product_name`, `property`, `listing`, `image`) | new → `applied`; identical → `noop`; newer `*_updated_at` → `applied`; tie/older → `stale` |
 | money pocket | `pocket` | plain LWW on `pocket_updated_at` |
 | money ledger | `money` | new → `applied`; immutable field differs → `stale`; identical → `noop`; newer `money_updated_at` → `applied` (note + deleted flag); else `stale` |
 | append-only | `product_event` | new id → `applied`; existing id → `noop` (payload not compared) |
@@ -1665,6 +1665,18 @@ dangle, and a pull may deliver them in either order:
 The client must **never** enforce a hard foreign key on a cross-group reference.
 A page must not fail because another group's bookmark lags.
 
+The intra-aggregate case has one asymmetry worth stating, because the two sides
+differ and both are deliberate. An orphan `discounts` row — one whose
+`record_listing_id` names no listing in the settled aggregate — is **stored** on
+the server (§12.4, vector M19): rejecting it would make an already-inconsistent
+record unsyncable forever. A client whose local schema keeps a real
+`discounts.record_listing_id → record_listings` key cannot store it, so it
+**drops that one child** and keeps the rest of the aggregate, which is the
+"never fail the page" half of the rule (§10.4). The difference only appears for
+data that is already inconsistent, and the row is lost on that device alone: a
+record the device re-pushes later replaces the child sets wholesale, so the
+aggregate converges on what the device holds.
+
 `record_cashier` is the extreme case: `cashiers` is never synced, so the id is
 an **opaque display value**. Store it, show it, never join on it. When the
 client cannot resolve it against its own `cashiers` table, it displays the raw
@@ -2289,8 +2301,9 @@ upload, manifest page 5000 / 20000 (§8.7.1).
 
 **Server expects from the client**
 
-- Frames for the six entities only; product before its children and before its
-  events.
+- Frames for the group's eight entities only; product before its children,
+  category before the links that name it, and both before the product's events.
+  `category` is never sent on a one-product route (`SYNC-V2-ONE-PRODUCT.md`).
 - Every column of each dictionary; `listing_code` is `null` or a non-empty
   string (`""` is `bad_frame`).
 - A product event id to be unique; a replayed id is `noop`.
@@ -3543,9 +3556,9 @@ Integration:
   a wiped database answers a stale bookmark with `400`, never `410`;
 - the record child tables are deleted before `records` in the prune;
 - the blob tables are deleted too — `image_blob` before `blob_object` (the FK) —
-  but the **files are not**: a wipe leaves them for `bun run blobs:audit
-  --delete`, because deleting files inside the transaction would make a rollback
-  a lie (§12.7);
+  and their files are unlinked **after** the transaction commits, so a rollback
+  never has to undelete bytes; the sweep also removes files no row names, so the
+  wipe leaves `BLOB_DIR` empty except for `tmp/` (§12.7);
 - the OpenAPI document describes every v2 path and every dictionary.
 
 ### 12.7 Image bytes
@@ -3601,7 +3614,7 @@ Every synced table belongs to exactly one of the nine v2 groups:
 | method | `method` |
 | social | `social` |
 | extra | `extra` |
-| product | `product`, `product_name`, `property`, `listing`, `image`, `product_event` |
+| product | `product`, `category`, `product_category`, `product_name`, `property`, `listing`, `image`, `product_event` |
 | combo | `combo` (with `combo_listings`, `combo_extras`, `combo_discounts` inside the aggregate) |
 | record | `record` (with its five child sets inside the aggregate) |
 
@@ -3753,14 +3766,18 @@ The admin password is stored only as a PBKDF2-SHA256 hash (`ADMIN_SECRET`).
 | `GET /v2/admin/logs` | filtered, cursor-paginated request log |
 | `GET /v2/admin/logs/export` | filtered log as NDJSON or CSV |
 | `DELETE /v2/admin/logs` | prune the request log |
-| `DELETE /v2/admin/data` | prune every sync table, every group log and the blob tables; reset the seq counter to 0; keep tokens |
+| `DELETE /v2/admin/data` | prune every sync table, every group log and the blob tables (and their files); reset the seq counter to 0; keep tokens |
 
 `DELETE /v2/admin/data` is the operator's "start over" switch. It deletes, it
 does not restore: every sync table, every group log, the blob tables
 (`image_blob` then `blob_object`) go, and the seq counter returns to 0. The tokens are kept, because pruning data is not de-provisioning.
-The blob **files** on disk are not deleted by the wipe — the route is one
-transaction and a rollback must not have already unlinked anything. Run
-`bun run blobs:audit --delete` afterwards to reclaim them (§12.7).
+The blob **files** on disk go with them: rows first, then the unlink, after the
+transaction commits — deleting bytes inside the transaction would make a
+rollback a lie, and rows-before-files means a crash leaks bytes the audit can
+reclaim rather than leaving a row pointing at nothing. The sweep also takes
+files no row names, so a wiped backend starts with an empty `BLOB_DIR`; `tmp/`
+is left alone because an in-flight upload may be writing there (a `.part` left
+by a crashed upload is still `bun run blobs:audit --delete`'s job, §12.7).
 
 What happens next, in order: every client's bookmark is now above the counter,
 so each client's next pull is `400 bad_request`; the client then **re-seeds**
@@ -3799,6 +3816,7 @@ Migrations auto-apply on server start. One log table per group:
 | `0013_extra_group_change_log.sql` | `extra_group_change_log` |
 | `0014_retention.sql` | `client_bookmark`, `group_retention` (§15.1) |
 | `0016_image_blobs.sql` | `blob_object`, `image_blob` — the image-byte side channel (§12.7) |
+| `0019_category_group.sql` | `categories`, `product_category` — the product group's two new catalog tables; rebuilds `product_group_change_log` to name them (§8.7) |
 
 Scripts:
 
@@ -3826,7 +3844,7 @@ src/v2/blob-store.ts            image bytes on disk: content addressing, sniff, 
 src/v2/blob-index.ts            blob_object/image_blob, the manifest join
 src/v2/blob-gc.ts               blob collector and disk audit
 src/routes/v2-<group>.ts        pull/push endpoints
-src/routes/v2-blob.ts           the three image-byte routes
+src/routes/v2-blob.ts           the five image-byte routes (3 product image, 2 combo cover)
 src/routes/admin-*.ts           tokens, overview, logs, data prune
 scripts/prune-history.ts        the operator path for retention
 scripts/prune-blobs.ts          the operator path for image-byte collection
@@ -3933,26 +3951,30 @@ to end.
    idempotent and needs no migration. A backfill remains technically allowed
    and would seed one `put` per current row, in id order, using the existing
    `sync_seq` (the product group's pattern); it is not on the roadmap.
-3. **Record client.** The server side of the record group is implemented; the
-   desktop client still needs the aggregate push/pull, the header-only dirty
-   flag, the child-ownership checks, and the full-refresh upgrade.
+3. **Record client — implemented, closed.** The desktop pushes and pulls the
+   aggregate in one frame (`src/services/sync/push.ts`, `frames.ts`), keys the
+   dirty flag on the header alone, applies the child-ownership checks, and ships
+   the full-refresh upgrade (`migrations/41-50/migration-47.sql`). Migration 47
+   cleared `records.record_sync_at` and the bookmark reset is the general
+   `sync_bookmark` path, so an upgraded device re-uploads its records once.
 4. **Record full-refresh tooling.** `db:reset-record` is the operator path. A
    scoped `DELETE /v2/admin/data/record` would be a convenience, not a protocol
    change.
-5. **Record max size.** A record over 8 MB cannot be sent. The desktop must cap
-   record size and surface the error. A future protocol revision could raise the
-   bound.
-6. **Image-byte client.** The server half of §8.7.1 is implemented: the three
-   routes, `blob_object`/`image_blob`, the collector and the audit. The desktop
-   still needs the three client-only columns, the upload queue (after the row's
-   ack) and the fetch loop (manifest, then `GET` per hash, `*.part` + `rename()`),
-   plus the bounded work per cycle. Until that ships a restored device shows
-   placeholders, which is a degraded but correct state — no row is lost and the
-   bookmark never waits on bytes. `docs/SYNC-V2-PRODUCT.md` §19 is the design
-   record; §8.7.1 above is the normative statement.
-   Two things are deliberately out of scope and should stay that way: an inline
-   `blob` frame (base64 in the log) and server-side image processing
-   (thumbnails, re-encode, crop).
+5. **Record max size — capped, closed.** A record over the 8 MB push bound
+   cannot be sent, and the desktop now caps on the same bound and surfaces it as
+   `payload_too_large` ("Catatan … terlalu besar untuk disinkronkan") instead of
+   looping. A future protocol revision could still raise the bound; the client
+   would follow the constant, not the sentence.
+6. **Image-byte client — implemented, closed.** The server half of §8.7.1 is
+   the routes, `blob_object`/`image_blob`, the collector and the audit; the
+   desktop half now ships too — the three client-only columns on `images`
+   (migration 50) and on `combos` (migration 60), the upload queue that runs
+   after the row's ack (`src/services/sync/blob.ts`, `combo-cover.ts`), the fetch
+   loop (manifest, then `GET` per hash, `*.part` + `rename()` in
+   `src-tauri/src/sync_blob.rs`) and the bounded work per cycle. A restored
+   device therefore no longer stops at placeholders. Two things are deliberately
+   out of scope and should stay that way: an inline `blob` frame (base64 in the
+   log) and server-side image processing (thumbnails, re-encode, crop).
 7. **`stocks` as a synced row (rejected).** `stocks` stays derived from the
    event journal. Syncing both as independent LWW entities would let them
    disagree.
@@ -4049,6 +4071,8 @@ drop the batch.
 | `social` | `socials` | `social_id` | 5: id, name, value, updated_at, deleted_at |
 | `extra` | `extras` | `extra_id` | 7: id, name, value, kind, flag, updated_at, deleted_at |
 | `product` | `products` | `product_id` | 6: id, name, note, flag, updated_at, deleted_at |
+| `category` | `categories` | `category_id` | 4: id, name, updated_at, deleted_at |
+| `product_category` | `product_category` | `product_category_id` | 5: id, product_id, category_id, updated_at, deleted_at |
 | `product_name` | `product_names` | `product_name_id` | 5: id, product_id, value, updated_at, deleted_at |
 | `property` | `properties` | `property_id` | 5: id, product_id, key, value, updated_at, deleted_at |
 | `listing` | `listings` | `listing_id` | 9: id, product_id, name, price, unit, kind, code?, updated_at, deleted_at |
@@ -4169,7 +4193,7 @@ the record header's `record_updated_at`), and `dirty` is `*_sync_at`.
 | M16 | record aggregate: one child omitted, newer clock | `applied`; the child is deleted (children are replaced wholesale) |
 | M17 | record aggregate: newer clock, header and children changed | `applied`; all five child sets replaced |
 | M18 | record aggregate: equal clock | `stale` with the stored header and children |
-| M19 | `discounts` row references a listing absent from the aggregate | stored; never a page failure (§7.3) |
+| M19 | `discounts` row references a listing absent from the aggregate | stored; never a page failure (§7.3). A client with a real local key may drop that child instead — see §7.2 |
 
 #### Pages, bookmarks and stream edges (§3)
 
