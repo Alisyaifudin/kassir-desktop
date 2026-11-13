@@ -20,7 +20,7 @@
     SYNC-V2.md — see &lt;sync_system&gt; and &lt;sync_ui_design&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>8.18.1</version>
+  <version>8.18.3</version>
   <language>id</language>
 
   <ui_notes>
@@ -110,7 +110,7 @@
       <file name="package.json">
         <entry key="name">kassir</entry>
         <entry key="private">true</entry>
-        <entry key="version">8.18.1</entry>
+        <entry key="version">8.18.3</entry>
         <entry key="type">module</entry>
         <script name="dev" command="vite" />
         <script name="build" command="tsc &amp;&amp; vite build" />
@@ -126,7 +126,7 @@
       </file>
       <file name="Cargo.toml">
         <entry key="package.name">kassir</entry>
-        <entry key="package.version">8.18.1</entry>
+        <entry key="package.version">8.18.3</entry>
         <entry key="package.edition">2021</entry>
         <entry key="lib.name">kassir_lib</entry>
         <entry key="lib.crate-type">staticlib, cdylib, rlib</entry>
