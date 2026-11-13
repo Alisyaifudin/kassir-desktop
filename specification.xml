@@ -1116,6 +1116,10 @@
         alias per product — are this service's rules (`listing.add/update`, `product.add`, `property.add/update`,
         `productName.add/update`), not indexes on the tables: migration 56 dropped them so a second till's row is
         stored by the sync instead of failing the page.
+        `stock.adjust` is the one writer of a lot's cost: a cost change always lands as a delta-0 event that states
+        the new figure (including a deliberate `0`), because `stocks` is a local cache the sync rebuilds from the
+        journal — see SYNC-V2.md §8.7. A stock-moving event that carries `0` says nothing about cost, so a cost
+        statement of `0` written only into the row would be reverted to the last price on the next sync.
       </description>
       <error name="ProductError" tag="ProductError">Plus ProductDuplicateCode, carrying the code that was already taken.</error>
       <state>One SubscriptionRef of the whole read model; a write re-hydrates the touched rows, and get.changes / changesFull / unsync read from it.</state>

@@ -18,6 +18,7 @@ import { ComboLive } from "../combo/live";
 import { ExtraLive } from "../extra/live";
 import { MethodLive } from "../method/live";
 import { MoneyLive } from "../money/live";
+import { ProductService } from "../product";
 import { ProductLive } from "../product/live";
 import { RecordService } from "../record";
 import { RecordLive } from "../record/live";
@@ -1521,15 +1522,16 @@ describe("product stock projection", () => {
       stock_id: "s_01",
       record_id: null,
     });
-    // A later movement with capital 0: a bonus fill, or a lot opened with no cost
-    // to copy. `0` is how the journal says "this says nothing about the cost", so
-    // it must not overwrite the 5 000 the lot was actually bought for.
+    // A later *movement* that carries capital 0: stock leaving a lot whose cost
+    // nothing ever stated (an oversold lot opened with nothing to copy). `0` on a
+    // movement is how the journal says "this says nothing about the cost", so it
+    // must not overwrite the 5 000 the lot was actually bought for.
     insertRow(first.db, "product_event", {
       product_event_id: "pe_02",
       product_event_created_at: 2_000,
-      product_event_value: 0,
+      product_event_value: -1,
       product_event_capital: 0,
-      product_event_note: "Bonus",
+      product_event_note: "",
       product_id: "p_01",
       stock_id: "s_01",
       record_id: null,
@@ -1543,7 +1545,97 @@ describe("product stock projection", () => {
       second.db
         .query("SELECT stock_id, stock_value, stock_capital FROM stocks ORDER BY stock_id")
         .all(),
-    ).toEqual([{ stock_id: "s_01", stock_value: 10, stock_capital: 5_000 }]);
+    ).toEqual([{ stock_id: "s_01", stock_value: 9, stock_capital: 5_000 }]);
+  });
+
+  test("a cost the cashier zeroed on purpose survives the next sync", async () => {
+    const server = new FakeServer();
+    const first = setup(server);
+    insertRow(first.db, "product", {
+      product_id: "p_01",
+      product_name: "Kopi",
+      product_note: "",
+      product_flag: 0,
+      product_updated_at: 1_000,
+    });
+    insertRow(first.db, "product_event", {
+      product_event_id: "pe_01",
+      product_event_created_at: 1_000,
+      product_event_value: 10,
+      product_event_capital: 5_000,
+      product_event_note: "",
+      product_id: "p_01",
+      stock_id: "s_01",
+      record_id: null,
+    });
+    await runSync(first.layer);
+
+    // What the product form's Simpan does when the cost is zeroed: a capital
+    // correction, journalled as a delta-0 event that states the 0.
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const product = yield* ProductService;
+        yield* product.stock.adjust("p_01", "s_01", { value: 10, capital: 0 });
+      }).pipe(Effect.provide(first.productLayer)),
+    );
+    expect(
+      first.db.query("SELECT stock_capital FROM stocks WHERE stock_id = 's_01'").get(),
+    ).toEqual({ stock_capital: 0 });
+
+    // The fold that runs at the end of the push used to re-derive the cost from
+    // the last event that carried a *non-zero* one — the purchase — so the zero
+    // was silently undone the moment this row synced.
+    await runSync(first.layer);
+    expect(
+      first.db.query("SELECT stock_capital FROM stocks WHERE stock_id = 's_01'").get(),
+    ).toEqual({ stock_capital: 0 });
+
+    // And the other till folds the same journal, so it agrees.
+    const second = setup(server);
+    await runSync(second.layer);
+    expect(
+      second.db.query("SELECT stock_value, stock_capital FROM stocks WHERE stock_id = 's_01'").get(),
+    ).toEqual({ stock_value: 10, stock_capital: 0 });
+  });
+
+  test("a cost zeroed and a quantity moved in one save is unambiguous", async () => {
+    const server = new FakeServer();
+    const first = setup(server);
+    insertRow(first.db, "product", {
+      product_id: "p_01",
+      product_name: "Kopi",
+      product_note: "",
+      product_flag: 0,
+      product_updated_at: 1_000,
+    });
+    insertRow(first.db, "product_event", {
+      product_event_id: "pe_01",
+      product_event_created_at: 1_000,
+      product_event_value: 10,
+      product_event_capital: 5_000,
+      product_event_note: "",
+      product_id: "p_01",
+      stock_id: "s_01",
+      record_id: null,
+    });
+    await runSync(first.layer);
+
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const product = yield* ProductService;
+        // Both at once: 10 → 6 pcs, cost → 0. The movement event carries the 0 and
+        // the fold cannot read a cost off a movement, so `adjustStatements` states
+        // it with a delta-0 event as well.
+        yield* product.stock.adjust("p_01", "s_01", { value: 6, capital: 0 });
+      }).pipe(Effect.provide(first.productLayer)),
+    );
+    await runSync(first.layer);
+
+    const second = setup(server);
+    await runSync(second.layer);
+    expect(
+      second.db.query("SELECT stock_value, stock_capital FROM stocks WHERE stock_id = 's_01'").get(),
+    ).toEqual({ stock_value: 6, stock_capital: 0 });
   });
 
   test("the newest cost wins, not the oldest", async () => {

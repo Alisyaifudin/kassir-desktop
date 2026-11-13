@@ -430,7 +430,16 @@ export function receiveAtCapital(
   };
 }
 
-/** Manual correction of a lot; a capital-only change is a delta-0 event. */
+/**
+ * Manual correction of a lot; a capital-only change is a delta-0 event.
+ *
+ * A cost that changes *and* a quantity that changes are two statements: the
+ * movement event carries the new cost, but the fold only reads a cost off an event
+ * that moves no stock (see `journalCapitalSql` in `sync/sql.ts`) — otherwise a
+ * stock-moving event whose cost is `0` would be indistinguishable from "no cost
+ * known" and could not express a deliberate zero. So when the cost changes, the
+ * delta-0 statement is written **after** the movement, and it carries the note.
+ */
 export function adjustStatements(
   productId: string,
   lot: StockLot,
@@ -438,12 +447,21 @@ export function adjustStatements(
   now: number,
   note = "",
 ): Statement[] {
-  return [
+  const delta = next.value - lot.value;
+  const restated = next.capital !== lot.capital;
+  // Two statements mean the note goes on the cost one, so the history reads as the
+  // operator's edit rather than as an unexplained movement.
+  const splits = restated && delta !== 0;
+  const statements: Statement[] = [
     {
       sql: "UPDATE stocks SET stock_value = $1, stock_capital = $2, stock_updated_at = $3 WHERE stock_id = $4",
       bindings: [next.value, next.capital, now, lot.id],
     },
-    insertEvent(generateId(), productId, lot.id, next.value - lot.value, next.capital, now, note),
-    touchProduct(productId, now),
+    insertEvent(generateId(), productId, lot.id, delta, next.capital, now, splits ? "" : note),
   ];
+  if (splits) {
+    statements.push(insertEvent(generateId(), productId, lot.id, 0, next.capital, now, note));
+  }
+  statements.push(touchProduct(productId, now));
+  return statements;
 }

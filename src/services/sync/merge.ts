@@ -47,6 +47,7 @@ import {
   forceAggregateStatements,
   forceUpsertStatement,
   insertIfAbsentStatement,
+  journalCapitalSql,
   markAggregateSyncedStatement,
   markSyncedStatement,
   parkedStatements,
@@ -248,15 +249,15 @@ function logCapitalDrift(
   const ids = productIds.slice(0, IN_CHUNK);
   if (ids.length === 0) return Effect.void;
   const list = ids.map((_, index) => `$${index + 1}`).join(", ");
+  // Read the journal's answer with the fold's own rule, or the report would name a
+  // drift on every lot whose cost was deliberately zeroed: the fold keeps the 0.
   const sql = `SELECT s.product_id, s.stock_id, s.stock_capital AS cached,
-      COALESCE(
-        (SELECT c.product_event_capital FROM product_events c
-          WHERE c.stock_id = s.stock_id AND c.product_event_capital <> 0
-          ORDER BY c.product_event_created_at DESC, c.product_event_id DESC LIMIT 1),
-        (SELECT n.product_event_capital FROM product_events n
+      ${journalCapitalSql(
+        "s.stock_id",
+        `(SELECT n.product_event_capital FROM product_events n
           WHERE n.stock_id = s.stock_id
-          ORDER BY n.product_event_created_at DESC, n.product_event_id DESC LIMIT 1)
-      ) AS journal
+          ORDER BY n.product_event_created_at DESC, n.product_event_id DESC LIMIT 1)`,
+      )} AS journal
     FROM stocks s
     WHERE s.product_id IN (${list})
     LIMIT 500`;

@@ -440,6 +440,40 @@ function stockChunks(ids: readonly string[]): string[][] {
 }
 
 /**
+ * A lot's cost as the journal states it — the one rule both the fold and the
+ * drift report read it with.
+ *
+ * An event *states* a capital when it moves no stock (`product_event_value = 0`:
+ * a correction is a delta-0 event, and `adjustStatements` writes one whenever the
+ * cost changes) or when it carried a cost while moving stock. A stock-moving event
+ * with capital `0` says nothing — an oversold lot opened with no cost to copy, a
+ * bonus line — and must not zero out a lot that was bought for 5000.
+ *
+ * `0` itself is a statement when a delta-0 event carries it: zeroing a lot's cost
+ * by hand is a real edit, and the first rule that only looked at non-zero capitals
+ * silently reverted it to the price on the next sync. Among events stamped with the
+ * same `now` (one commit writes several), a delta-0 statement outranks a movement,
+ * and the insertion order breaks what is left, so every device folds the same
+ * answer.
+ *
+ * `stockId` is a column reference — `e.stock_id` in the fold, `s.stock_id` in the
+ * drift report — and `fallback` is what to use when no event says anything.
+ */
+export function journalCapitalSql(stockId: string, fallback: string): string {
+  return `COALESCE(
+    (SELECT c.product_event_capital
+       FROM product_events c
+      WHERE c.stock_id = ${stockId}
+        AND (c.product_event_value = 0 OR c.product_event_capital <> 0)
+      ORDER BY c.product_event_created_at DESC,
+               CASE WHEN c.product_event_value = 0 THEN 0 ELSE 1 END,
+               c.rowid DESC
+      LIMIT 1),
+    ${fallback}
+  )`;
+}
+
+/**
  * Rebuilds the local `stocks` cache from the append-only journal.
  *
  * `stocks` is not synced: it is a projection of `product_events` (§8.7). A device
@@ -447,13 +481,7 @@ function stockChunks(ids: readonly string[]): string[][] {
  * no stock for a product another till sold. The replay is per lot:
  *
  * - `stock_value` = the sum of the lot's signed deltas;
- * - `stock_capital` = the capital of the **newest event that carries one** — a
- *   capital correction is a delta-0 event, so the newest one is the lot's current
- *   cost. `0` is not a cost between devices: it is what an event says when it has
- *   nothing to say (an oversold lot opened with no cost to copy, a bonus fill —
- *   see `settleNegative`). Taking the newest event blindly let such an event zero
- *   out a lot that was bought for 5000, so the newest **non-zero** capital wins
- *   and a lot whose events are all zero still ends at 0;
+ * - `stock_capital` = what the journal states, per `journalCapitalSql`;
  * - `stock_created_at` = the oldest event's time.
  *
  * Only lots that have at least one event are touched, so a lot the journal never
@@ -490,14 +518,7 @@ export function rebuildStockStatements(productIds: readonly string[]): Statement
           e.stock_id,
           e.product_id,
           (SELECT SUM(v.product_event_value) FROM product_events v WHERE v.stock_id = e.stock_id),
-          COALESCE(
-            (SELECT c.product_event_capital
-               FROM product_events c
-              WHERE c.stock_id = e.stock_id AND c.product_event_capital <> 0
-              ORDER BY c.product_event_created_at DESC, c.product_event_id DESC
-              LIMIT 1),
-            e.product_event_capital
-          ),
+          ${journalCapitalSql("e.stock_id", "e.product_event_capital")},
           (SELECT MIN(m.product_event_created_at) FROM product_events m WHERE m.stock_id = e.stock_id),
           (SELECT MAX(m.product_event_created_at) FROM product_events m WHERE m.stock_id = e.stock_id)
         FROM product_events e

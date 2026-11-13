@@ -2116,14 +2116,22 @@ record_id                 TEXT?              -- may dangle
 ```
 for each product:
     qty     = fold(events.product_event_value)                    -- sum of the signed deltas
-    capital = fold(events.product_event_capital)                  -- the newest event that carries one
+    capital = fold(events.product_event_capital)                  -- the newest event that states one
 ```
 
-`capital` is the **newest non-zero** `product_event_capital`: a capital
-correction is a delta-0 event, so the newest one is the lot's current cost, and
-`0` is what an event says when it has nothing to say about cost (a lot opened
-with no cost to copy, a bonus fill) — it must not wipe a cost that a purchase
-already stated.
+`capital` is the `product_event_capital` of the **newest event that states one**. An
+event states a cost when it moves no stock (a capital correction is a delta-0 event,
+and the desktop writes one whenever the cost changes) or when it carried a cost while
+moving stock. A stock-moving event with `0` says *nothing* about cost (a lot opened
+with no cost to copy, a bonus fill) and must not wipe a cost a purchase already
+stated.
+
+`0` **is** a statement when a delta-0 event carries it: zeroing a lot's cost by hand
+is a real edit, and a rule that only looked at non-zero capitals silently reverted it
+to the price on the next sync. Within one `now` — a commit writes several events at
+one instant — a delta-0 statement outranks a movement, and the write order (the
+order the log carries them, which every device replays in) breaks what is left: a
+purchase that closes an oversold hole and adopts a new cost writes both.
 
 Replay order is `(product_event_created_at, product_event_id)` ascending, **not
 pull order**. The journal is the source of truth; the stock row is a cache. Do
