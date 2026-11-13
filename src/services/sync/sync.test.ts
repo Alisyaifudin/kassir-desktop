@@ -19,6 +19,7 @@ import { ExtraLive } from "../extra/live";
 import { MethodLive } from "../method/live";
 import { MoneyLive } from "../money/live";
 import { ProductLive } from "../product/live";
+import { RecordService } from "../record";
 import { RecordLive } from "../record/live";
 import { SocialLive } from "../social/live";
 import { makeTestStore } from "../store/test-support";
@@ -145,12 +146,56 @@ class FakeServer {
     return { s: "applied", seq: this.store({ entity, row: next }) };
   }
 
+  /**
+   * §10.3: a child primary key belongs to exactly one record — in the batch and
+   * against what the server already stores. The real server refuses the whole
+   * batch as `bad_frame`, so this double does the same: a client that steals a
+   * key fails here instead of quietly syncing in production.
+   */
+  private validateChildOwnership(
+    frames: readonly { r: WireRow; ch?: WireChildren }[],
+  ): void {
+    const claimed = new Map<string, string>();
+    for (const frame of frames) {
+      if (frame.ch === undefined) continue;
+      const recordId = idOf(TABLES["record"]!, frame.r);
+      for (const [key, rows] of Object.entries(frame.ch)) {
+        const child = GROUPS["record"].children?.find((entry) => entry.key === key);
+        if (child === undefined) continue;
+        for (const row of rows) {
+          const pk = String(row[child.pk]);
+          const previous = claimed.get(pk) ?? this.childOwner(child.table, child.pk, pk);
+          if (previous !== undefined && previous !== recordId) {
+            throw new Error(
+              `"ch.${key}" primary key "${pk}" already belongs to record "${previous}"`,
+            );
+          }
+          claimed.set(pk, recordId);
+        }
+      }
+    }
+  }
+
+  /** Which record the server already stores a child key under, if any. */
+  private childOwner(table: string, pkColumn: string, key: string): string | undefined {
+    for (const [recordId, children] of this.children) {
+      const rows = children[table] ?? [];
+      if (rows.some((row) => String(row[pkColumn]) === key)) return recordId;
+    }
+    return undefined;
+  }
+
   /** §4.4 ack catalog: one ack per frame, in order, then `done`. */
   push(body: string): string[] {
     const lines = body.split("\n").filter((line) => line !== "");
     const out: string[] = [];
-    lines.forEach((line, index) => {
-      const frame = JSON.parse(line) as { e: string; r: WireRow; ch?: WireChildren };
+    const frames = lines.map(
+      (line) => JSON.parse(line) as { e: string; r: WireRow; ch?: WireChildren },
+    );
+    // Before the transaction, exactly like the real server: a refusal applies
+    // nothing at all.
+    this.validateChildOwnership(frames.filter((frame) => frame.e === "record"));
+    frames.forEach((frame, index) => {
       const outcome = this.apply(frame.e, frame.r, frame.ch);
       out.push(
         JSON.stringify({
@@ -472,7 +517,18 @@ function setup(
     ),
   );
 
-  return { db, dbLayer, entries, storeLayer, server, merges, bus, layer: appLayer };
+  return {
+    db,
+    dbLayer,
+    entries,
+    storeLayer,
+    server,
+    merges,
+    bus,
+    productLayer,
+    recordLayer,
+    layer: appLayer,
+  };
 }
 
 function runSync(
@@ -1554,6 +1610,99 @@ describe("record aggregate", () => {
     expect(second.db.query("SELECT record_method_id FROM record_methods").all()).toEqual([
       { record_method_id: "rm_01" },
     ]);
+  });
+
+  test("a mode flip pushes two aggregates that never share a child key", async () => {
+    const server = new FakeServer();
+    const device = setup(server);
+
+    insertRow(device.db, "product", {
+      product_id: "p_01",
+      product_name: "Kopi",
+      product_note: "",
+      product_flag: 0,
+      product_updated_at: 1_000,
+    });
+    device.db.exec(`
+      INSERT INTO stocks (
+        stock_id, product_id, stock_value, stock_capital, stock_created_at, stock_updated_at
+      ) VALUES ('s_01', 'p_01', 2, 1000, 1, 1);
+      INSERT INTO methods (method_id, method_name, method_kind, method_updated_at)
+        VALUES ('cash', 'Tunai', 'cash', 1);
+    `);
+    insertRow(device.db, "record", recordHeader("r_01", 1_000) as Record<string, unknown>);
+    insertRow(device.db, "product_event", {
+      product_event_id: "pe_01",
+      product_event_created_at: 1_000,
+      product_event_value: -1,
+      product_event_capital: 1_000,
+      product_event_note: "",
+      product_id: "p_01",
+      stock_id: "s_01",
+      record_id: "r_01",
+    });
+    insertChild(device.db, "record_listings", "r_01", {
+      record_listing_id: "rl_01",
+      record_listing_group_id: "rg_01",
+      product_event_id: "pe_01",
+      product_id: "p_01",
+      record_listing_name: "Kopi",
+      record_listing_kind: "",
+      record_listing_unit: 1,
+      record_listing_price: 25_000,
+      record_listing_qty: 1,
+      record_listing_capital: 1_000,
+      record_listing_total: 25_000,
+    });
+    insertChild(device.db, "record_methods", "r_01", {
+      record_method_id: "rm_01",
+      method_id: "cash",
+      record_method_pay: 25_000,
+    });
+    await runSync(device.layer);
+    expect(server.changes.map((change) => change.entity)).toEqual([
+      "method",
+      "product",
+      "product_event",
+      "record",
+    ]);
+
+    const flipped = await Effect.runPromise(
+      Effect.gen(function* () {
+        const record = yield* RecordService;
+        return yield* record.set.mode("r_01", "outcoming");
+      }).pipe(Effect.provide(device.recordLayer)),
+    );
+
+    // The flip used to re-point the sold line at the replacement record while
+    // keeping its primary key. The server owns that key under `r_01` already, so
+    // every push of the record group was refused as `bad_frame` — and nothing
+    // after the flip ever synced again. The double applies the same rule.
+    await runSync(device.layer);
+
+    expect(server.rows.get("record:r_01")).toMatchObject({ record_mode: "incoming" });
+    expect(server.rows.get("record:r_01")?.["record_deleted_at"]).not.toBeNull();
+    expect(server.rows.get(`record:${flipped}`)).toMatchObject({ record_mode: "outcoming" });
+
+    const childKeys = (recordId: string): string[] => {
+      const children = server.children.get(recordId)!;
+      return GROUPS["record"].children!.flatMap((child) =>
+        (children[child.key] ?? []).map((row) => String(row[child.pk])),
+      );
+    };
+    // The tombstone keeps what it sold; the replacement carries a copy under a
+    // key of its own, so no key is ever claimed twice.
+    expect(childKeys("r_01")).toEqual(["rl_01", "rm_01"]);
+    expect(childKeys(flipped)).toHaveLength(2);
+    expect(childKeys(flipped).filter((key) => childKeys("r_01").includes(key))).toEqual([]);
+
+    // The journal is append-only on the wire, so the flip reaches the server as
+    // a reversal plus the purchase it became — never as an edited event.
+    expect(
+      server.changes
+        .filter((change) => change.entity === "product_event")
+        .map((change) => change.row["product_event_value"]),
+    ).toEqual([-1, 1, 1]);
   });
 
   test("a newer aggregate replaces the children wholesale", async () => {

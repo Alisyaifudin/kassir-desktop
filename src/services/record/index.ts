@@ -403,9 +403,13 @@ export class RecordService extends Context.Tag("RecordService")<
         payments: { methodId: string; pay: number }[],
       ) => Effect.Effect<void, RecordError>;
       /**
-       * Replaces the record with a new one in the other mode: the old row is
-       * soft-deleted, every child is re-pointed, and the stock journal's signs
-       * are flipped. Returns the new record id.
+       * Replaces the record with a copy of it in the other mode. The old row is
+       * soft-deleted and keeps its children; the copy gets children of its own,
+       * with new primary keys — a child key may belong to exactly one record, so
+       * re-pointing the old ones would make every push of the record group
+       * `bad_frame`. The stock movement is reversed by appending to the journal
+       * (never by editing it: `product_events` is append-only on the wire) and
+       * then booked in the other direction. Returns the new record id.
        */
       mode: (id: string, mode: RecordMode) => Effect.Effect<string, RecordError>;
       /** Opens a credit on the record: nothing tendered, nothing rounded. */

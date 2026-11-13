@@ -2541,6 +2541,11 @@ record dirty, then re-push.
 - Never change financial/identity fields or the child set after creation; a
   correction is a new record, optionally paired via `record_pair_id`, and the
   original is soft-deleted.
+- A mode change is one of those corrections: the old row is soft-deleted and
+  keeps its children, the new one gets children of its own under **new primary
+  keys**, and the stock movement is reversed by *appending* journal events —
+  never by editing `product_events`, which is append-only on the wire, so an
+  edited event is a `noop` on every other device.
 - Apply a `stale` ack's `row` + `ch` as the winner, then set
   `record_sync_at = ack.seq` — unless the header's `record_updated_at` changed
   since the frame was sent, in which case skip the ack (§4.12).

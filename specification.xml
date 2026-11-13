@@ -411,7 +411,7 @@
     </capabilities>
 
     <migrations>
-      <database name="data.db" migration_count="57">
+      <database name="data.db" migration_count="61">
         <description>
           The only database. Every migration in src-tauri/src/database/&lt;range&gt;/migration-N.sql is embedded by
           database/mod.rs and applied on boot; the frontend also applies the same files in the e2e harness. The schema
@@ -450,10 +450,15 @@
             stored instead of failing the page
           - 57: combo templates with ordered listing/quantity and Extra-preset children plus an optional cover reference;
             the combo group joined the protocol in migration 58, and its cover bytes in migration 60
+          - 58: the combo sync contract (the combo aggregate's wire columns and its log)
+          - 59: combo discounts, carried inside the combo aggregate
+          - 60: the combo cover's byte side channel — `combo_cover_blob_version/sha256/sync_at`, client-only columns
+            that never travel
+          - 61: repairs the records an old mode flip left unsendable — see below
           Read indexes for the hot queries (records' effective date, listings, product_events' product/stock/record)
           are created in 43.
 
-          Migration 54 is the one data-repair step, and the reason `get.margins` has an estimate at all. The v1 app
+          Migration 54 and migration 61 are the two data-repair steps. 54 is the reason `get.margins` has an estimate at all. The v1 app
           wrote the *selling price* into `record_product_capital_raw` from ~2026-01, and migration-44 copied that
           column into `record_listings.record_listing_capital` and the journal it rebuilt — so 98% of 2026 revenue
           carried a cost equal to its price and every margin read zero or negative. The old tables are gone (48), so
@@ -461,6 +466,16 @@
           the matching `product_events.product_event_capital`, and re-folds `stocks.stock_capital` from the journal
           with the sync projection's rule (newest non-zero event). Idempotent; lines with no cost at all and products
           never purchased are left for the Profit page's estimate.
+
+          Migration 61 is the flip repair. `record.set.mode` used to move a record's children onto the replacement
+          while keeping their primary keys, and to rewrite the record's `product_events` in place — the first is
+          `bad_frame` on the server (a child key belongs to exactly one record) and the second is a `noop` there (the
+          journal is append-only), so the flip could never sync and every record behind it waited with it. The repair
+          recognizes the shape it left (a soft-deleted record with no children, plus an unpaired live twin sharing its
+          `record_created_at`, `record_updated_at`, `record_total` and `record_pay`, in the other mode, with
+          children), gives the twin's children keys of their own, puts the already-pushed events back to the shape the
+          server holds, appends the compensation the other tills are missing, and re-queues both rows. Idempotent (the
+          twin's clock is bumped, so the pair cannot match twice).
         </description>
       </database>
     </migrations>
@@ -1140,8 +1155,8 @@
         <method name="add.draft(input) => id">Commit a live cart: header, lines, discounts, extras, payments, stock movement and the tx_* delete, in one transaction; with `mirror`, the DUAL_FLAG twin is written in the same commit. See &lt;database&gt; / record_commit.</method>
         <method name="set.paidAt / set.creditAt / set.note / set.mode / set.payment / set.toCredit / set.payCredit / set.lineCapital" />
         <note>set.lineCapital is the escape hatch for a `modal` entered with the wrong figure: a sale carries a copy of its lot's cost, so one bad purchase line makes every later sale of that product read as a huge loss. It rewrites `record_listings.record_listing_capital` for every portion of the line (the figure is a cost per listing unit), bumps record_updated_at, clears record_sync_at, and appends `Perbaikan modal &lt;name&gt;: &lt;old&gt; → &lt;new&gt; — &lt;reason&gt; (&lt;admin&gt;)` to record_note. It never touches product_events or stocks: the lot is a separate repair with a wider blast radius. Refuses a blank reason, a negative/non-finite figure, and a line outside the record; restating the same figure writes nothing. Admin-only in the UI (the pencil beside the Modal column on the record page's ledger).</note>
-        <note>set.mode does not rewrite the record in place: it soft-deletes the original, re-points every child at a copy and flips the stock journal, returning the new id — the page follows it instead of sitting on a tombstone.</note>
-        <note>set.payment rewrites every record_methods row from the submitted list (re-file a method, restate an amount, add or trim a split) and re-caches record_pay; the totals never move. The sum must cover the grand total (an underpayment is a credit), and an outstanding credit refuses it — its money arrives with set.payCredit. set.mode flips sale ↔ purchase and revisits the stock rules, striking the old movement from the journal first.</note>
+        <note>set.mode does not rewrite the record in place: it soft-deletes the original and returns the id of a copy written in the other mode — same body, same dates, same supplier and flag — and the page follows that id instead of sitting on a tombstone. The children are <em>copied</em>, never re-pointed: a child primary key belongs to exactly one record, so moving one to the replacement is `bad_frame` on the server and stalls the whole record group. The old record keeps its own lines, and `record_pair_id` stays empty (a flip is a correction of the tombstone, not a DUAL_FLAG twin). The stock movement is reversed by <em>appending</em> compensated events and then booking the new direction as a fresh record would — `product_events` is append-only on the wire, so an event edited in place never reaches another till.</note>
+        <note>set.payment rewrites every record_methods row from the submitted list (re-file a method, restate an amount, add or trim a split) and re-caches record_pay; the totals never move. The sum must cover the grand total (an underpayment is a credit), and an outstanding credit refuses it — its money arrives with set.payCredit. set.mode flips sale ↔ purchase and revisits the stock rules, reversing the old movement in the journal before it books the new one.</note>
         <method name="delete.byId(id)">Soft-delete and reverse the stock movement. A paired record takes its twin with it, so voiding a sale never leaves the extras-only outcoming half behind.</method>
       </interface>
     </service>

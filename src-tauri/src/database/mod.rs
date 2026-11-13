@@ -362,5 +362,11 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/51-60/migration-60.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 61,
+            description: "repair_mode_flip_children",
+            sql: include_str!("../../src/database/61-70/migration-61.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }

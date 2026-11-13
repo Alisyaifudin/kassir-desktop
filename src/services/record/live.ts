@@ -33,7 +33,6 @@ import {
   drainStatements,
   receiveAtCapital,
   receivePortion,
-  receiveStatements,
   touchProduct,
   type StockLot,
 } from "../product/stock-sql";
@@ -266,6 +265,36 @@ const SELECT_EXTRAS = `
   FROM record_extras
   WHERE record_id = $1`;
 
+// The four aggregate children a mode flip copies under keys of its own. Only the
+// business columns: the new rows get fresh primary keys, so the old ones are not
+// read (and must not be reused — see `mode`).
+const SELECT_METHOD_ROWS = `
+  SELECT record_method_id, method_id, record_method_pay
+  FROM record_methods
+  WHERE record_id = $1
+  ORDER BY rowid`;
+
+const SELECT_IMAGE_ROWS = `
+  SELECT record_image_order, record_image_name, record_image_mime
+  FROM record_images
+  WHERE record_id = $1
+  ORDER BY record_image_order, rowid`;
+
+const SELECT_DISCOUNT_ROWS = `
+  SELECT d.discount_group_id, d.record_listing_id, d.discount_kind,
+         d.discount_value, d.discount_eff
+  FROM discounts d
+  JOIN record_listings rl ON rl.record_listing_id = d.record_listing_id
+  WHERE rl.record_id = $1
+  ORDER BY d.rowid`;
+
+// The journal rows a record owns: what it moved, which lot, and by how much.
+const SELECT_LINKED_EVENTS = `
+  SELECT product_id, stock_id, product_event_value, product_event_capital
+  FROM product_events
+  WHERE record_id = $1
+  ORDER BY product_event_created_at ASC, product_event_id ASC`;
+
 const SELECT_METHODS_FOR = (placeholders: string) => `
   SELECT
     rm.record_method_id, rm.record_id, rm.method_id, rm.record_method_pay,
@@ -433,6 +462,11 @@ function mirrorStatements(
   );
   return statements;
 }
+
+// The note a mode flip writes on the events that undo the old direction. It is
+// what the product page shows beside the movement, so it says what happened
+// rather than naming the mechanism.
+const MIRROR_NOTE = "Ubah mode";
 
 // The lines a delete has to compensate for: only those pointing at a catalog
 // listing have stock behind them. `listing_unit` converts the line's qty into
@@ -850,6 +884,78 @@ export const RecordLive = Layer.effect(
           })),
         ),
       );
+    }
+
+    /**
+     * Reverses the stock movement of a record's *pre-journal* lines: the ones
+     * whose product has no event naming the record.
+     *
+     * Before record-linked events existed the movement was baked into `stocks`
+     * and nothing in the journal can be replayed for it, so the listing is the
+     * only record of what happened. A sale's units go back; a purchase's units
+     * come off the lots FIFO, and a shortage is refused rather than written as a
+     * negative lot.
+     *
+     * Shared by `delete` and `set.mode` — a delete puts the goods back, and a flip
+     * has to undo the old direction before it books the new one. The events this
+     * writes are deliberately unlinked (`record_id` NULL): they compensate a
+     * record that is on its way out, so a second reversal must not find them.
+     *
+     * Returns the lots as they stand once the reversal has landed, so a caller
+     * that books a movement of its own in the same transaction plans it against
+     * the reversed state.
+     */
+    function legacyReversal(
+      moves: readonly MoveRow[],
+      mode: RecordMode,
+      journaled: ReadonlySet<string>,
+      now: number,
+    ): Effect.Effect<{ statements: Statement[]; lots: Map<string, StockLot[]> }, RecordError> {
+      return Effect.gen(function* () {
+        const statements: Statement[] = [];
+        const lots = new Map<string, StockLot[]>();
+
+        for (const move of moves) {
+          if (journaled.has(move.product_id)) continue;
+          const requestedPcs = move.record_listing_qty * move.listing_unit;
+          if (requestedPcs <= 0) continue;
+          let planned = lots.get(move.product_id);
+          if (planned === undefined) {
+            planned = yield* readLots(move.product_id);
+            lots.set(move.product_id, planned);
+          }
+
+          // A sale took the units out, so a receipt-shaped event puts them back
+          // at the cost the line carries per unit of the listing.
+          if (mode === "incoming") {
+            const capital = move.record_listing_capital / move.listing_unit;
+            const received = receivePortion(
+              move.product_id,
+              { value: requestedPcs, capital },
+              now,
+            );
+            statements.push(...received.statements);
+            lots.set(move.product_id, [
+              ...planned,
+              { id: received.stockId, value: requestedPcs, capital },
+            ]);
+            continue;
+          }
+
+          const consumed = consumeStatements(move.product_id, planned, requestedPcs, now);
+          if (consumed.shortage > 0) {
+            return yield* Effect.fail(
+              new RecordError({
+                message: `Stok ${move.record_listing_name} tidak mencukupi untuk membalik catatan`,
+              }),
+            );
+          }
+          statements.push(...consumed.statements);
+          lots.set(move.product_id, depleteLots(planned, requestedPcs));
+        }
+
+        return { statements, lots };
+      });
     }
 
     function bumpRevision(): Effect.Effect<void> {
@@ -1942,93 +2048,274 @@ export const RecordLive = Layer.effect(
             const record = yield* readRecord(id);
             if (record.record_mode === mode) return id;
 
-            const newId = generateId();
             const now = Date.now();
-            const statements: Statement[] = [
-              {
-                sql: `INSERT INTO records (
-                    record_id, record_created_at, record_paid_at, record_rounding,
-                    record_credit_at, record_cashier, record_mode, record_pay,
-                    record_note, record_fix, record_customer_name,
-                    record_customer_phone, record_sub_total, record_total,
-                    record_updated_at, record_sync_at, record_deleted_at
-                  )
-                  SELECT
-                    $1, record_created_at, record_paid_at, record_rounding,
-                    record_credit_at, record_cashier, $2, record_pay,
-                    record_note, record_fix, record_customer_name,
-                    record_customer_phone, record_sub_total, record_total,
-                    $3, NULL, NULL
-                  FROM records WHERE record_id = $4`,
-                bindings: [newId, mode, now, id],
-              },
-            ];
+            const newId = generateId();
+            const becomesPurchase = mode === "outcoming";
 
-            // The line and payment rows move with the replacement record; the
-            // old record is only a tombstone afterwards.
-            statements.push(
-              {
-                sql: "UPDATE record_listings SET record_id = $1 WHERE record_id = $2",
-                bindings: [newId, id],
-              },
-              {
-                sql: "UPDATE record_methods SET record_id = $1 WHERE record_id = $2",
-                bindings: [newId, id],
-              },
-              {
-                sql: "UPDATE record_extras SET record_id = $1 WHERE record_id = $2",
-                bindings: [newId, id],
-              },
-              {
-                sql: "UPDATE record_images SET record_id = $1 WHERE record_id = $2",
-                bindings: [newId, id],
-              },
-            );
-
-            // A mode flip reverses every stock movement: the event sign flips,
-            // and the cached lot takes the difference between the old and new
-            // signed value.
-            const events = yield* db
-              .selectMany<{
-                product_event_id: string;
+            // The whole old aggregate is read up front: the replacement is a copy
+            // of it in the other mode, and the tombstone and the copy have to be
+            // one transaction — a flip that landed half way would leave the shop
+            // either short a record or holding it twice.
+            const [listings, methods, extras, images, discountRows, events] = yield* Effect.all([
+              db.selectMany<ListingRow>(SELECT_LISTINGS, [id]),
+              db.selectMany<{
+                record_method_id: string;
+                method_id: string;
+                record_method_pay: number;
+              }>(SELECT_METHOD_ROWS, [id]),
+              db.selectMany<ExtraRow>(SELECT_EXTRAS, [id]),
+              db.selectMany<{
+                record_image_order: number;
+                record_image_name: string;
+                record_image_mime: string;
+              }>(SELECT_IMAGE_ROWS, [id]),
+              db.selectMany<{
+                discount_group_id: string;
+                record_listing_id: string;
+                discount_kind: DiscountKind;
+                discount_value: number;
+                discount_eff: number;
+              }>(SELECT_DISCOUNT_ROWS, [id]),
+              db.selectMany<{
                 product_id: string;
                 stock_id: string | null;
                 product_event_value: number;
-              }>(
-                `SELECT product_event_id, product_id, stock_id, product_event_value
-                 FROM product_events WHERE record_id = $1`,
-                [id],
-              )
-              .pipe(Effect.mapError(dbErrorToRecordError));
-            for (const event of events) {
-              if (event.stock_id !== null) {
-                statements.push({
-                  sql: `UPDATE stocks SET
-                      stock_value = stock_value - 2 * $1, stock_updated_at = $2
-                    WHERE stock_id = $3`,
-                  bindings: [event.product_event_value, now, event.stock_id],
-                });
-              }
-              statements.push({
-                sql: `UPDATE product_events SET
-                    record_id = $1, product_event_value = -product_event_value
-                  WHERE product_event_id = $2`,
-                bindings: [newId, event.product_event_id],
+                product_event_capital: number;
+              }>(SELECT_LINKED_EVENTS, [id]),
+            ]).pipe(Effect.mapError(dbErrorToRecordError));
+
+            const statements: Statement[] = [
+              // The old row becomes a tombstone that keeps its children. A child
+              // primary key may belong to exactly one record and can never be
+              // re-pointed at the replacement: the server reads that as
+              // `bad_frame` and refuses the whole batch (SYNC-V2 §10.3), which
+              // leaves the flip unsendable and every later record behind it.
+              // Keeping the children also keeps what the tombstone sold.
+              {
+                sql: `UPDATE records SET
+                    record_deleted_at = max($1, record_updated_at + 1),
+                    record_updated_at = max($1, record_updated_at + 1), record_sync_at = NULL
+                  WHERE record_id = $2`,
+                bindings: [now, id],
+              },
+            ];
+
+            // The old movement is undone by *appending* to the journal, never by
+            // rewriting it: `product_events` is append-only on the wire, so an
+            // event edited in place there is a `noop` and the stock never moves
+            // on any till but this one.
+            //
+            // `lots` tracks what each lot will hold once this batch lands, so the
+            // receipt half below is planned against the reversed state: a flip is
+            // a delete and a re-entry, in one transaction.
+            const lots = new Map<string, StockLot[]>();
+            function lotsOf(productId: string): Effect.Effect<StockLot[], RecordError> {
+              return Effect.gen(function* () {
+                const planned = lots.get(productId);
+                if (planned !== undefined) return planned;
+                const rows = yield* readLots(productId);
+                lots.set(productId, rows);
+                return rows;
               });
-              statements.push(touchProduct(event.product_id, now));
             }
 
+            for (const event of events) {
+              statements.push({
+                sql: `INSERT INTO product_events (
+                    product_event_id, product_event_created_at, product_event_sync_at,
+                    product_event_value, product_event_capital, product_id, stock_id,
+                    record_id, product_event_note
+                  ) VALUES ($1, $2, NULL, $3, $4, $5, $6, NULL, $7)`,
+                bindings: [
+                  generateId(),
+                  now,
+                  -event.product_event_value,
+                  event.product_event_capital,
+                  event.product_id,
+                  event.stock_id,
+                  MIRROR_NOTE,
+                ],
+              });
+              if (event.stock_id === null) continue;
+              statements.push({
+                sql: `UPDATE stocks SET stock_value = stock_value - $1, stock_updated_at = $2
+                       WHERE stock_id = $3`,
+                bindings: [event.product_event_value, now, event.stock_id],
+              });
+              statements.push(touchProduct(event.product_id, now));
+              const planned = yield* lotsOf(event.product_id);
+              const index = planned.findIndex((lot) => lot.id === event.stock_id);
+              if (index >= 0) {
+                planned[index] = {
+                  ...planned[index]!,
+                  value: planned[index]!.value - event.product_event_value,
+                };
+              }
+            }
+
+            // A line written before the journal existed carries its movement in
+            // `stocks` and in the listing only, so it is reversed from the
+            // listing — the same repair a delete does.
+            const journaled = new Set(events.map((event) => event.product_id));
+            const moves = yield* db
+              .selectMany<MoveRow>(SELECT_MOVES, [id])
+              .pipe(Effect.mapError(dbErrorToRecordError));
+            const legacy = yield* legacyReversal(moves, record.record_mode, journaled, now);
+            statements.push(...legacy.statements);
+            for (const [productId, planned] of legacy.lots) lots.set(productId, planned);
+
+            // The replacement: every business column carried over, the mode
+            // flipped, the dates left where they were (the day the shop paid is a
+            // fact about this money, not about when it was filed), and a fresh
+            // clock so the flip is what `record_updated_at` says it is.
+            //
+            // `record_pair_id` stays empty on both rows: a flip is a correction of
+            // the tombstone, not a `dual` twin, and a pair would make voiding one
+            // void the other as well.
             statements.push({
-              sql: `UPDATE records SET
-                  record_deleted_at = max($1, record_updated_at + 1),
-                  record_updated_at = max($1, record_updated_at + 1), record_sync_at = NULL
-                WHERE record_id = $2`,
-              bindings: [now, id],
+              sql: `INSERT INTO records (
+                  record_id, record_created_at, record_paid_at, record_rounding,
+                  record_credit_at, record_cashier, record_mode, record_pay,
+                  record_note, record_fix, record_customer_name,
+                  record_customer_phone, record_supplier_id, record_supplier_name,
+                  record_sub_total, record_total, record_flag, record_updated_at,
+                  record_sync_at, record_deleted_at, record_pair_id
+                )
+                SELECT
+                  $1, record_created_at, record_paid_at, record_rounding,
+                  record_credit_at, record_cashier, $2, record_pay,
+                  record_note, record_fix, record_customer_name,
+                  record_customer_phone, record_supplier_id, record_supplier_name,
+                  record_sub_total, record_total, record_flag, $3, NULL, NULL, NULL
+                FROM records WHERE record_id = $4`,
+              bindings: [newId, mode, now, id],
             });
+
+            // Children are copied under keys of their own. Re-pointing the old rows
+            // would steal a primary key from the record the server already knows,
+            // and the tombstone would come back without the lines it sold.
+            const portionIds = new Map<string, string>();
+            const portionEvents = new Map<string, string | null>();
+            for (const portion of listings) {
+              portionIds.set(portion.record_listing_id, generateId());
+              const productId = portion.product_id;
+              const pcs = portion.record_listing_qty;
+              if (productId === null || pcs <= 0) {
+                portionEvents.set(portion.record_listing_id, null);
+                continue;
+              }
+
+              const planned = yield* lotsOf(productId);
+              if (becomesPurchase) {
+                // A purchase earns the units back at the cost the line carries.
+                const received = receiveAtCapital(
+                  productId,
+                  planned,
+                  { pcs, capital: portion.record_listing_capital },
+                  now,
+                  record.record_fix,
+                  newId,
+                );
+                statements.push(...received.statements);
+                lots.set(productId, received.lots);
+                portionEvents.set(portion.record_listing_id, received.eventId);
+                continue;
+              }
+              if (planned.length === 0) {
+                // No lot at all: open one already carrying the oversold quantity,
+                // which is what a fresh sale does.
+                const received = receivePortion(productId, { value: -pcs, capital: 0 }, now, newId);
+                statements.push(...received.statements);
+                lots.set(productId, [{ id: received.stockId, value: -pcs, capital: 0 }]);
+                portionEvents.set(portion.record_listing_id, received.eventId);
+                continue;
+              }
+              const drained = drainStatements(productId, planned, pcs, now, "", newId);
+              statements.push(...drained.statements);
+              lots.set(productId, drained.lots);
+              portionEvents.set(portion.record_listing_id, drained.portions[0]?.eventId ?? null);
+            }
+
+            for (const portion of listings) {
+              statements.push(
+                insertPortion({
+                  id: portionIds.get(portion.record_listing_id)!,
+                  groupId: portion.record_listing_group_id,
+                  recordId: newId,
+                  productEventId: portionEvents.get(portion.record_listing_id) ?? null,
+                  productId: portion.product_id,
+                  name: portion.record_listing_name,
+                  kind: portion.record_listing_kind,
+                  unit: portion.record_listing_unit,
+                  price: portion.record_listing_price,
+                  qty: portion.record_listing_qty,
+                  capital: portion.record_listing_capital,
+                  total: portion.record_listing_total,
+                }),
+              );
+            }
+            // A discount hangs off its listing, so it follows the copy and keeps
+            // the `discount_group_id` the read model regroups by.
+            for (const discount of discountRows) {
+              const listingId = portionIds.get(discount.record_listing_id);
+              if (listingId === undefined) continue;
+              statements.push({
+                sql: `INSERT INTO discounts (
+                    discount_id, discount_group_id, record_listing_id, discount_kind,
+                    discount_value, discount_eff
+                  ) VALUES ($1, $2, $3, $4, $5, $6)`,
+                bindings: [
+                  generateId(),
+                  discount.discount_group_id,
+                  listingId,
+                  discount.discount_kind,
+                  discount.discount_value,
+                  discount.discount_eff,
+                ],
+              });
+            }
+            for (const method of methods) {
+              statements.push(insertMethod(newId, method.method_id, method.record_method_pay));
+            }
+            for (const extra of extras) {
+              statements.push({
+                sql: `INSERT INTO record_extras (
+                    record_extra_id, record_extra_name, record_id, record_extra_value,
+                    record_extra_eff, record_extra_kind, record_extra_flag
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                bindings: [
+                  generateId(),
+                  extra.record_extra_name,
+                  newId,
+                  extra.record_extra_value,
+                  extra.record_extra_eff,
+                  extra.record_extra_kind,
+                  extra.record_extra_flag,
+                ],
+              });
+            }
+            for (const picture of images) {
+              statements.push({
+                sql: `INSERT INTO record_images (
+                    record_image_id, record_image_order, record_image_name,
+                    record_image_mime, record_id
+                  ) VALUES ($1, $2, $3, $4, $5)`,
+                bindings: [
+                  generateId(),
+                  picture.record_image_order,
+                  picture.record_image_name,
+                  picture.record_image_mime,
+                  newId,
+                ],
+              });
+            }
 
             yield* commit(statements);
             yield* bumpRevision();
-            yield* refreshProducts();
+            // Only the products this flip moved can be stale, and a flip touches a
+            // handful — a full catalogue re-read here would put an O(catalogue)
+            // scan between the click and the page.
+            yield* refreshProductsFor(lots.keys());
             return newId;
           });
         },
@@ -2089,49 +2376,13 @@ export const RecordLive = Layer.effect(
 
             // Before record-linked stock events existed, the inventory movement
             // was baked into `stocks` and could not be found by the replay above.
-            // Reverse those legacy lines explicitly. They are deliberately
-            // unlinked events: the record is being deleted, so a second delete
-            // must not treat the compensation as one of its own movements. A
-            // purchase cannot be removed if its units have already been consumed;
-            // fail rather than write a negative stock lot.
+            // Reverse those lines from their listings — a purchase cannot be
+            // removed if its units have already been consumed.
             const moves = yield* db
               .selectMany<MoveRow>(SELECT_MOVES, [id])
               .pipe(Effect.mapError(dbErrorToRecordError));
-            const legacyLotsByProduct = new Map<string, StockLot[]>();
-            for (const move of moves) {
-              if (journaledProducts.has(move.product_id)) continue;
-              const requestedPcs = move.record_listing_qty * move.listing_unit;
-              if (requestedPcs <= 0) continue;
-              if (active[0].record_mode === "incoming") {
-                statements.push(
-                  ...receiveStatements(
-                    move.product_id,
-                    {
-                      value: requestedPcs,
-                      capital: move.record_listing_capital / move.listing_unit,
-                    },
-                    now,
-                  ),
-                );
-                continue;
-              }
-
-              let lots = legacyLotsByProduct.get(move.product_id);
-              if (lots === undefined) {
-                lots = yield* readLots(move.product_id);
-                legacyLotsByProduct.set(move.product_id, lots);
-              }
-              const consumed = consumeStatements(move.product_id, lots, requestedPcs, now);
-              if (consumed.shortage > 0) {
-                return yield* Effect.fail(
-                  new RecordError({
-                    message: `Stok ${move.record_listing_name} tidak mencukupi untuk menghapus catatan`,
-                  }),
-                );
-              }
-              statements.push(...consumed.statements);
-              legacyLotsByProduct.set(move.product_id, depleteLots(lots, requestedPcs));
-            }
+            const legacy = yield* legacyReversal(moves, active[0].record_mode, journaledProducts, now);
+            statements.push(...legacy.statements);
 
             yield* commit(statements);
             yield* bumpRevision();
