@@ -16,6 +16,8 @@ import { CustomerLive } from "./customer/live";
 import { DatabaseLive } from "./db/live";
 import { ExtraService } from "./extra";
 import { ExtraLive } from "./extra/live";
+import { ImageService } from "./image";
+import { ImageLive } from "./image/live";
 import { InfoService } from "./info";
 import { InfoLive } from "./info/live";
 import { LocalStorageLive } from "./local-storage/live";
@@ -68,6 +70,7 @@ export function buildAppLive(hidden: HiddenLive) {
   const extraLive = ExtraLive.pipe(Layer.provide(hidden));
   const configLive = ConfigLive.pipe(Layer.provide(hidden));
   const customerLive = CustomerLive.pipe(Layer.provide(hidden));
+  const imageLive = ImageLive.pipe(Layer.provide(hidden));
   const infoLive = InfoLive.pipe(Layer.provide(hidden));
   const methodLive = MethodLive.pipe(Layer.provide(hidden));
   const moneyLive = MoneyLive.pipe(Layer.provide(hidden));
@@ -81,8 +84,14 @@ export function buildAppLive(hidden: HiddenLive) {
   const zoomLive = ZoomLive.pipe(Layer.provide(hidden));
   // `record` reverses a deleted record's stock movement, so it needs `product`.
   const recordLive = RecordLive.pipe(Layer.provide(hidden), Layer.provide(productLive));
-  // `transaction` commits a cart through `record` and restores one from it.
-  const transactionLive = TransactionLive.pipe(Layer.provide(hidden), Layer.provide(recordLive));
+  // `transaction` commits a cart through `record` and restores one from it. It
+  // also opens and drops the pictures attached to a cart, which is an unlink
+  // that has to clear the `image` refcount first.
+  const transactionLive = TransactionLive.pipe(
+    Layer.provide(hidden),
+    Layer.provide(recordLive),
+    Layer.provide(imageLive),
+  );
 
   // Auth also needs the cashier service to verify the session's id.
   const authLive = AuthLive.pipe(Layer.provide(hidden), Layer.provide(cashierLive));
@@ -123,6 +132,7 @@ export function buildAppLive(hidden: HiddenLive) {
     comboLive,
     customerLive,
     extraLive,
+    imageLive,
     infoLive,
     listingLive,
     methodLive,
@@ -161,6 +171,7 @@ export function makeService(live: typeof appLive) {
         combo: yield* ComboService,
         customer: yield* CustomerService,
         extra: yield* ExtraService,
+        image: yield* ImageService,
         info: yield* InfoService,
         listing: yield* ListingService,
         method: yield* MethodService,

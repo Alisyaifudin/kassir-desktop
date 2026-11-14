@@ -15,6 +15,7 @@ import {
   type DraftMode,
 } from ".";
 import { DatabaseService, type DbError, type Statement } from "../db";
+import { ImageService } from "../image";
 import { RecordService, type RecordDraftInput, type RecordFull, type RecordMirrorInput } from "../record";
 import {
   discountsEatLine,
@@ -549,6 +550,7 @@ export const TransactionLive = Layer.effect(
   Effect.gen(function* () {
     const db = yield* DatabaseService;
     const record = yield* RecordService;
+    const images = yield* ImageService;
 
     // The live cart, seeded empty so layer construction stays synchronous. A
     // change updates the ref right away; the database write is coalesced below.
@@ -1383,14 +1385,15 @@ export const TransactionLive = Layer.effect(
             yield* SubscriptionRef.update(draftsRef, (list) =>
               list.filter((draft) => draft.id !== id),
             );
-            // The cascade drops the rows; the files are ours to remove.
+            // The cascade drops the rows; the files are ours to release — a name
+            // the record that submitted this cart still shows survives.
             for (const img of target?.images ?? []) {
-              yield* image.del(img.name).pipe(
+              yield* images.release(img.name).pipe(
                 // Effect.logError only writes to the webview console; the app
                 // log file never sees it. The DB row is already gone (cascade),
-                // so the file becomes an orphan on disk with no other record.
+                // so a file that cannot be unlinked stays an orphan on disk.
                 Effect.catchAll((error) =>
-                  Effect.sync(() => log.error(`tx: gagal menghapus berkas gambar: ${error.e.message}`)),
+                  Effect.sync(() => log.error(`tx: gagal menghapus berkas gambar: ${error.message}`)),
                 ),
               );
             }
@@ -1495,11 +1498,12 @@ export const TransactionLive = Layer.effect(
               images: draft.images.filter((img) => img.id !== imageId),
             }));
             if (target !== undefined) {
-              yield* image.del(target.name).pipe(
-                // See byId above: the file is orphaned on disk with no other
+              yield* images.release(target.name).pipe(
+                // See byId above: a file another row still names stays, and one
+                // that cannot be unlinked is orphaned on disk with no other
                 // record than this log line.
                 Effect.catchAll((error) =>
-                  Effect.sync(() => log.error(`tx: gagal menghapus berkas gambar: ${error.e.message}`)),
+                  Effect.sync(() => log.error(`tx: gagal menghapus berkas gambar: ${error.message}`)),
                 ),
               );
             }

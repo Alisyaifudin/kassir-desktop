@@ -6,6 +6,7 @@ import { ProductLive } from "../product/live";
 import { RecordLive } from "../record/live";
 import { TransactionService } from ".";
 import { DUAL_FLAG } from "~/lib/constants";
+import { ImageLive } from "../image/live";
 import { TransactionLive } from "./live";
 
 /**
@@ -43,7 +44,11 @@ function setup() {
 
   const productLayer = ProductLive.pipe(Layer.provide(flaky));
   const recordLayer = RecordLive.pipe(Layer.provide(flaky), Layer.provide(productLayer));
-  const transactionLayer = TransactionLive.pipe(Layer.provide(flaky), Layer.provide(recordLayer));
+  const transactionLayer = TransactionLive.pipe(
+    Layer.provide(flaky),
+    Layer.provide(recordLayer),
+    Layer.provide(ImageLive.pipe(Layer.provide(flaky))),
+  );
 
   return { db, state, dbLayer, layer: transactionLayer };
 }
@@ -257,7 +262,11 @@ describe("cart flush", () => {
     // through the hydrate query, not just sit in the row.
     const productLayer = ProductLive.pipe(Layer.provide(dbLayer));
     const recordLayer = RecordLive.pipe(Layer.provide(dbLayer), Layer.provide(productLayer));
-    const second = TransactionLive.pipe(Layer.provide(dbLayer), Layer.provide(recordLayer));
+    const second = TransactionLive.pipe(
+      Layer.provide(dbLayer),
+      Layer.provide(recordLayer),
+      Layer.provide(ImageLive.pipe(Layer.provide(dbLayer))),
+    );
     const drafts = await run(second, (tx) => tx.get.drafts("incoming"));
 
     expect(drafts[0]?.extras.map((extra) => [extra.name, extra.flag])).toEqual([
@@ -298,7 +307,11 @@ describe("cart flush", () => {
 
     const productLayer = ProductLive.pipe(Layer.provide(dbLayer));
     const recordLayer = RecordLive.pipe(Layer.provide(dbLayer), Layer.provide(productLayer));
-    const second = TransactionLive.pipe(Layer.provide(dbLayer), Layer.provide(recordLayer));
+    const second = TransactionLive.pipe(
+      Layer.provide(dbLayer),
+      Layer.provide(recordLayer),
+      Layer.provide(ImageLive.pipe(Layer.provide(dbLayer))),
+    );
     const drafts = await run(second, (tx) => tx.get.drafts("incoming"));
 
     expect(drafts[0]?.listings.map((row) => row.name)).toEqual(["Gula", "Kopi", "Teh"]);
@@ -328,7 +341,11 @@ describe("cart flush", () => {
 
     const productLayer = ProductLive.pipe(Layer.provide(dbLayer));
     const recordLayer = RecordLive.pipe(Layer.provide(dbLayer), Layer.provide(productLayer));
-    const second = TransactionLive.pipe(Layer.provide(dbLayer), Layer.provide(recordLayer));
+    const second = TransactionLive.pipe(
+      Layer.provide(dbLayer),
+      Layer.provide(recordLayer),
+      Layer.provide(ImageLive.pipe(Layer.provide(dbLayer))),
+    );
     const drafts = await run(second, (tx) => tx.get.drafts("incoming"));
 
     expect(drafts[0]?.extras.map((extra) => extra.name)).toEqual(["Plastik", "Ongkir"]);
@@ -354,7 +371,11 @@ describe("cart flush", () => {
 
     const productLayer = ProductLive.pipe(Layer.provide(dbLayer));
     const recordLayer = RecordLive.pipe(Layer.provide(dbLayer), Layer.provide(productLayer));
-    const second = TransactionLive.pipe(Layer.provide(dbLayer), Layer.provide(recordLayer));
+    const second = TransactionLive.pipe(
+      Layer.provide(dbLayer),
+      Layer.provide(recordLayer),
+      Layer.provide(ImageLive.pipe(Layer.provide(dbLayer))),
+    );
     const drafts = await run(second, (tx) => tx.get.drafts("incoming"));
 
     expect(drafts[0]?.listings.map((row) => row.name)).toEqual(["Baru", "Kopi"]);
@@ -582,7 +603,11 @@ describe("cart payment time", () => {
     const productLayer = ProductLive.pipe(Layer.provide(dbLayer));
     const recordLayer = RecordLive.pipe(Layer.provide(dbLayer), Layer.provide(productLayer));
 
-    const first = TransactionLive.pipe(Layer.provide(dbLayer), Layer.provide(recordLayer));
+    const first = TransactionLive.pipe(
+      Layer.provide(dbLayer),
+      Layer.provide(recordLayer),
+      Layer.provide(ImageLive.pipe(Layer.provide(dbLayer))),
+    );
     await run(first, (tx) =>
       Effect.gen(function* () {
         const id = yield* tx.add.new("incoming");
@@ -592,7 +617,11 @@ describe("cart payment time", () => {
     );
 
     // A fresh layer means a fresh hydrate, which is the app restarting.
-    const second = TransactionLive.pipe(Layer.provide(dbLayer), Layer.provide(recordLayer));
+    const second = TransactionLive.pipe(
+      Layer.provide(dbLayer),
+      Layer.provide(recordLayer),
+      Layer.provide(ImageLive.pipe(Layer.provide(dbLayer))),
+    );
     const drafts = await run(second, (tx) => tx.get.drafts("incoming"));
 
     expect(drafts[0]?.paidAt).toBe(PICKED);

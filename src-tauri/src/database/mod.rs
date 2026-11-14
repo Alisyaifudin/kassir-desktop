@@ -368,5 +368,11 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/61-70/migration-61.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 62,
+            description: "index_image_names",
+            sql: include_str!("../../src/database/61-70/migration-62.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }

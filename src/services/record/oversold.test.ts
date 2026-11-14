@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { Effect, Layer } from "effect";
 import { recalcDiscounts } from "~/lib/purchase";
 import { makeTestDatabase } from "../db/test-support";
+import { ImageLive } from "../image/live";
 import { ProductLive } from "../product/live";
 import { TransactionLive } from "../transaction/live";
 import { TransactionService } from "../transaction";
@@ -23,6 +24,7 @@ function setup() {
   const transactionLayer = TransactionLive.pipe(
     Layer.provide(layer),
     Layer.provide(recordLayer),
+    Layer.provide(ImageLive.pipe(Layer.provide(layer))),
   );
 
   db.exec(`

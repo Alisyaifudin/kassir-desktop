@@ -18,6 +18,7 @@ import {
   type DraftMethod,
   type DraftMode,
 } from ".";
+import { ImageLive } from "../image/live";
 import { TransactionLive } from "./live";
 
 // ---------------------------------------------------------------------------
@@ -31,6 +32,7 @@ function setup() {
   const transactionLayer = TransactionLive.pipe(
     Layer.provide(layer),
     Layer.provide(recordLayer),
+    Layer.provide(ImageLive.pipe(Layer.provide(layer))),
   );
   return { db, transactionLayer, recordLayer };
 }
@@ -185,6 +187,7 @@ describe("a purchase refreshes the product it stocked", () => {
     const transactionLayer = TransactionLive.pipe(
       Layer.provide(layer),
       Layer.provide(recordLayer),
+      Layer.provide(ImageLive.pipe(Layer.provide(layer))),
     );
     seed(db);
 
@@ -1561,6 +1564,7 @@ describe("TransactionService.submit — lifecycle", () => {
     const transactionLayer = TransactionLive.pipe(
       Layer.provide(layer),
       Layer.provide(recordLayer),
+      Layer.provide(ImageLive.pipe(Layer.provide(layer))),
     );
     const result = await Effect.runPromise(
       Effect.gen(function* () {
@@ -1601,6 +1605,7 @@ describe("TransactionService.submit — lifecycle", () => {
     const transactionLayer = TransactionLive.pipe(
       Layer.provide(layer),
       Layer.provide(recordLayer),
+      Layer.provide(ImageLive.pipe(Layer.provide(layer))),
     );
     const recordId = await Effect.runPromise(
       Effect.gen(function* () {
@@ -1635,6 +1640,7 @@ describe("TransactionService.submit — lifecycle", () => {
     const transactionLayer = TransactionLive.pipe(
       Layer.provide(layer),
       Layer.provide(recordLayer),
+      Layer.provide(ImageLive.pipe(Layer.provide(layer))),
     );
 
     await Effect.runPromise(

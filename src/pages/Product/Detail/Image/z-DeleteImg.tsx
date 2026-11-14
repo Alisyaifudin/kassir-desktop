@@ -15,13 +15,14 @@ import {
 import { Spinner } from "~/components/Spinner";
 import { TextError } from "~/components/TextError";
 import { useImageUrl } from "~/hooks/use-image";
-import { image } from "~/lib/image";
 import { service } from "~/services";
 import type { GalleryItem } from "./use-gallery";
 
 /**
- * Deletes a saved image: the row first, then its file. A draft is not in the db
- * and never reaches here - `DiscardDraft` drops it.
+ * Deletes a saved image: the row first, then its file — by way of
+ * `service.image.release`, because a deduped picture (or one a record still
+ * shows) is named by more than one row and only the last one may unlink it.
+ * A draft is not in the db and never reaches here - `DiscardDraft` drops it.
  */
 export function DeleteImg({ productId, item }: { productId: string; item: GalleryItem }) {
   const [open, setOpen] = useState(false);
@@ -41,10 +42,10 @@ export function DeleteImg({ productId, item }: { productId: string; item: Galler
       setBusy(false);
       return;
     }
-    const file = await Effect.runPromise(image.del(item.file).pipe(Effect.either));
+    const file = await Effect.runPromise(service.image.release(item.file).pipe(Effect.either));
     setBusy(false);
     if (file._tag === "Left") {
-      setError(file.left.e.message);
+      setError(file.left.message);
       return;
     }
     setOpen(false);

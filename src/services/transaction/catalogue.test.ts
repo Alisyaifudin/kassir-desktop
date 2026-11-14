@@ -9,6 +9,7 @@ import { ProductService } from "../product";
 import { ProductLive } from "../product/live";
 import { RecordLive } from "../record/live";
 import { TransactionService, type DraftListing } from ".";
+import { ImageLive } from "../image/live";
 import { TransactionLive } from "./live";
 
 /**
@@ -27,6 +28,7 @@ function setup() {
   const transactionLayer = TransactionLive.pipe(
     Layer.provide(layer),
     Layer.provide(recordLayer),
+    Layer.provide(ImageLive.pipe(Layer.provide(layer))),
   );
   const listingLayer = ListingLive.pipe(Layer.provide(layer), Layer.provide(productLayer));
   return {
