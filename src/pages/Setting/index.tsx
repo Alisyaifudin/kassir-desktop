@@ -1,6 +1,7 @@
 import type { RouteObject } from "react-router";
 import { shopRoute } from "./Shop";
 import { dataRoute } from "./Data";
+import { imageRoute } from "./Image";
 import { profileRoute } from "./Profile";
 import { printerRoute } from "./Printer";
 import { syncRoute } from "./Sync";
@@ -26,6 +27,7 @@ export const settingRoute: RouteObject = {
     profileRoute,
     shopRoute,
     dataRoute,
+    imageRoute,
     syncRoute,
     printerRoute,
     { index: true, Component: Page },

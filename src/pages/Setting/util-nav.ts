@@ -1,6 +1,7 @@
 import {
   Building2,
   Database,
+  ImageDown,
   Printer,
   RefreshCw,
   User,
@@ -58,6 +59,15 @@ const settingsNav: NavItem[] = [
     description: "Unduh dan unggah data aplikasi",
     icon: Database,
     hue: 55,
+    section: "Sistem",
+    roles: ["admin"],
+  },
+  {
+    label: "Gambar",
+    path: "/setting/image",
+    description: "Perkecil dan rapikan gambar yang tersimpan",
+    icon: ImageDown,
+    hue: 285,
     section: "Sistem",
     roles: ["admin"],
   },

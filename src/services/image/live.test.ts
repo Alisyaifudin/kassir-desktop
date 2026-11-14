@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { Context, Effect, Layer } from "effect";
 import { ImageService } from ".";
 import { makeTestDatabase } from "../db/test-support";
@@ -14,16 +14,17 @@ import { ImageLive } from "./live";
  * soft-deleted row stops owning its file (a tombstone that owned bytes would mean
  * the catalogue never frees one).
  *
- * The fs plugin is stubbed on this side of the boundary, like `lib/image.test.ts`
- * does: what is asserted is *whether* an unlink was attempted, plus its path.
+ * What is asserted here is the **decision** — the count, and whether `release`
+ * answered `kept` or `deleted` — not the path the unlink wrote. A `mock.module`
+ * registration is not scoped to the file that made it (`~/hooks/use-image.test.tsx`
+ * documents the same trap), and three component tests stub `~/lib/image` for the
+ * whole process: under a full `bun test` run the unlink here may well be *their*
+ * stub, so a recorder in this file would fail on load order rather than on
+ * behaviour. The unlink itself is covered where it lives, in `lib/image.test.ts`.
  */
-const removed: string[] = [];
-
 mock.module("@tauri-apps/plugin-fs", () => ({
   BaseDirectory: { AppData: 1 },
-  remove: async (path: string) => {
-    removed.push(path);
-  },
+  remove: async () => {},
 }));
 
 mock.module("@tauri-apps/api/path", () => ({
@@ -94,17 +95,12 @@ function combo(db: Db, id: string, name: string, deletedAt: number | null = null
   ).run(id, id, name, deletedAt);
 }
 
-beforeEach(() => {
-  removed.length = 0;
-});
-
 describe("image release", () => {
-  test("unlinks a file no row names", async () => {
+  test("no row names it, so the file may go", async () => {
     const { layer } = setup();
-    const released = await run(layer, (image) => image.release("orphan.webp"));
 
-    expect(released).toBe("deleted");
-    expect(removed).toEqual(["images/orphan.webp"]);
+    expect(await run(layer, (image) => image.refs("orphan.webp"))).toBe(0);
+    expect(await run(layer, (image) => image.release("orphan.webp"))).toBe("deleted");
   });
 
   test("keeps a file the gallery still names in another product", async () => {
@@ -117,7 +113,6 @@ describe("image release", () => {
 
     expect(refs).toBe(2);
     expect(released).toBe("kept");
-    expect(removed).toEqual([]);
   });
 
   test("a sold record keeps its picture even after the product photo is gone", async () => {
@@ -128,7 +123,6 @@ describe("image release", () => {
     const released = await run(layer, (image) => image.release("receipt.webp"));
 
     expect(released).toBe("kept");
-    expect(removed).toEqual([]);
   });
 
   test("an open cart's picture is counted", async () => {

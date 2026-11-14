@@ -746,7 +746,10 @@ fn images_dir(app: &tauri::AppHandle) -> Result<PathBuf, SyncFailure> {
 /// The name is used exactly as the row holds it — it is the key the gallery reads
 /// the file back by (`src/lib/image.ts`), so trimming it here would look for a
 /// file nobody wrote.
-fn safe_file_name(name: &str) -> Option<String> {
+///
+/// `pub(crate)`: the optimizer (`image_opt.rs`) joins a name the webview just minted
+/// onto the same directory, and it must refuse exactly what this refuses.
+pub(crate) fn safe_file_name(name: &str) -> Option<String> {
     if name.trim().is_empty() || name.len() > FILE_NAME_MAX {
         return None;
     }

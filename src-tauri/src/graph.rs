@@ -21,10 +21,11 @@ use futures_util::TryStreamExt;
 use serde::Serialize;
 use sqlx::sqlite::SqliteRow;
 use sqlx::{Row, SqlitePool};
+
+use crate::database::pool;
 use tauri::ipc::{Channel, Response};
 use tauri::{command, AppHandle, Manager, Runtime};
 
-const DB_URL: &str = "sqlite:data.db";
 const MAGIC: &[u8; 8] = b"KGRPH\0\0\0";
 const VERSION: u16 = 1;
 const HEADER_BYTES: usize = 72;
@@ -39,7 +40,6 @@ const CACHE_DIR: &str = "product-graphs";
 /// listed without a manifest: the header inside each file carries the rest.
 const FILE_PREFIX: &str = "product-network-";
 const FAILED: &str = "Jaringan produk gagal dibuat. Coba lagi.";
-const NOT_READY: &str = "Database belum siap. Jalankan ulang aplikasi.";
 
 static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
@@ -125,17 +125,6 @@ struct Header {
 fn public_error(context: &str, error: impl std::fmt::Display) -> String {
     log::error!("product graph {context}: {error}");
     FAILED.to_string()
-}
-
-async fn pool<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, String> {
-    let Some(instances) = app.try_state::<tauri_plugin_sql::DbInstances>() else {
-        return Err(NOT_READY.to_string());
-    };
-    let guard = instances.0.read().await;
-    match guard.get(DB_URL) {
-        Some(tauri_plugin_sql::DbPool::Sqlite(pool)) => Ok(pool.clone()),
-        _ => Err(NOT_READY.to_string()),
-    }
 }
 
 fn mode_code(mode: &str) -> Result<u8, String> {

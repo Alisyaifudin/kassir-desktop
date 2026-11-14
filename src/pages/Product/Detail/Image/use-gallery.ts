@@ -226,14 +226,18 @@ function program(productId: string, items: GalleryItem[], drafts: Draft[]) {
     const written: string[] = [];
     const result = yield* Effect.either(
       Effect.gen(function* () {
+        // The row must carry what `save` stored, not what was picked: the picture is
+        // converted and renamed by content on the way to disk (`lib/image.ts`).
+        const committed: { id: string; name: string; mime: Mime }[] = [];
         for (const draft of drafts) {
-          yield* image.save(draft.file, draft.name);
-          written.push(draft.name);
+          const stored = yield* image.save(draft.file, draft.name, draft.mime);
+          written.push(stored.name);
+          committed.push({ id: draft.id, name: stored.name, mime: stored.mime });
         }
         yield* service.product.set.image.commit(
           productId,
           items.map((item) => item.id),
-          drafts.map((draft) => ({ id: draft.id, name: draft.name, mime: draft.mime })),
+          committed,
         );
       }),
     );

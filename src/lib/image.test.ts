@@ -48,6 +48,24 @@ mock.module("@tauri-apps/api/path", () => ({
   join: async (...parts: string[]) => parts.join("/"),
 }));
 
+// The upload half runs in Rust (`image_adopt`): the webview writes the pick under
+// its draft name, and this answers with the content-addressed name to commit.
+let adopted: { name: string; mime: string } = { name: "abc-1.webp", mime: "image/webp" };
+
+// Same stub shape as `auth.test.ts` / `printer.test.ts`: the whole module, not just
+// the one function, because the plugin's event bridge imports the rest of it.
+mock.module("@tauri-apps/api/core", () => ({
+  transformCallback: () => 1,
+  Channel: class {},
+  convertFileSrc: (path: string) => path,
+  isTauri: () => false,
+  invoke: async (command: string, args: unknown) => {
+    record(`invoke:${command}`, [args]);
+    if (failing.has(command)) throw new Error(`${command} failed`);
+    return adopted;
+  },
+}));
+
 const created: Blob[] = [];
 const originalCreate = URL.createObjectURL;
 URL.createObjectURL = (blob: Blob) => {
@@ -59,12 +77,17 @@ const { image } = await import("./image");
 
 const callTo = (fn: string) => calls.filter((call) => call.fn === fn);
 
+/** `IOError` wraps the driver's sentence; a failed command carries its own. */
+const messageOf = (error: { e: Error } | { message: string }) =>
+  "e" in error ? error.e.message : error.message;
+
 beforeEach(() => {
   calls.length = 0;
   failing.clear();
   folderExists = true;
   bytes = new Uint8Array([1, 2, 3, 4]);
   created.length = 0;
+  adopted = { name: "abc-1.webp", mime: "image/webp" };
 });
 
 describe("image.save", () => {
@@ -72,7 +95,7 @@ describe("image.save", () => {
     folderExists = false;
     const file = new File([new Uint8Array([9, 8, 7])], "photo.png");
 
-    await Effect.runPromise(image.save(file, "img-1.png"));
+    const stored = await Effect.runPromise(image.save(file, "img-1.png", "image/png"));
 
     expect(callTo("exists")[0].args).toEqual(["images", { baseDir: 1 }]);
     expect(callTo("mkdir")[0].args).toEqual(["images", { baseDir: 1, recursive: true }]);
@@ -81,21 +104,41 @@ describe("image.save", () => {
       new Uint8Array([9, 8, 7]),
       { baseDir: 1 },
     ]);
+    // The draft name is what was written; the stored name is what the row carries.
+    expect(callTo("invoke:image_adopt")[0].args).toEqual([
+      { name: "img-1.png", mime: "image/png" },
+    ]);
+    expect(stored).toEqual({ name: "abc-1.webp", mime: "image/webp" });
   });
 
   test("skips the mkdir when the folder is already there", async () => {
-    await Effect.runPromise(image.save(new File([new Uint8Array([1])], "a.png"), "a.png"));
+    await Effect.runPromise(
+      image.save(new File([new Uint8Array([1])], "a.png"), "a.png", "image/png"),
+    );
     expect(callTo("mkdir")).toHaveLength(0);
+  });
+
+  test("a failed conversion is reported, not silently saved under the draft name", async () => {
+    failing.add("image_adopt");
+
+    const result = await Effect.runPromise(
+      Effect.either(image.save(new File([new Uint8Array([1])], "a.png"), "a.png", "image/png")),
+    );
+
+    expect(result._tag).toBe("Left");
+    expect(result._tag === "Left" && messageOf(result.left)).toBeTruthy();
   });
 
   test("a folder that cannot be read is an IOError naming the step", async () => {
     failing.add("exists");
 
     const result = await Effect.runPromise(
-      Effect.either(image.save(new File([new Uint8Array([1])], "a.png"), "a.png")),
+      Effect.either(
+        image.save(new File([new Uint8Array([1])], "a.png"), "a.png", "image/png"),
+      ),
     );
 
-    expect(result._tag === "Left" && result.left.e.message).toBe("Gagal membaca folder images");
+    expect(result._tag === "Left" && messageOf(result.left)).toBe("Gagal membaca folder images");
   });
 });
 

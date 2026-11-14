@@ -1471,9 +1471,18 @@ export const TransactionLive = Layer.effect(
               );
             }
             const name = `${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
-            yield* image
-              .save(file, name)
-              .pipe(Effect.mapError((error) => new TransactionError({ message: error.e.message })));
+            // The row takes what the optimizer stored, not the draft name: the bytes
+            // are converted and renamed by content on the way to disk.
+            const stored = yield* image.save(file, name, mime).pipe(
+              Effect.mapError(
+                (error) =>
+                  new TransactionError({
+                    // `IOError`/`ArrayBufferError` wrap the driver's sentence; a
+                    // failed command already carries one.
+                    message: "e" in error ? error.e.message : error.message,
+                  }),
+              ),
+            );
 
             const drafts = yield* SubscriptionRef.get(draftsRef);
             const draft = drafts.find((candidate) => candidate.id === id);
@@ -1482,7 +1491,10 @@ export const TransactionLive = Layer.effect(
             const imageId = generateId();
             yield* update(id, (current) => ({
               ...current,
-              images: [...current.images, { id: imageId, order, name, mime }],
+              images: [
+                ...current.images,
+                { id: imageId, order, name: stored.name, mime: stored.mime },
+              ],
             }));
             return imageId;
           });

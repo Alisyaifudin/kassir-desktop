@@ -16,6 +16,7 @@ describe("navOf", () => {
       "Profil",
       "Toko",
       "Data",
+      "Gambar",
       "Sinkronisasi",
       "Printer",
     ]);
@@ -50,6 +51,7 @@ describe("navGroupsOf", () => {
     const sistem = navGroupsOf("admin").find((group) => group.section === "Sistem");
     expect(sistem?.items.map((item) => item.label)).toEqual([
       "Data",
+      "Gambar",
       "Sinkronisasi",
       "Printer",
     ]);

@@ -5,6 +5,7 @@ mod backup;
 mod database;
 mod export;
 mod graph;
+mod image_opt;
 mod printer;
 mod receipt;
 mod sync;
@@ -18,6 +19,8 @@ pub fn run() {
         // The sync transport's state: cancellation flags plus one shared HTTP
         // client (so one connection pool serves every pull and chunk).
         .manage(sync::SyncState::default())
+        // The optimizer's own state: the stop flag of the job, if one is running.
+        .manage(image_opt::ImageOptState::default())
         // Registered first, before any window or database plugin initialises: the
         // plugin must win the race on the instance lock. One process per machine
         // is the model — the app preloads a fixed `sqlite:data.db` and keeps the
@@ -72,6 +75,15 @@ pub fn run() {
             sync_blob::sync_combo_cover_manifest,
             sync_blob::sync_combo_cover_put,
             sync_merge::sync_merge,
+            // The image optimizer (Pengaturan → Sistem → Gambar). The plan reads and
+            // hashes, the run converts and dedupes, the cancel says stop between two
+            // pictures (`src-tauri/src/image_opt.rs`).
+            image_opt::image_optimize_plan,
+            image_opt::image_optimize_run,
+            image_opt::image_optimize_cancel,
+            // The upload half: a picked file the webview wrote becomes the stored,
+            // content-addressed picture (converted if that helps).
+            image_opt::image_adopt,
         ]);
 
     // Debug-only MCP bridge for AI/e2e automation.

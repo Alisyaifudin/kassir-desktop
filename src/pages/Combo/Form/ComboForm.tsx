@@ -223,9 +223,11 @@ export function ComboForm({
         const mime = coverMime(coverFile.type);
         if (mime === null) throw new Error("Format gambar harus PNG, JPEG, atau WebP.");
         const fileName = `${generateId()}-${coverFile.name.replace(/\s+/g, "-")}`;
-        await Effect.runPromise(image.save(coverFile, fileName));
-        uploadedName = fileName;
-        cover = { name: fileName, mime };
+        // The stored name comes back from the optimizer, not from `fileName`: the
+        // cover is written under a hash of its bytes (`lib/image.ts`).
+        const stored = await Effect.runPromise(image.save(coverFile, fileName, mime));
+        uploadedName = stored.name;
+        cover = { name: stored.name, mime: stored.mime };
       }
       const input: ComboInput = {
         name: name.trim(),

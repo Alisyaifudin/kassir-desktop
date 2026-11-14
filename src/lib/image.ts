@@ -8,11 +8,31 @@ import {
   BaseDirectory,
 } from "@tauri-apps/plugin-fs";
 import * as path from "@tauri-apps/api/path";
+import { invoke } from "@tauri-apps/api/core";
 import { Effect } from "effect";
-import { ArrayBufferError, IOError } from "./effect-error";
+import { ArrayBufferError, IOError, InvokeError } from "./effect-error";
+import { log } from "./log";
 import type { Mime } from "~/services/product";
 
-function save(file: File, fileKey: string) {
+/** What a written picture ended up as: the file key the row must carry. */
+export type StoredImage = { name: string; mime: Mime };
+
+/**
+ * Writes a picked file, then hands it to the optimizer.
+ *
+ * The bytes go through the fs plugin (raw, one call) and the *conversion* goes
+ * through Rust (`image_adopt` in `src-tauri/src/image_opt.rs`): WebP encoding needs
+ * libwebp, which the webview does not have — `canvas.toBlob("image/webp")` silently
+ * answers PNG under WebKitGTK, so a webview-side encoder is not one this app can
+ * test or trust.
+ *
+ * The name that comes back is **not** `fileKey`: the picture is stored under a hash
+ * of the bytes that were actually written, so two identical pictures land on one
+ * file and a row can always be checked against its own content. Every caller must
+ * commit the returned name and mime, not the ones it passed in — a row pointing at
+ * `fileKey` after the adopt would name a file that is no longer there.
+ */
+function save(file: File, fileKey: string, mimeType: Mime) {
   return Effect.gen(function* () {
     const checkExist = yield* Effect.tryPromise({
       try: () =>
@@ -43,6 +63,19 @@ function save(file: File, fileKey: string) {
         }),
       catch: (e) => new IOError(e, "Gagal menyimpan file"),
     });
+
+    // The draft name is the pick's; the stored name is the content's. Rust unlinks
+    // the draft once the stored file is safely on disk.
+    const stored = yield* Effect.tryPromise({
+      try: () => invoke<StoredImage>("image_adopt", { name: fileKey, mime: mimeType }),
+      catch: (e) => {
+        log.error(e instanceof Error ? e : new Error(String(e)));
+        return new InvokeError({
+          message: typeof e === "string" ? e : "Gagal mengoptimalkan gambar",
+        });
+      },
+    });
+    return stored;
   });
 }
 

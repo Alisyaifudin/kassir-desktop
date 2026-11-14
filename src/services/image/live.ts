@@ -2,30 +2,18 @@ import { Effect, Layer } from "effect";
 import { image } from "~/lib/image";
 import { DatabaseService } from "../db";
 import { ImageError, ImageService } from ".";
+import REFS_FILE from "./refs.sql?raw";
 
 /**
- * How many live rows name one file.
+ * The refcount, shared with the optimizer.
  *
- * A soft-deleted row does **not** own its file: `images` keeps the tombstone so
- * the delete can sync, and a tombstone that owned the bytes would mean a
- * catalogue never frees a byte (rows are soft-deleted forever). That is also
- * what the app does today, where deleting a picture unlinks it straight away;
- * the difference is that it can no longer unlink a file another product, record
- * or combo still shows.
- *
- * `record_images` has no tombstone — it is an immutable child of a record, so a
- * row is either there or the record is gone with `ON DELETE CASCADE`.
+ * `refs.sql` is the one definition of "who names this file": this service uses
+ * it to decide whether an unlink is allowed, and `src-tauri/src/image_opt.rs`
+ * includes the same file when it retires the picture it just replaced. A copy of
+ * the count in either place would let the two drift, and the day they disagree
+ * is the day a delete takes a file another row still shows.
  */
-const REFS = `SELECT (
-    (SELECT COUNT(*) FROM images
-      WHERE image_name = $1 AND image_deleted_at IS NULL) +
-    (SELECT COUNT(*) FROM record_images
-      WHERE record_image_name = $1) +
-    (SELECT COUNT(*) FROM tx_images
-      WHERE tx_image_name = $1) +
-    (SELECT COUNT(*) FROM combos
-      WHERE combo_cover_name = $1 AND combo_deleted_at IS NULL)
-  ) AS refs`;
+const REFS = REFS_FILE;
 
 export const ImageLive = Layer.effect(
   ImageService,

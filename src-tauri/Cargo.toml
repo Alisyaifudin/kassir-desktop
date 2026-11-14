@@ -49,6 +49,21 @@ zip = { version = "8", default-features = false, features = ["deflate-flate2"] }
 # The manifest's per-file digests. Already in the tree (transitively), so naming
 # it adds one line to Cargo.lock and no new build.
 sha2 = "0.10"
+# The image optimizer (`src/image_opt.rs`): decoding PNG/JPEG and resizing.
+# `image` is already in the tree (printpdf pulls it), so naming it costs a line and
+# no compile. `default-features = false` keeps out the formats the gallery cannot
+# hold — `img_mimes` allows exactly these three.
+image = { version = "0.25", default-features = false, features = [
+  "png",
+  "jpeg",
+  "webp",
+] }
+# Lossy WebP encoding, which `image` does not have (its encoder is lossless-only:
+# fine for a screenshot, several times worse than PNG for a photograph). This is a
+# binding to libwebp, so it builds a little C — the one new build step this
+# feature adds, and the reason it lives in Rust rather than in the webview, where
+# `canvas.toBlob("image/webp")` silently answers PNG under WebKitGTK.
+webp = "0.3"
 # One process per machine: the app preloads a fixed `sqlite:data.db` and keeps the
 # cart and the catalogue in process-local refs, so a second launch would write
 # over the first one's state from a stale snapshot.

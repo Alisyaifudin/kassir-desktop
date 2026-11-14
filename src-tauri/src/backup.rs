@@ -46,16 +46,13 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{ConnectOptions, Connection, SqlitePool};
+
+use crate::database::pool;
 use tauri::ipc::Channel;
-use tauri::{command, Manager, Runtime};
+use tauri::{command, Runtime};
 use tauri_plugin_dialog::DialogExt;
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
-
-/// The connection string both the frontend and the preload use
-/// (`tauri.conf.json` → `plugins.sql.preload`), and the key the plugin stores its
-/// pool under.
-const DB_URL: &str = "sqlite:data.db";
 
 /// The store file, as `src/services/store/live.ts` names it. It resolves under
 /// `app_data_dir`, while `data.db` resolves under `app_config_dir` — two
@@ -65,7 +62,6 @@ const STORE_FILE: &str = "store.json";
 
 const FAILED: &str = "Gagal membuat cadangan. Coba pilih folder lain.";
 const DB_BUSY: &str = "Database sibuk. Coba lagi sebentar lagi.";
-const NOT_READY: &str = "Database belum siap. Jalankan ulang aplikasi.";
 const CORRUPT: &str = "Cadangan gagal diperiksa dan tidak disimpan. Coba lagi.";
 
 // The cycle's slices, in percent. Four of the five stages read the whole database
@@ -265,18 +261,6 @@ async fn ask_where<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Option<PathB
         .into_path()
         .map_err(|error| format!("Gagal membaca lokasi file: {error}"))?;
     Ok(Some(path))
-}
-
-/// The plugin's pool for `sqlite:data.db`, already connected and migrated.
-async fn pool<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<SqlitePool, String> {
-    let Some(instances) = app.try_state::<tauri_plugin_sql::DbInstances>() else {
-        return Err(NOT_READY.to_string());
-    };
-    let guard = instances.0.read().await;
-    match guard.get(DB_URL) {
-        Some(tauri_plugin_sql::DbPool::Sqlite(pool)) => Ok(pool.clone()),
-        _ => Err(NOT_READY.to_string()),
-    }
 }
 
 /// Writes a consistent snapshot of the live database to `destination`.

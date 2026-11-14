@@ -1,4 +1,32 @@
+use sqlx::SqlitePool;
+use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_sql::{Migration, MigrationKind};
+
+/// The database the app preloads (`lib.rs`), and the only one any Rust side opens.
+pub(crate) const DB_URL: &str = "sqlite:data.db";
+
+/// Said to the cashier when the plugin's pool is not registered yet.
+///
+/// Every Rust reader of the database shows this one sentence, so the four modules
+/// that reach for the pool cannot each word it slightly differently.
+pub(crate) const NOT_READY: &str = "Database belum siap. Jalankan ulang aplikasi.";
+
+/// The plugin's pool for `sqlite:data.db`, already connected and migrated.
+///
+/// `try_state` rather than `state`: the plugin registers `DbInstances` from its
+/// setup hook, which runs after the app is built. A command can only be asked for
+/// from the UI, so the state is there in practice — but `state()` panics where
+/// this returns a sentence.
+pub(crate) async fn pool<R: Runtime>(app: &AppHandle<R>) -> Result<SqlitePool, String> {
+    let Some(instances) = app.try_state::<tauri_plugin_sql::DbInstances>() else {
+        return Err(NOT_READY.to_string());
+    };
+    let guard = instances.0.read().await;
+    match guard.get(DB_URL) {
+        Some(tauri_plugin_sql::DbPool::Sqlite(pool)) => Ok(pool.clone()),
+        _ => Err(NOT_READY.to_string()),
+    }
+}
 
 pub fn generate_migration() -> Vec<Migration> {
     vec![
