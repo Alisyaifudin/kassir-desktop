@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Combobox, type ComboboxOption } from "./combobox";
 
 /**
@@ -125,5 +125,45 @@ describe("Enter in an adder field", () => {
 
     expect(picked).toHaveLength(1);
     expect(created).toEqual([]);
+  });
+});
+
+describe("narrowing the list", () => {
+  // The last keystroke of a known name is where an adder and a value field part
+  // ways. A value field that resolves an exact hit is showing a choice it already
+  // holds, so it reopens on the whole list; an adder never holds a choice, so the
+  // exact hit is still a query and the list must stay narrowed. Getting that wrong
+  // dumps every category back on screen at the moment the name is complete —
+  // exactly when the shop is looking for the one row they mean.
+  test("an adder keeps the list narrowed to the exact name typed", async () => {
+    renderAdder({ onCreate: () => {} });
+
+    type("Sabun");
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("option").map((row) => row.textContent)).toEqual(["Sabun"]);
+    });
+  });
+
+  test("a value field reopens on the whole list once an exact hit resolves", async () => {
+    render(
+      <Combobox
+        value=""
+        onValueChange={() => {}}
+        options={options}
+        aria-label="Pilih kategori"
+      />,
+    );
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Pilih kategori" }), {
+      target: { value: "Sabun" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("option").map((row) => row.textContent)).toEqual([
+        "Minuman",
+        "Sabun",
+      ]);
+    });
   });
 });

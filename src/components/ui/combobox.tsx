@@ -125,9 +125,11 @@ export function Combobox({
   // of every customer or product name, filtering and re-rendering the whole
   // listbox between keys is what made the field itself feel slow.
   const [query] = useDebounce(text.trim().toLowerCase(), SEARCH_DELAY);
-  // An exact hit means the field already reads as a chosen value — show the full
-  // list again rather than a single self-match.
-  const browsing = query === "" || valuesByNeedle.has(query);
+  // An exact hit means a value field already reads as a chosen value — show the full
+  // list again rather than a single self-match. An adder holds no value at all, so
+  // its text is only ever a query: "sampo" typed into it must keep narrowing to
+  // `sampo` instead of flipping the list back open on the last keystroke.
+  const browsing = query === "" || (!adder && valuesByNeedle.has(query));
 
   const filtered = useMemo(() => {
     if (browsing) return options;
