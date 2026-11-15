@@ -16,15 +16,21 @@ import { log } from "./log";
  * than a silent `undefined`.
  */
 
-/** Which phase the job is in: hashing (`scan`) or converting. */
-export type ImageOptStage = "scan" | "convert";
+/**
+ * Which phase the job is in: hashing (`scan`), converting, the folder sweep, or
+ * the integrity pass.
+ */
+export type ImageOptStage = "scan" | "convert" | "sweep" | "verify";
 
 export type ImageOptProgress = {
   stage: ImageOptStage;
   percent: number;
   done: number;
   total: number;
-  /** Sum of the pictures as they were when the job met them. */
+  /**
+   * Sum of the pictures as they were when the job met them — the rows, not the
+   * folder: what the sweep freed is reported separately (`orphanBytes`).
+   */
   bytesBefore: number;
   /** Sum of what those pictures are now. */
   bytesAfter: number;
@@ -41,7 +47,13 @@ export type ImageOptPlan = {
   total: number;
   /** Every live picture's bytes on disk now. */
   bytes: number;
-  /** Pictures this policy will re-encode (PNG/JPEG → WebP). */
+  /**
+   * Candidates this policy would re-encode (PNG/JPEG). A candidate is not a
+   * promise: the encode is what says whether WebP came out smaller, and `store_in`
+   * keeps the original when it did not — so `run` may report that same row as
+   * renamed instead. Encoding every candidate here to find out would make the
+   * read-only plan do the job's work.
+   */
   convert: number;
   convertBytes: number;
   /** WebP pictures whose name is not yet their hash: renamed, never re-encoded. */
@@ -54,6 +66,16 @@ export type ImageOptPlan = {
   /** Rows whose bytes another row already holds — the dedupe, counted early. */
   duplicates: number;
   duplicateBytes: number;
+  /**
+   * Files on disk that no live row names: what a failed retarget, a crash between
+   * write and commit, or a delete path that never freed its file leaves behind.
+   * The run unlinks them.
+   */
+  orphans: number;
+  orphanBytes: number;
+  /** `.part` scratch an interrupted write left behind. Never a picture's name. */
+  parts: number;
+  partBytes: number;
 };
 
 /** What a run did. */
@@ -65,6 +87,16 @@ export type ImageOptSummary = {
   optimal: number;
   missing: number;
   failed: number;
+  /** Leftover files the sweep unlinked: orphans, and the bytes they held. */
+  orphansReclaimed: number;
+  orphanBytes: number;
+  partsReclaimed: number;
+  partBytes: number;
+  /**
+   * The rows' pictures, summed before and after. Not the folder: the sweep's bytes
+   * are `orphanBytes` + `partBytes`, and adding the two lines together would be a
+   * total nobody measured.
+   */
   bytesBefore: number;
   bytesAfter: number;
   cancelled: boolean;
@@ -72,6 +104,7 @@ export type ImageOptSummary = {
 
 const FAILED = "Gagal mengoptimalkan gambar. Coba lagi.";
 const FAILED_PLAN = "Gagal membaca daftar gambar. Coba lagi.";
+const FAILED_VERIFY = "Gagal memeriksa gambar. Coba lagi.";
 
 function failure(cause: unknown, message: string) {
   log.error(cause instanceof Error ? cause : new Error(String(cause)));
@@ -121,5 +154,51 @@ export function imageOptimizeCancel(): Effect.Effect<void, InvokeError> {
   return Effect.tryPromise({
     try: () => invoke<void>("image_optimize_cancel"),
     catch: (e) => failure(e, FAILED),
+  });
+}
+
+/**
+ * What the integrity pass found and fixed.
+ *
+ * `checked` is every picture whose bytes were read; `repaired` is the subset whose
+ * name claimed a digest the bytes did not have. `skipped` is a row the pass has
+ * nothing to say about: a name the gallery minted makes no claim, and the normal
+ * run is what content-addresses those.
+ */
+export type ImageOptVerify = {
+  checked: number;
+  repaired: number;
+  /** Rows whose file is not on this device. Nothing to check. */
+  missing: number;
+  /** Rows whose name is not `<sha256>.<ext>` yet. */
+  skipped: number;
+  /**
+   * Rows whose bytes do not decode as a picture. Reported, never repaired:
+   * re-storing them would give the damage an honest name, and a peer would then
+   * accept it as the real picture.
+   */
+  corrupt: number;
+  failed: number;
+  cancelled: boolean;
+};
+
+/**
+ * Reads every live picture and repairs a name that no longer describes its bytes.
+ *
+ * The one thing the optimizer cannot notice on its own: a name is trusted as the
+ * content, so a file whose bytes drifted is skipped forever, and a peer refuses the
+ * download rather than re-deriving the name. This is the only pass that reads, and
+ * the only one that can write a correct name back.
+ */
+export function imageOptimizeVerify(
+  onProgress?: (progress: ImageOptProgress) => void,
+): Effect.Effect<ImageOptVerify, InvokeError> {
+  return Effect.tryPromise({
+    try: () => {
+      const channel = new Channel<ImageOptProgress>();
+      channel.onmessage = (progress) => onProgress?.(progress);
+      return invoke<ImageOptVerify>("image_optimize_verify", { onProgress: channel });
+    },
+    catch: (e) => failure(e, FAILED_VERIFY),
   });
 }

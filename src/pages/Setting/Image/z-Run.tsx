@@ -14,16 +14,7 @@ import { log } from "~/lib/log";
 import { formatSize } from "../Data/util-file";
 import { Panel } from "../z-Panel";
 import { pageData } from "./data";
-
-/**
- * The one word for each phase the Rust side reports. The keywords come over IPC;
- * the sentences live here, next to the panel that renders them, the same split the
- * sync phases and the backup stages use.
- */
-const STAGE_LABEL: Record<ImageOptProgress["stage"], string> = {
-  scan: "Memeriksa gambar",
-  convert: "Mengubah dan menggabungkan",
-};
+import { STAGE_LABEL } from "./util-stage";
 
 /**
  * The action: one button, one bar, one sentence when it is done.
@@ -75,9 +66,9 @@ export function Run() {
   return (
     <Panel title="Optimalkan">
       <p className="text-sm text-muted-foreground">
-        Mengubah PNG dan JPEG menjadi WebP, mengecilkan sisi terpanjang ke 1600 px, lalu
-        menggabungkan gambar yang isinya sama supaya hanya satu berkas yang disimpan. Gambar yang
-        berubah akan diunggah ulang pada sinkronisasi berikutnya.
+        Mengubah PNG dan JPEG menjadi WebP bila hasilnya lebih kecil, mengecilkan sisi terpanjang ke
+        1600 px, lalu menggabungkan gambar yang isinya sama supaya hanya satu berkas yang disimpan.
+        Gambar yang berubah akan diunggah ulang pada sinkronisasi berikutnya.
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" onClick={() => void handleRun()} disabled={run.pending}>
@@ -125,19 +116,29 @@ function sentenceOf(summary: ImageOptSummary): string {
   if (summary.cancelled) {
     return `Optimasi dibatalkan. ${summary.converted.toLocaleString("id-ID")} gambar sempat dikonversi dan tetap tersimpan.`;
   }
+  // The sweep is the answer even when no picture was touched, so it is counted in
+  // "did anything happen" — otherwise a run that only freed litter reads as a run
+  // that did nothing.
+  const swept = summary.orphansReclaimed + summary.partsReclaimed;
   const touched = summary.converted + summary.renamed;
-  if (touched === 0 && summary.reclaimed === 0) {
+  if (touched === 0 && summary.reclaimed === 0 && swept === 0) {
     return summary.missing === 0
       ? "Semua gambar sudah optimal, tidak ada yang perlu diubah."
       : `Semua gambar yang ada di perangkat ini sudah optimal. ${summary.missing.toLocaleString("id-ID")} gambar tidak ada berkasnya dan dilewati.`;
   }
   const parts = [
-    `${summary.converted.toLocaleString("id-ID")} gambar dikonversi ke WebP`,
+    touched === 0 ? null : `${summary.converted.toLocaleString("id-ID")} gambar dikonversi ke WebP`,
     summary.renamed === 0 ? null : `${summary.renamed.toLocaleString("id-ID")} diganti namanya`,
     summary.reclaimed === 0
       ? null
       : `${summary.reclaimed.toLocaleString("id-ID")} berkas lama dihapus`,
+    swept === 0
+      ? null
+      : `${swept.toLocaleString("id-ID")} berkas tak terpakai dibuang (${formatSize(summary.orphanBytes + summary.partBytes)})`,
   ].filter((part) => part !== null);
+  // A sweep-only run has no before/after worth printing: nothing was re-encoded, so
+  // the two numbers are the same figure and the arrow would be noise.
+  if (touched === 0) return `${parts.join(", ")}.`;
   const saved = summary.bytesBefore - summary.bytesAfter;
   const size =
     saved > 0

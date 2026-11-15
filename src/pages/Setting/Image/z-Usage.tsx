@@ -48,7 +48,7 @@ export function Usage() {
           </dd>
         </div>
         <div className="flex items-baseline justify-between gap-4 py-2">
-          <dt className="text-muted-foreground">Bisa dikonversi ke WebP</dt>
+          <dt className="text-muted-foreground">Kandidat konversi ke WebP</dt>
           <dd className="text-base font-medium tabular-nums">
             <pageData.Gate
               keys={["plan"]}
@@ -78,10 +78,34 @@ export function Usage() {
             </pageData.Gate>
           </dd>
         </div>
+        <div className="flex items-baseline justify-between gap-4 py-2">
+          <dt className="text-muted-foreground">Berkas tak terpakai</dt>
+          <dd className="text-base font-medium tabular-nums">
+            <pageData.Gate
+              keys={["plan"]}
+              delay={0}
+              pulse={<SkeletonText className="w-16" />}
+              error={null}
+            >
+              {({ plan }) =>
+                plan.orphans === 0 && plan.parts === 0
+                  ? // A real zero, not a placeholder: "tidak ada" is an answer.
+                    "Tidak ada"
+                  : `${(plan.orphans + plan.parts).toLocaleString("id-ID")} · ${formatSize(
+                      plan.orphanBytes + plan.partBytes,
+                    )}`}
+            </pageData.Gate>
+          </dd>
+        </div>
       </dl>
       <p className="text-sm text-muted-foreground">
         Gambar yang berkasnya tidak ada di perangkat ini dilewati, bukan dianggap rusak. Foto yang
-        tersimpan di riwayat penjualan tidak diubah.
+        tersimpan di riwayat penjualan tidak diubah. Kandidat konversi baru benar-benar menjadi WebP
+        bila hasilnya lebih kecil — apakah begitu hanya ketahuan saat gambarnya sudah dikodekan,
+        jadi satu kandidat bisa selesai sebagai penggantian nama saja. Berkas tak terpakai adalah
+        gambar yang tidak dirujuk baris mana pun — sisa dari penyimpanan yang gagal — dan baru
+        dihapus setelah menganggur lebih dari 15 menit, supaya gambar yang sedang disimpan tidak
+        ikut terhapus.
       </p>
     </Panel>
   );

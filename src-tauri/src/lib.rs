@@ -80,6 +80,7 @@ pub fn run() {
             // pictures (`src-tauri/src/image_opt.rs`).
             image_opt::image_optimize_plan,
             image_opt::image_optimize_run,
+            image_opt::image_optimize_verify,
             image_opt::image_optimize_cancel,
             // The upload half: a picked file the webview wrote becomes the stored,
             // content-addressed picture (converted if that helps).

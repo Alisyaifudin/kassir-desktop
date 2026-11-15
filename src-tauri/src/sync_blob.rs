@@ -447,6 +447,30 @@ pub async fn sync_blob_get(
     }
     let name =
         safe_file_name(&file_name).ok_or_else(|| bad_request("Nama berkas gambar tidak valid"))?;
+
+    // A name that already *looks* like a digest has to be that digest.
+    //
+    // The optimizer answers "already optimal" from the name alone
+    // (`image_opt.rs::content_digest`), without reading the bytes — which is the
+    // whole point of naming a file by its content, and also its one blind spot:
+    // bytes that drifted are never noticed. The write paths keep the name honest
+    // (`store_in` hashes what it writes) and this is the exception worth
+    // refusing: the upload sends whatever is on the sender's disk under the name
+    // its row carries, so a sender whose file drifted would otherwise plant a
+    // mis-named file on every peer, each of which would then call it optimal
+    // forever. A name the gallery minted (`${id}-${original}`) is left alone: the
+    // optimizer re-reads and renames those.
+    if let Some(named) = digest_named(&name) {
+        if named != sha256 {
+            log::warn!(
+                "sync: refusing {name}: its name claims {named}, the server answered {sha256}"
+            );
+            return Err(internal(format!(
+                "Nama berkas gambar tidak cocok dengan isinya ({name})"
+            )));
+        }
+    }
+
     let dir = images_dir(&app)?;
     let final_path = dir.join(&name);
     let part_path = dir.join(format!("{name}{PART_SUFFIX}"));
@@ -766,6 +790,27 @@ pub(crate) fn safe_file_name(name: &str) -> Option<String> {
     Some(name.to_string())
 }
 
+/// The digest a name claims, when the name is shaped like one this app writes:
+/// `<64 lowercase hex>.<ext>`.
+///
+/// Deliberately looser than `image_opt.rs::content_digest`, which also requires the
+/// extension to match the row's mime: on a download the question is only whether
+/// the *name* makes a claim the bytes must satisfy. A name that makes no such
+/// claim is one the gallery minted, and the optimizer still has to read it.
+fn digest_named(name: &str) -> Option<&str> {
+    let (stem, ext) = name.rsplit_once('.')?;
+    let shaped = !ext.is_empty()
+        && stem.len() == 64
+        && stem
+            .bytes()
+            .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'));
+    if shaped {
+        Some(stem)
+    } else {
+        None
+    }
+}
+
 /// True when `value` is safe as one URL path segment and one path component.
 fn path_safe(value: &str, max: usize) -> bool {
     !value.is_empty()
@@ -879,6 +924,33 @@ mod tests {
         assert!(!valid_sha256(&"a".repeat(63)));
         assert!(!valid_sha256(&"A".repeat(64)));
         assert!(!valid_sha256("../../../etc/passwd"));
+    }
+
+    #[test]
+    fn the_digest_a_name_claims_is_read_off_the_name_alone() {
+        let digest = "a".repeat(64);
+
+        // The shape the optimizer writes, whatever the extension: on a download the
+        // question is only what the name claims, not which mime the row carries.
+        assert_eq!(
+            digest_named(&format!("{digest}.webp")),
+            Some(digest.as_str())
+        );
+        assert_eq!(
+            digest_named(&format!("{digest}.png")),
+            Some(digest.as_str())
+        );
+
+        // A name the gallery minted claims nothing, so the optimizer may still
+        // re-read and rename it — refusing these would strand a legacy catalogue.
+        assert_eq!(digest_named("img-1-rumah.png"), None);
+        assert_eq!(digest_named("3f2a-rumah.webp"), None);
+
+        // Shapes that only look close.
+        assert_eq!(digest_named(&format!("{}.webp", "a".repeat(63))), None);
+        assert_eq!(digest_named(&format!("{}.webp", "A".repeat(64))), None);
+        assert_eq!(digest_named(&digest), None);
+        assert_eq!(digest_named(&format!("{digest}.")), None);
     }
 
     #[test]
