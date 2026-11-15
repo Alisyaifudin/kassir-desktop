@@ -242,9 +242,14 @@ function program(productId: string, items: GalleryItem[], drafts: Draft[]) {
       }),
     );
     if (Either.isRight(result)) return null;
-    // the files are on disk but their rows are not: undo the writes, since nothing
-    // would ever point at them again
-    yield* Effect.forEach(written, (name) => image.del(name).pipe(Effect.ignore), {
+    // The files are on disk but their rows are not, so undo the writes — as a
+    // *release*, never an unlink. A stored name is the hash of its bytes, so
+    // `save` hands back a name another row may already hold when the same picture
+    // is stored twice; deleting it outright would blank that row's picture, which
+    // saved fine. `commit` is one transaction, so this failure wrote no row of
+    // ours: every reference the count still sees belongs to someone else, and a
+    // count above zero is exactly the case that must keep the file.
+    yield* Effect.forEach(written, (name) => service.image.release(name).pipe(Effect.ignore), {
       concurrency: 1,
       discard: true,
     });

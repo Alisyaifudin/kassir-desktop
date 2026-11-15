@@ -12,7 +12,7 @@ import {
 } from ".";
 import { DatabaseService, type DbError, type Statement } from "../db";
 import { generateId } from "~/lib/random";
-import { image } from "~/lib/image";
+import { releaseWith } from "../image/live";
 import { discountsEatLine, recalcDiscounts } from "~/lib/purchase";
 import { log } from "~/lib/log";
 import { notifySync } from "../sync/trigger";
@@ -116,6 +116,9 @@ export const ComboLive = Layer.effect(
   ComboService,
   Effect.gen(function* () {
     const db = yield* DatabaseService;
+    // A combo's cover is a file like any other; this service holds the database,
+    // so it takes the gate directly rather than the tag.
+    const images = releaseWith(db);
     const combosRef = yield* SubscriptionRef.make<Combo[]>([]);
     let loaded = false;
 
@@ -423,11 +426,17 @@ export const ComboLive = Layer.effect(
             ]);
             yield* hydrate();
             if (previous.cover !== null && previous.cover.name !== input.cover?.name) {
-              yield* image
-                .del(previous.cover.name)
+              // A *release*, never an unlink. This combo has just stopped naming the
+              // file (the commit above cleared or replaced the column), so a count
+              // of what is left is the only thing that knows whether any row still
+              // shows it: the same picture can sit in a product gallery, a cart or
+              // a record, and the name is a hash of the bytes, so a second combo
+              // cover lands on it too.
+              yield* images
+                .release(previous.cover.name)
                 .pipe(
                   Effect.catchAll((error) =>
-                    Effect.sync(() => log.error(`combo cover delete failed: ${error.e.message}`)),
+                    Effect.sync(() => log.error(`combo cover delete failed: ${error.message}`)),
                   ),
                 );
             }
@@ -459,11 +468,13 @@ export const ComboLive = Layer.effect(
             ]);
             yield* hydrate();
             if (previous.cover !== null) {
-              yield* image
-                .del(previous.cover.name)
+              // The combo is a tombstone now, so it no longer owns the file — but
+              // `refs.sql` is what answers whether anything else does.
+              yield* images
+                .release(previous.cover.name)
                 .pipe(
                   Effect.catchAll((error) =>
-                    Effect.sync(() => log.error(`combo cover delete failed: ${error.e.message}`)),
+                    Effect.sync(() => log.error(`combo cover delete failed: ${error.message}`)),
                   ),
                 );
             }

@@ -24,6 +24,7 @@ import type { DbError, Statement } from "../db";
 import { DatabaseService } from "../db";
 import { NotFound } from "~/lib/effect-error";
 import { ProductService } from "../product";
+import { releaseWith } from "../image/live";
 import { roundToFix } from "./round";
 import { insertDiscounts, insertMethod, insertPortion, insertRecordStatement } from "./sql/insert";
 import { catalogueStatements, type CatalogueLink } from "./sql/catalogue";
@@ -606,6 +607,11 @@ export const RecordLive = Layer.effect(
   RecordService,
   Effect.gen(function* () {
     const db = yield* DatabaseService;
+    // A voided sale stops owning its pictures (`refs.sql` joins `records`), so the
+    // delete has to free them. Taken from the pool rather than the `ImageService`
+    // tag for the same reason `product` does: this layer already holds the db, and
+    // requiring the tag would thread an image dependency through every test.
+    const images = releaseWith(db);
     const product = yield* ProductService;
 
     // Bumped after every write so queried pages re-read. Seeded at 0 so a page
@@ -2337,6 +2343,24 @@ export const RecordLive = Layer.effect(
             // compensation events written for a legacy record on the first one.
             if (active.length === 0) return;
 
+            const pairId = active[0].record_pair_id;
+
+            // The sale's pictures, read while the rows are still live. A voided
+            // record stops owning them (`refs.sql` joins `records` for exactly
+            // this), so they have to be released *after* the tombstone — and the
+            // names have to be known before it, because afterwards the only rows
+            // naming those files answer zero to a question nobody asks.
+            //
+            // The twin is included: it is tombstoned in the same statement batch,
+            // so a picture only the twin names would otherwise leak forever.
+            const pictures = yield* db
+              .selectMany<{ record_image_name: string }>(
+                `SELECT record_image_name FROM record_images
+                  WHERE record_id = $1 OR ($2 IS NOT NULL AND record_id = $2)`,
+                [id, pairId],
+              )
+              .pipe(Effect.mapError(dbErrorToRecordError));
+
             const now = Date.now();
             const statements: Statement[] = [
               {
@@ -2359,7 +2383,6 @@ export const RecordLive = Layer.effect(
             // events, so soft-deleting the row is the whole reversal — what
             // must not happen is a `dual` charge surviving as a stray expense
             // after the sale it belongs to was voided.
-            const pairId = active[0].record_pair_id;
             if (pairId !== null) {
               statements.push({
                 sql: `UPDATE records SET
@@ -2386,6 +2409,20 @@ export const RecordLive = Layer.effect(
 
             yield* commit(statements);
             yield* bumpRevision();
+            // The tombstone is in, so the sale no longer counts in `refs.sql`. A
+            // picture another row still names — a product photo, a cart's copy —
+            // survives: `release` is a count, not an unlink. One that nothing else
+            // names goes, and cannot come back: the byte channel covers `images`
+            // only, so a receipt's photo is never downloaded again.
+            for (const picture of pictures) {
+              yield* images.release(picture.record_image_name).pipe(
+                Effect.catchAll((error) =>
+                  Effect.sync(() =>
+                    log.error(`record: gagal menghapus berkas gambar: ${error.message}`),
+                  ),
+                ),
+              );
+            }
             // The record moved stock, so the product aggregate is stale. This
             // runs after the transaction, so a failure here means the delete
             // committed but the cached stock is behind.

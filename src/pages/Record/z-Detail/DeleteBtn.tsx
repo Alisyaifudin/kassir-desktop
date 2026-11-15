@@ -41,7 +41,10 @@ export function DeleteBtn({
           </div>
           <TextError>{error}</TextError>
         </DialogHeader>
-        <DialogDescription>Catatan riwayat ini beserta barisnya dihapus permanen.</DialogDescription>
+        <DialogDescription>
+          Catatan riwayat ini beserta barisnya dihapus permanen. Foto yang hanya dimiliki catatan ini
+          ikut terhapus dari perangkat dan tidak bisa diunduh ulang.
+        </DialogDescription>
       </DialogContent>
     </Dialog>
   );

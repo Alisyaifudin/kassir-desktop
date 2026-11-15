@@ -344,7 +344,7 @@ export function EditPane({ product }: { product: ProductFull }) {
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Hapus produk?"
-        description={`"${product.name}" akan dihapus dan tidak muncul lagi di daftar produk.`}
+        description={`"${product.name}" akan dihapus dan tidak muncul lagi di daftar produk. Gambarnya ikut dihapus dari perangkat ini.`}
         onConfirm={performDelete}
       />
       {adjustLot !== null ? (

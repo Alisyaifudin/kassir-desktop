@@ -322,7 +322,16 @@ describe("product writes read narrowly", () => {
       }),
     );
 
-    for (const query of outcome.queries) expect(query).toContain("product_id IN");
+    // The gallery is read once, before the tombstones go in: `refs.sql` stops
+    // counting a tombstone, so a name has to be known while the row still carries
+    // it or the file it names is never freed. It is still a single-product read,
+    // which is the invariant this test is about.
+    const gallery = outcome.queries.filter((query) => query.includes("product_id = $1"));
+    expect(gallery).toHaveLength(1);
+    expect(gallery[0]).toContain("FROM images");
+    for (const query of outcome.queries.filter((q) => q !== gallery[0])) {
+      expect(query).toContain("product_id IN");
+    }
     expect(outcome.names).toEqual(["Teh"]);
   });
 

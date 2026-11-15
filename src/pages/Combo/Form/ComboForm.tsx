@@ -254,7 +254,11 @@ export function ComboForm({
       setError("");
     } catch (cause) {
       if (uploadedName !== null) {
-        await Effect.runPromise(image.del(uploadedName)).catch(() => undefined);
+        // A release, not an unlink: the cover is stored under a hash of its bytes,
+        // so `save` returns a name an existing combo cover or product picture may
+        // already share. Unlinking it here would blank that picture after a save
+        // that failed on this form alone.
+        await Effect.runPromise(service.image.release(uploadedName)).catch(() => undefined);
       }
       setError(cause instanceof Error ? cause.message : "Gagal menyimpan combo.");
     } finally {
@@ -419,7 +423,8 @@ export function ComboForm({
           <DialogHeader>
             <DialogTitle className="text-2xl">Hapus combo</DialogTitle>
             <DialogDescription>
-              Hapus {combo?.name ?? "combo ini"} dari pencarian Toko? Riwayat transaksi yang sudah dibuat tidak berubah.
+              Hapus {combo?.name ?? "combo ini"} dari pencarian Toko? Riwayat transaksi yang sudah dibuat tidak berubah. Foto
+              sampul yang tidak dipakai gambar lain ikut terhapus.
             </DialogDescription>
           </DialogHeader>
           <TextError>{error}</TextError>

@@ -125,6 +125,18 @@ describe("image release", () => {
     expect(released).toBe("kept");
   });
 
+  test("a voided sale stops owning its picture", async () => {
+    const { db, layer } = setup();
+    record(db, "r1", "voided.webp");
+    // The tombstone lives on the record, not on `record_images`: a voided sale
+    // keeps its rows and must stop pinning the bytes anyway, or a picture the
+    // gallery has since stopped showing is never freed.
+    db.query("UPDATE records SET record_deleted_at = 99 WHERE record_id = 'r1'").run();
+
+    expect(await run(layer, (image) => image.refs("voided.webp"))).toBe(0);
+    expect(await run(layer, (image) => image.release("voided.webp"))).toBe("deleted");
+  });
+
   test("an open cart's picture is counted", async () => {
     const { db, layer } = setup();
     cart(db, "t1", "cart.webp");

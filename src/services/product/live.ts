@@ -20,7 +20,9 @@ import {
   type Stock,
 } from ".";
 import { type DbError, type Statement, DatabaseService } from "../db";
+import { releaseWith } from "../image/live";
 import { NotFound } from "~/lib/effect-error";
+import { log } from "~/lib/log";
 import { generateId } from "~/lib/random";
 import { validateProductInput } from "./validate-input";
 import { notifySync } from "../sync/trigger";
@@ -487,6 +489,9 @@ export const ProductLive = Layer.effect(
   ProductService,
   Effect.gen(function* () {
     const db = yield* DatabaseService;
+    // The same gate `ImageService` exposes, taken directly: this service already
+    // holds the database, and a gallery row going away has to free its file.
+    const images = releaseWith(db);
 
     const productsRef = yield* SubscriptionRef.make<ProductState[]>([]);
     let loaded = false;
@@ -1433,6 +1438,18 @@ export const ProductLive = Layer.effect(
       delete(id) {
         return Effect.gen(function* () {
           const now = Date.now();
+          // The gallery rows are about to become tombstones, and a tombstone stops
+          // owning its file (`refs.sql` skips them on purpose: they stay forever).
+          // So the names have to be read *before* the commit — after it, the only
+          // rows naming those files are gone and the count answers zero for files
+          // that were never freed. Reading first and releasing after is the order
+          // that keeps the count true at the moment it is asked.
+          const gallery = yield* db
+            .selectMany<{ image_name: string }>(
+              "SELECT image_name FROM images WHERE product_id = $1 AND image_deleted_at IS NULL",
+              [id],
+            )
+            .pipe(Effect.mapError(dbErrorToProductError));
           yield* commit([
             {
               sql: `UPDATE products SET
@@ -1445,6 +1462,22 @@ export const ProductLive = Layer.effect(
             // child tombstones in the same push batch.
             ...childTombstones(id, now),
           ]);
+          // A name another row still shows — a picture copied into a cart or kept
+          // by a record — survives: `release` is a count, not an unlink.
+          yield* Effect.forEach(
+            gallery.map((row) => row.image_name),
+            (name) =>
+              images.release(name).pipe(
+                // The tombstones are in; a file that will not unlink is litter for
+                // the optimizer's sweep, not a failed delete.
+                Effect.catchAll((error) =>
+                  Effect.sync(() =>
+                    log.error(`product: gagal menghapus berkas gambar ${name}: ${error.message}`),
+                  ),
+                ),
+              ),
+            { concurrency: 1, discard: true },
+          );
           yield* hydrateMany([id]);
         });
       },

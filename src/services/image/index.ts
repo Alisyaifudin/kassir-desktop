@@ -21,9 +21,11 @@ export type Release = "deleted" | "kept";
  *
  * So "delete the picture" is never an unlink. It is a count, and only a count of
  * zero is a permission. `release` is that gate, and it is the only sanctioned way
- * to remove a stored image: the two remaining `image.del` calls in the app are
- * rollbacks of a file whose row was never written (`use-gallery.ts`,
- * `ComboForm.tsx`), so nothing can name it.
+ * to remove a stored image — a rollback included. A picture written but never
+ * committed still names a file other rows may hold: the name is the hash of the
+ * bytes, so storing the same picture twice hands back one name, and unlinking it
+ * would take the picture of the row that got there first. `image.del` is called
+ * by `release` and by nothing else in the app.
  */
 export class ImageService extends Context.Tag("ImageService")<
   ImageService,
