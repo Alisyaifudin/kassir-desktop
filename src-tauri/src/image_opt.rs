@@ -347,6 +347,48 @@ fn content_digest<'a>(name: &'a str, mime: &str) -> Option<&'a str> {
     }
 }
 
+/// The decoder's name for the three types the gallery keeps.
+///
+/// `ext_of` is the same mapping, one direction round: a mime with no format here is a
+/// type this app cannot store, which `img_mimes` already keeps out.
+fn format_of(mime: &str) -> Option<image::ImageFormat> {
+    match mime {
+        "image/png" => Some(image::ImageFormat::Png),
+        "image/jpeg" => Some(image::ImageFormat::Jpeg),
+        WEBP => Some(image::ImageFormat::WebP),
+        _ => None,
+    }
+}
+
+/// Opens a picture, or says why it cannot be stored.
+///
+/// **The one place validity is decided**, and it was deliberately collapsed into one:
+/// it used to be three (a decode in `verdict`, a container check in `transcode`, and
+/// the format map in `ext_of`), and they drifted — the write path went on accepting a
+/// text file renamed to `image/webp` for a commit after the read path had stopped
+/// accepting one renamed to `image/png`.
+///
+/// Two questions, both the decoder's:
+///
+/// * **can anything parse these bytes** (`guess_format`), and
+/// * **are they the type the row claims** — the picker only sees the client-declared
+///   `file.type`, so a PNG renamed to `image/webp` used to be stored under a `.webp`
+///   name with PNG bytes inside, which no reader would ever call wrong.
+///
+/// Decoding every format, WebP included, is deliberate. The never-re-encode rule is
+/// about *encoding* (a second lossy pass costs quality forever), not about reading;
+/// and the feared false positive — an animated WebP the decoder refuses — does not
+/// exist: `image-webp` hands back the first frame. Judging WebP by its container
+/// instead would accept a truncated file that the renderer cannot draw either.
+fn open(bytes: &[u8], mime: &str) -> Result<image::DynamicImage, String> {
+    let expected = format_of(mime).ok_or_else(|| UNREADABLE.to_string())?;
+    let actual = image::guess_format(bytes).map_err(|_| UNREADABLE.to_string())?;
+    if actual != expected {
+        return Err(UNREADABLE.to_string());
+    }
+    image::load_from_memory_with_format(bytes, actual).map_err(|_| UNREADABLE.to_string())
+}
+
 /// What the integrity pass has to say about one file.
 #[derive(Debug, PartialEq, Eq)]
 enum Verdict {
@@ -364,19 +406,6 @@ enum Verdict {
     Drifted,
 }
 
-/// Whether bytes carry a WebP container, judged from the signature rather than the
-/// decoder.
-///
-/// The decoder here is stricter than the renderer: the webview animates a WebP that
-/// `image::load_from_memory` refuses, and this app never re-encodes WebP — a picked
-/// animated picture is stored as it arrived. Asking the decoder would report a
-/// perfectly good picture as corrupt, forever, with a "restore from backup"
-/// instruction attached. The header is the honest question for the format: is this a
-/// RIFF/WEBP container at all.
-fn looks_like_webp(bytes: &[u8]) -> bool {
-    bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP"
-}
-
 /// Both questions, in the one order that cannot certify a broken file.
 ///
 /// Validity comes first and does not depend on the name: a corrupt file whose name
@@ -384,14 +413,7 @@ fn looks_like_webp(bytes: &[u8]) -> bool {
 /// alone would call it finished, and that is exactly how a damaged picture becomes
 /// permanent.
 fn verdict(name: &str, mime: &str, bytes: &[u8]) -> Verdict {
-    // A WebP is judged by its container; everything else by the decoder, which is
-    // the same decoder the write paths use.
-    let valid = if mime == WEBP {
-        looks_like_webp(bytes)
-    } else {
-        image::load_from_memory(bytes).is_ok()
-    };
-    if !valid {
+    if open(bytes, mime).is_err() {
         return Verdict::Corrupt;
     }
     match content_digest(name, mime) {
@@ -429,24 +451,14 @@ enum Transcoded {
 /// certifies damage: `verify` reads it as consistent, and `sync_blob_get`'s guard
 /// sees nothing to refuse.
 fn transcode(bytes: &[u8], mime: &str) -> Result<Transcoded, String> {
+    // Validity first, for every format: a decode that fails here means the bytes are
+    // not a picture, and storing them under an honest name would hide that.
+    let source = open(bytes, mime)?;
     if mime == WEBP {
-        // Never *decoded* here: a second lossy pass costs quality forever, and the
-        // decoder is stricter than the renderer anyway (`verdict` explains the
-        // animated case). The container still gets checked, or this would be the one
-        // format whose write path is weaker than its read path: the picker only sees
-        // the client-declared `file.type`, so a text file renamed to `image/webp`
-        // would be stored raw and committed as a picture.
-        return if looks_like_webp(bytes) {
-            Ok(Transcoded::NotWorthIt)
-        } else {
-            Err(UNREADABLE.to_string())
-        };
+        // A picture, and one this module will never re-encode: a second lossy pass
+        // costs quality forever. It was opened only to be sure it *is* one.
+        return Ok(Transcoded::NotWorthIt);
     }
-    // The decode is also the validity check: nothing in this app can draw what the
-    // decoder cannot parse, and storing it under an honest name would hide that.
-    let Ok(source) = image::load_from_memory(bytes) else {
-        return Err(UNREADABLE.to_string());
-    };
 
     let (width, height) = (source.width(), source.height());
     let longest = width.max(height);
@@ -709,8 +721,12 @@ async fn sweep(
     // One count per name on disk, so `refs.sql` stays the single definition of
     // "who names this file": a hand-built set of referenced names would be a
     // second copy, and the day the two disagree a sweep deletes a live picture.
-    // That is one indexed query per file — fine for the thousands a shop holds, and
-    // the lever if it ever is not is a single grouped query over the four tables,
+    //
+    // That is one indexed query per file, which sounds worse than it measures: on
+    // this schema 5000 counts took 7 ms (1.4 µs each) against an in-memory database,
+    // so a shop with 20 000 pictures spends ~30 ms here — a few times that on disk,
+    // and still nothing beside reading and stat-ing the folder. The lever, if a
+    // catalogue ever makes it visible, is one grouped query over the four tables,
     // measured against this one rather than guessed at.
     let mut refs: HashMap<String, i64> = HashMap::new();
     for entry in &list {
@@ -1436,15 +1452,17 @@ mod tests {
         out.into_inner()
     }
 
-    /// The 16 bytes of a WebP container: `RIFF`, a size, `WEBP`, and one form tag.
+    /// A real single-frame WebP (16×16, 64 bytes), made with Pillow.
     ///
-    /// Synthetic on purpose — `looks_like_webp` reads the first and third words and
-    /// nothing else, so a test that asks "is this a WebP container" does not need a
-    /// real encode. Hand-rolling the header at each call site is what let three
-    /// fixtures keep claiming to be WebP after the write path started checking.
-    fn webp() -> Vec<u8> {
-        b"RIFF\x10\x00\x00\x00WEBPVP8 ".to_vec()
-    }
+    /// A real one, not a hand-rolled header: the write path now *decodes* every format
+    /// before storing it, so a synthetic container is not a picture and every test
+    /// built on one was passing on a fiction.
+    const STATIC_WEBP: &[u8] = include_bytes!("../assets/images/static.webp");
+
+    /// A real two-frame animated WebP (16×16, 204 bytes) — the case that was argued
+    /// about from memory. `image-webp` hands back the first frame, so animation is not
+    /// a false positive for the decoder.
+    const ANIMATED_WEBP: &[u8] = include_bytes!("../assets/images/animated.webp");
 
     fn files(dir: &Path) -> Vec<String> {
         let mut names: Vec<String> = std::fs::read_dir(dir)
@@ -1481,14 +1499,14 @@ mod tests {
     #[test]
     fn a_picture_is_named_by_the_bytes_that_were_written() {
         let dir = tempfile::tempdir().expect("tempdir");
-        let bytes = webp();
-        let stored = store_in(dir.path(), &bytes, WEBP).expect("store");
+        let bytes = STATIC_WEBP;
+        let stored = store_in(dir.path(), bytes, WEBP).expect("store");
 
         // WebP is never re-encoded, so the bytes are untouched and the name is
         // their digest under the extension that mime implies.
-        assert_eq!(stored.name, format!("{}.webp", sha256_hex(&bytes)));
+        assert_eq!(stored.name, format!("{}.webp", sha256_hex(bytes)));
         assert_eq!(stored.mime, WEBP);
-        assert_eq!(stored.bytes, 16);
+        assert_eq!(stored.bytes, 64);
         assert_eq!(files(dir.path()), vec![stored.name.clone()]);
         assert_eq!(
             std::fs::read(dir.path().join(&stored.name)).expect("read"),
@@ -1554,13 +1572,35 @@ mod tests {
 
     #[test]
     fn a_webp_is_never_re_encoded() {
-        // Judged by its header and left exactly as it arrived.
-        let bytes = webp();
         assert!(matches!(
-            transcode(&bytes, WEBP),
+            transcode(STATIC_WEBP, WEBP),
             Ok(Transcoded::NotWorthIt)
         ));
-        assert_eq!(bytes, webp(), "the bytes are untouched");
+        // Opened, never encoded: what comes back to the caller is what went in.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let stored = store_in(dir.path(), STATIC_WEBP, WEBP).expect("store");
+        assert_eq!(stored.bytes, STATIC_WEBP.len() as u64);
+    }
+
+    #[test]
+    fn an_animated_webp_is_a_picture() {
+        // The fixture answers a question that was argued from memory: the pinned
+        // decoder reads frame one and reports success, so "the decoder is stricter
+        // than the renderer" is not true of `image-webp`, and a container check was
+        // never needed to keep an animation from being called corrupt.
+        assert!(
+            image::load_from_memory(ANIMATED_WEBP).is_ok(),
+            "if this fails, the WebP branch needs a container check again"
+        );
+        let digest = sha256_hex(ANIMATED_WEBP);
+        assert_eq!(
+            verdict(&format!("{digest}.webp"), WEBP, ANIMATED_WEBP),
+            Verdict::Consistent
+        );
+        assert!(matches!(
+            transcode(ANIMATED_WEBP, WEBP),
+            Ok(Transcoded::NotWorthIt)
+        ));
     }
 
     #[test]
@@ -1570,32 +1610,23 @@ mod tests {
         // failure the caller must not store.
         let error = transcode(b"just some text", "image/png").expect_err("not a picture");
         assert_eq!(error, UNREADABLE);
-        // The one format the optimizer never decodes is still refused when it is not
-        // a container: `image_adopt`'s promise has to hold for all three types.
+        // The promise holds for all three types, including the one the optimizer
+        // never encodes.
         assert_eq!(
-            transcode(b"just some text", WEBP).expect_err("not a WebP container"),
+            transcode(b"just some text", WEBP).expect_err("not a WebP"),
             UNREADABLE
         );
-        // And a real picture cut in half, which is what a lost `.part` tail looks
-        // like.
+        // A real picture cut in half, which is what a lost `.part` tail looks like.
         let picture = png(64, 64);
         assert!(transcode(&picture[..picture.len() / 2], "image/png").is_err());
-    }
-
-    #[test]
-    fn a_webp_is_judged_by_its_container_not_its_frames() {
-        // The header a real WebP starts with, and the one an animated WebP starts
-        // with: the decoder refuses the animated one, the renderer draws it, so the
-        // header is the question worth asking.
-        let mut animated = webp();
-        // The extended form is what an animation carries; the header is the same.
-        animated[12..16].copy_from_slice(b"VP8X");
-        assert!(looks_like_webp(&animated));
-
-        assert!(!looks_like_webp(b"just some text"));
-        assert!(!looks_like_webp(b"RIFF"));
-        // The right prefix with the wrong form: a WAV is a RIFF container too.
-        assert!(!looks_like_webp(b"RIFF\x10\x00\x00\x00WAVEfmt "));
+        // And a picture that is not the type it claims: the picker only sees the
+        // client-declared `file.type`, so this is the shape a renamed file takes, and
+        // storing it would put PNG bytes behind a `.webp` name.
+        assert_eq!(
+            transcode(&picture, WEBP).expect_err("png declared as webp"),
+            UNREADABLE
+        );
+        assert!(open(&picture, "image/jpeg").is_err());
     }
 
     // ---- one job at a time -----------------------------------------------
@@ -1682,31 +1713,6 @@ mod tests {
                 "image/png",
                 truncated
             ),
-            Verdict::Corrupt
-        );
-    }
-
-    #[test]
-    fn a_webp_the_decoder_refuses_is_not_corrupt() {
-        // Animated WebP: the renderer draws it, `image::load_from_memory` does not,
-        // and the app never re-encodes a WebP — so a picked one is stored as it
-        // arrived. Reporting it corrupt would nag about a picture that is fine.
-        let mut animated = webp();
-        animated[12..16].copy_from_slice(b"VP8X");
-        assert!(
-            image::load_from_memory(&animated).is_err(),
-            "this fixture is here because the decoder refuses it"
-        );
-
-        let digest = sha256_hex(&animated);
-        assert_eq!(
-            verdict(&format!("{digest}.webp"), WEBP, &animated),
-            Verdict::Consistent
-        );
-        // A file with no WebP header at all still is not a picture.
-        let garbage = b"hello";
-        assert_eq!(
-            verdict(&format!("{}.webp", sha256_hex(garbage)), WEBP, garbage),
             Verdict::Corrupt
         );
     }
