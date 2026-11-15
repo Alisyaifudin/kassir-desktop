@@ -60,7 +60,7 @@ export function Verify() {
   return (
     <Panel title="Periksa berkas">
       <p className="text-sm text-muted-foreground">
-        Membaca ulang dan menguraikan isi setiap gambar, lalu membandingkannya dengan namanya. Nama berkas adalah kunci
+        Membaca ulang dan menguraikan isi setiap gambar yang dipakai produk dan setiap sampul combo, lalu membandingkannya dengan namanya. Nama berkas adalah kunci
         yang dipakai bersama lewat sinkronisasi: bila isinya tidak lagi cocok dengan namanya, berkas
         disimpan ulang dengan nama yang benar dan barisnya diperbarui, lalu dikirim ulang pada
         sinkronisasi berikutnya. Pemeriksaan ini membaca seluruh katalog, jadi jalankan saat

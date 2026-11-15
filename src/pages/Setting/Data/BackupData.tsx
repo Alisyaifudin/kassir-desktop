@@ -40,7 +40,9 @@ export function BackupData() {
         <div className="flex flex-col gap-1">
           <h3 className="text-base font-medium">Seluruh data</h3>
           <p className="text-sm text-muted-foreground">
-            Database dan pengaturan aplikasi disimpan ke satu file .zip. Gambar produk tidak ikut.
+            Database, pengaturan aplikasi, dan seluruh foto tersimpan di satu file .zip. Foto tidak
+            dimampatkan lagi karena sudah kecil, jadi ukuran cadangan kurang lebih sebesar jumlah
+            fotonya.
           </p>
         </div>
         <Button type="button" onClick={handleBackup} disabled={loading}>

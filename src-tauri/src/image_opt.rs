@@ -221,8 +221,9 @@ pub struct OptSummary {
 
 /// What the integrity pass found and fixed.
 ///
-/// `checked` is every live picture whose bytes were read; `repaired` is the subset
-/// whose name claimed a digest its bytes did not have. `skipped` is a row the pass
+/// `checked` is every file whose bytes were read — the product gallery and combo
+/// covers, the two tables whose pictures travel; `repaired` is the subset whose name
+/// claimed a digest its bytes did not have, or a type they were not. `skipped` is a row the pass
 /// has nothing to say about: a name the gallery minted (`${id}-${original}`) makes
 /// no claim, and the optimizer's normal run is what renames those.
 #[derive(Debug, Default, Serialize)]
@@ -287,7 +288,12 @@ impl Reporter {
 // Files
 // ============================================================================
 
-fn images_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+/// `AppData/images`, the one definition of where the pictures live.
+///
+/// `pub(crate)` for the backup, which archives that folder: a second
+/// `app_data_dir().join("images")` would be a copy that could drift, and the day it
+/// did the backup would ship an empty gallery and look like it worked.
+pub(crate) fn images_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     let base = app.path().app_data_dir().map_err(|error| {
         log::error!("image optimizer: no app data dir: {error}");
         FAILED.to_string()
@@ -347,46 +353,52 @@ fn content_digest<'a>(name: &'a str, mime: &str) -> Option<&'a str> {
     }
 }
 
-/// The decoder's name for the three types the gallery keeps.
+/// What the bytes actually are, in the vocabulary the rows speak.
 ///
-/// `ext_of` is the same mapping, one direction round: a mime with no format here is a
-/// type this app cannot store, which `img_mimes` already keeps out.
-fn format_of(mime: &str) -> Option<image::ImageFormat> {
-    match mime {
-        "image/png" => Some(image::ImageFormat::Png),
-        "image/jpeg" => Some(image::ImageFormat::Jpeg),
-        WEBP => Some(image::ImageFormat::WebP),
+/// `None` for a format the gallery does not hold (a GIF, an AVIF): the decoder can
+/// read it, this app cannot store it, and `img_mimes` keeps the rows honest about
+/// that. `ext_of` is the same mapping one step further (a mime to a file extension),
+/// and both are derived rather than parsed from the row for the same reason: the
+/// picker only ever reports what it was told.
+fn mime_of(format: image::ImageFormat) -> Option<&'static str> {
+    match format {
+        image::ImageFormat::Png => Some("image/png"),
+        image::ImageFormat::Jpeg => Some("image/jpeg"),
+        image::ImageFormat::WebP => Some(WEBP),
         _ => None,
     }
 }
 
-/// Opens a picture, or says why it cannot be stored.
+/// A picture the decoder opened: its pixels, and the format the bytes really are.
+struct Opened {
+    picture: image::DynamicImage,
+    format: image::ImageFormat,
+}
+
+/// Opens a picture, or says why it is not one.
 ///
-/// **The one place validity is decided**, and it was deliberately collapsed into one:
-/// it used to be three (a decode in `verdict`, a container check in `transcode`, and
-/// the format map in `ext_of`), and they drifted — the write path went on accepting a
-/// text file renamed to `image/webp` for a commit after the read path had stopped
-/// accepting one renamed to `image/png`.
+/// **The one place validity is decided.** It used to be three — a decode in
+/// `verdict`, a container check in `transcode`, `ext_of`'s format map — and each fix
+/// landed in one of them, so the write path went on accepting a text file renamed to
+/// `image/webp` for a commit after the read path had stopped accepting one renamed to
+/// `image/png`.
 ///
-/// Two questions, both the decoder's:
-///
-/// * **can anything parse these bytes** (`guess_format`), and
-/// * **are they the type the row claims** — the picker only sees the client-declared
-///   `file.type`, so a PNG renamed to `image/webp` used to be stored under a `.webp`
-///   name with PNG bytes inside, which no reader would ever call wrong.
+/// Two questions, both the decoder's: can anything parse these bytes
+/// (`guess_format`), and is the result a format the gallery holds (`mime_of`).
+/// Deliberately *not* "does it match the declared type": that is a question about the
+/// caller, not about the bytes, and answering it here is what made a readable picture
+/// impossible to repair. The declared type is checked where it can be corrected —
+/// `store_in` stores what the bytes are, `verdict` reports the disagreement.
 ///
 /// Decoding every format, WebP included, is deliberate. The never-re-encode rule is
-/// about *encoding* (a second lossy pass costs quality forever), not about reading;
-/// and the feared false positive — an animated WebP the decoder refuses — does not
-/// exist: `image-webp` hands back the first frame. Judging WebP by its container
-/// instead would accept a truncated file that the renderer cannot draw either.
-fn open(bytes: &[u8], mime: &str) -> Result<image::DynamicImage, String> {
-    let expected = format_of(mime).ok_or_else(|| UNREADABLE.to_string())?;
-    let actual = image::guess_format(bytes).map_err(|_| UNREADABLE.to_string())?;
-    if actual != expected {
-        return Err(UNREADABLE.to_string());
-    }
-    image::load_from_memory_with_format(bytes, actual).map_err(|_| UNREADABLE.to_string())
+/// about *encoding*, not reading, and the feared false positive — an animated WebP
+/// the decoder refuses — does not exist: `image-webp` hands back the first frame.
+fn open(bytes: &[u8]) -> Result<Opened, String> {
+    let format = image::guess_format(bytes).map_err(|_| UNREADABLE.to_string())?;
+    mime_of(format).ok_or_else(|| UNREADABLE.to_string())?;
+    let picture =
+        image::load_from_memory_with_format(bytes, format).map_err(|_| UNREADABLE.to_string())?;
+    Ok(Opened { picture, format })
 }
 
 /// What the integrity pass has to say about one file.
@@ -404,6 +416,10 @@ enum Verdict {
     /// exists for, and the one thing no other code can see — the optimizer trusts
     /// the name, and a peer refuses the download instead of re-deriving it.
     Drifted,
+    /// The bytes are a picture, but not the type the row claims. Data written before
+    /// `store_in` started deriving the type from the bytes (a picker that lied, a
+    /// pulled row, an import) — a correction, not damage.
+    Mislabeled { actual: &'static str },
 }
 
 /// Both questions, in the one order that cannot certify a broken file.
@@ -413,8 +429,16 @@ enum Verdict {
 /// alone would call it finished, and that is exactly how a damaged picture becomes
 /// permanent.
 fn verdict(name: &str, mime: &str, bytes: &[u8]) -> Verdict {
-    if open(bytes, mime).is_err() {
+    let Ok(opened) = open(bytes) else {
         return Verdict::Corrupt;
+    };
+    // A readable picture under the wrong type is not damage — it is a label to
+    // correct, and treating it as damage used to leave such a row stuck forever: the
+    // run refused it, and the screen told the operator to restore a picture that
+    // renders perfectly.
+    let actual = mime_of(opened.format).expect("open only opens the gallery's formats");
+    if actual != mime {
+        return Verdict::Mislabeled { actual };
     }
     match content_digest(name, mime) {
         None => Verdict::Unclaimed,
@@ -450,15 +474,13 @@ enum Transcoded {
 /// nothing can draw — which is the one way the app could still mint a name that
 /// certifies damage: `verify` reads it as consistent, and `sync_blob_get`'s guard
 /// sees nothing to refuse.
-fn transcode(bytes: &[u8], mime: &str) -> Result<Transcoded, String> {
-    // Validity first, for every format: a decode that fails here means the bytes are
-    // not a picture, and storing them under an honest name would hide that.
-    let source = open(bytes, mime)?;
-    if mime == WEBP {
+fn transcode(opened: Opened) -> Result<Transcoded, String> {
+    if opened.format == image::ImageFormat::WebP {
         // A picture, and one this module will never re-encode: a second lossy pass
         // costs quality forever. It was opened only to be sure it *is* one.
         return Ok(Transcoded::NotWorthIt);
     }
+    let source = opened.picture;
 
     let (width, height) = (source.width(), source.height());
     let longest = width.max(height);
@@ -509,13 +531,25 @@ fn store_in(dir: &Path, bytes: &[u8], mime: &str) -> Result<Stored, String> {
     // Undecodable bytes are not a size judgement: they fail here, so a new pick is
     // rejected (and its draft removed) instead of being committed as a picture, and
     // the run counts the row failed instead of renaming it.
-    let converted = match transcode(bytes, mime)? {
+    //
+    // A declared type that disagrees with the bytes is a third answer, and it is a
+    // correction rather than a failure: the picker only sees `file.type`, so a lying
+    // one is how a PNG ends up behind a `.webp` name. The row is given what the bytes
+    // are, and the caller's claim is only worth a log line.
+    let opened = open(bytes)?;
+    let actual = mime_of(opened.format).unwrap_or(mime);
+    if actual != mime {
+        log::warn!(
+            "image optimizer: bytes are {actual} but the caller declared {mime}; storing {actual}"
+        );
+    }
+    let converted = match transcode(opened)? {
         Transcoded::Smaller(out) if out.len() < bytes.len() => Some(out),
         _ => None,
     };
     let (payload, chosen): (&[u8], &str) = match converted.as_deref() {
         Some(out) => (out, WEBP),
-        None => (bytes, mime),
+        None => (bytes, actual),
     };
 
     let ext = ext_of(chosen).ok_or_else(|| {
@@ -608,10 +642,19 @@ struct Entry {
 /// A subdirectory is skipped rather than treated as a leftover: this module only
 /// ever writes files here, and `remove_file` on a directory fails anyway.
 fn entries(dir: &Path) -> Result<Vec<Entry>, String> {
-    let read = std::fs::read_dir(dir).map_err(|error| {
-        log::error!("image optimizer: could not read {}: {error}", dir.display());
-        FAILED.to_string()
-    })?;
+    let read = match std::fs::read_dir(dir) {
+        Ok(read) => read,
+        // A folder that is not there is an *empty* folder, not a failure. `AppData/
+        // images` is created lazily — by the first `image.save`, or the first
+        // `sync_blob_get` — so a fresh install has none, and so does one that pulled a
+        // catalogue before any picture came down. The plan screen opens on exactly
+        // that state, and answering it with an error left the whole panel blank.
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => {
+            log::error!("image optimizer: could not read {}: {error}", dir.display());
+            return Err(FAILED.to_string());
+        }
+    };
     let mut out = Vec::new();
     for item in read {
         let item = match item {
@@ -1282,8 +1325,144 @@ async fn run<R: Runtime>(
     Ok(summary)
 }
 
-/// The integrity pass: read each live picture, compare its bytes with the digest its
-/// name claims, and repair the ones that disagree.
+/// A picture a live row names, whichever table that row lives in.
+///
+/// Two tables travel: the product gallery (`images.image_name`) and a combo's cover
+/// (`combos.combo_cover_name`). Both are uploaded and both are fetched back through
+/// the same guarded download, so a drifted file in either one is refused by every
+/// peer forever — which is exactly what this pass is for.
+///
+/// `record_images` and `tx_images` are deliberately out: a record's photos are part
+/// of an immutable aggregate whose bytes are never rewritten, and a cart's pictures
+/// never leave the device (no byte route), so neither can produce the permanent
+/// refusal this pass exists to repair.
+enum Owned<'a> {
+    Gallery {
+        image_id: &'a str,
+        name: &'a str,
+        mime: &'a str,
+    },
+    Cover {
+        combo_id: &'a str,
+        name: &'a str,
+        mime: &'a str,
+    },
+}
+
+impl Owned<'_> {
+    fn name(&self) -> &str {
+        match self {
+            Owned::Gallery { name, .. } | Owned::Cover { name, .. } => name,
+        }
+    }
+
+    fn mime(&self) -> &str {
+        match self {
+            Owned::Gallery { mime, .. } | Owned::Cover { mime, .. } => mime,
+        }
+    }
+}
+
+/// What checking one file came to.
+enum Checked {
+    /// Not on this device. `run` and the validator leave these alone.
+    Missing,
+    /// Not a picture at all. Reported, never repaired.
+    Corrupt,
+    /// A picture whose name makes no claim yet; `run` content-addresses those.
+    Unclaimed,
+    /// The name describes the file. The common answer.
+    Consistent,
+    /// Re-stored under the right name and the right type, and the row retargeted.
+    Repaired,
+    /// Read, store or retarget failed. Left for the next attempt.
+    Failed,
+}
+
+/// Reads one file, judges it, and repairs it if it needs it.
+///
+/// The repair is the optimizer's own write sequence for one row: `store_in` (which
+/// also decides the type from the bytes), then the row, then the old file. Two
+/// tables means two small retargets and nothing else shared.
+async fn check(pool: &SqlitePool, dir: &Path, owned: &Owned<'_>, now: i64) -> Checked {
+    let name = owned.name();
+    let path = dir.join(name);
+    let bytes = match std::fs::read(&path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Checked::Missing,
+        Err(error) => {
+            log::warn!(
+                "image optimizer: could not read {}: {error}",
+                path.display()
+            );
+            return Checked::Failed;
+        }
+    };
+
+    let mime = owned.mime();
+    match verdict(name, mime, &bytes) {
+        Verdict::Corrupt => return Checked::Corrupt,
+        Verdict::Unclaimed => return Checked::Unclaimed,
+        Verdict::Consistent => return Checked::Consistent,
+        Verdict::Drifted => log::warn!(
+            "image optimizer: {name} does not hash to the digest its name claims; repairing"
+        ),
+        Verdict::Mislabeled { actual } => {
+            log::warn!("image optimizer: {name} is declared {mime} but is {actual}; repairing");
+        }
+    }
+
+    // The encode is the CPU work, on a worker thread for the same reason the run
+    // does it there: the cart's flush timer must not queue behind it.
+    let work_dir = dir.to_path_buf();
+    let work_mime = mime.to_string();
+    let stored =
+        match tauri::async_runtime::spawn_blocking(move || store_in(&work_dir, &bytes, &work_mime))
+            .await
+        {
+            Ok(stored) => stored,
+            Err(error) => {
+                log::error!("image optimizer: verify worker failed: {error}");
+                return Checked::Failed;
+            }
+        };
+    let stored = match stored {
+        Ok(stored) => stored,
+        Err(error) => {
+            log::warn!("image optimizer: could not re-store {name}: {error}");
+            return Checked::Failed;
+        }
+    };
+
+    // Row first, file second: a crash between the two leaves the repaired file
+    // unreferenced (the sweep takes it), never a row pointing at nothing.
+    let moved = match owned {
+        Owned::Gallery { image_id, .. } => retarget(pool, image_id, &stored, now).await,
+        Owned::Cover { combo_id, .. } => retarget_cover(pool, combo_id, &stored, now).await,
+    };
+    if let Err(error) = moved {
+        let id = match owned {
+            Owned::Gallery { image_id, .. } => image_id,
+            Owned::Cover { combo_id, .. } => combo_id,
+        };
+        log::error!("image optimizer: {id} left unretargeted after repair: {error}");
+        return Checked::Failed;
+    }
+
+    // The wrongly-named file is nobody's now — unless a row somehow still holds the
+    // old name, in which case `release` keeps it and the count stays honest.
+    if let Err(error) = release(pool, dir, name).await {
+        // The row is already moved; a file that will not unlink is litter for the
+        // sweep, not a failed repair.
+        log::warn!("image optimizer: {error}");
+    }
+    Checked::Repaired
+}
+
+/// The integrity pass: read every picture the app can re-fetch, compare its bytes
+/// with the digest its name claims, and repair the ones that disagree.
+///
+/// Covers both travelling tables. See `Owned` for why the other two are out.
 async fn verify<R: Runtime>(
     app: &AppHandle<R>,
     on_progress: Channel<OptProgress>,
@@ -1292,7 +1471,23 @@ async fn verify<R: Runtime>(
     let pool = pool(app).await?;
     let dir = images_dir(app)?;
     let rows = live_rows(&pool).await?;
-    let total = rows.len() as u32;
+    let covers = cover_rows(&pool).await?;
+
+    let mut work: Vec<Owned<'_>> = rows
+        .iter()
+        .map(|row| Owned::Gallery {
+            image_id: row.image_id.as_str(),
+            name: row.name.as_str(),
+            mime: row.mime.as_str(),
+        })
+        .collect();
+    work.extend(covers.iter().map(|cover| Owned::Cover {
+        combo_id: cover.combo_id.as_str(),
+        name: cover.name.as_str(),
+        mime: cover.mime.as_str(),
+    }));
+
+    let total = work.len() as u32;
     let reporter = Reporter::new(on_progress);
 
     // One clock for the whole pass, for the same reason `run` keeps one: a repair's
@@ -1301,119 +1496,37 @@ async fn verify<R: Runtime>(
     let mut summary = VerifySummary::default();
     reporter.report("verify", 0, total, 0, 0);
 
-    for (index, row) in rows.iter().enumerate() {
+    for (index, owned) in work.iter().enumerate() {
         if cancel.load(Ordering::SeqCst) {
             summary.cancelled = true;
             break;
         }
-        let step = index as u32 + 1;
-
-        let path = dir.join(&row.name);
-        let bytes = match std::fs::read(&path) {
-            Ok(bytes) => bytes,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                summary.missing += 1;
-                reporter.report("verify", step, total, 0, 0);
-                continue;
-            }
-            Err(error) => {
-                log::warn!(
-                    "image optimizer: could not read {}: {error}",
-                    path.display()
-                );
-                summary.failed += 1;
-                reporter.report("verify", step, total, 0, 0);
-                continue;
-            }
-        };
-
-        summary.checked += 1;
-
-        // The decode is the expensive half, and with the digest it is one verdict —
-        // on a worker thread, or a catalogue would stall the cart's flush timer.
-        let work_name = row.name.clone();
-        let work_mime = row.mime.clone();
-        let (bytes, answer) = tauri::async_runtime::spawn_blocking(move || {
-            let answer = verdict(&work_name, &work_mime, &bytes);
-            (bytes, answer)
-        })
-        .await
-        .map_err(|error| {
-            log::error!("image optimizer: verify worker failed: {error}");
-            FAILED.to_string()
-        })?;
-
-        match answer {
-            Verdict::Corrupt => {
+        match check(&pool, &dir, owned, now).await {
+            // The only outcome that did not read a byte: there is no file.
+            Checked::Missing => summary.missing += 1,
+            Checked::Corrupt => {
+                summary.checked += 1;
                 summary.corrupt += 1;
                 log::warn!(
                     "image optimizer: {} does not decode as a picture; left alone",
-                    row.name
+                    owned.name()
                 );
-                reporter.report("verify", step, total, 0, 0);
-                continue;
             }
-            Verdict::Unclaimed => {
+            Checked::Unclaimed => {
+                summary.checked += 1;
                 summary.skipped += 1;
-                reporter.report("verify", step, total, 0, 0);
-                continue;
             }
-            Verdict::Consistent => {
-                reporter.report("verify", step, total, 0, 0);
-                continue;
+            Checked::Consistent => summary.checked += 1,
+            Checked::Repaired => {
+                summary.checked += 1;
+                summary.repaired += 1;
             }
-            // The only branch that writes.
-            Verdict::Drifted => {}
-        }
-
-        log::warn!(
-            "image optimizer: {} does not hash to the digest its name claims; repairing",
-            row.name
-        );
-
-        // The encode is the CPU work, on a worker thread for the same reason the run
-        // does it there: the cart's flush timer must not queue behind it.
-        let work_dir = dir.clone();
-        let work_mime = row.mime.clone();
-        let stored =
-            tauri::async_runtime::spawn_blocking(move || store_in(&work_dir, &bytes, &work_mime))
-                .await
-                .map_err(|error| {
-                    log::error!("image optimizer: verify worker failed: {error}");
-                    FAILED.to_string()
-                })?;
-
-        let stored = match stored {
-            Ok(stored) => stored,
-            Err(error) => {
+            Checked::Failed => {
+                summary.checked += 1;
                 summary.failed += 1;
-                log::warn!("image optimizer: could not re-store {}: {error}", row.name);
-                reporter.report("verify", step, total, 0, 0);
-                continue;
             }
-        };
-
-        // Row first, file second: a crash between the two leaves the repaired file
-        // unreferenced (the sweep takes it), never a row pointing at nothing.
-        if let Err(error) = retarget(&pool, &row.image_id, &stored, now).await {
-            summary.failed += 1;
-            log::error!(
-                "image optimizer: {} left unretargeted after repair: {error}",
-                row.image_id
-            );
-            reporter.report("verify", step, total, 0, 0);
-            continue;
         }
-
-        // The wrong-named file is nobody's now — unless a row somehow still holds the
-        // old name, in which case `release` keeps it and the count stays honest.
-        if let Err(error) = release(&pool, &dir, &row.name).await {
-            // The row is already moved; a file that will not unlink is litter for the
-            // sweep, not a failed repair.
-            log::warn!("image optimizer: {error}");
-        }
-        summary.repaired += 1;
-        reporter.report("verify", step, total, 0, 0);
+        reporter.report("verify", index as u32 + 1, total, 0, 0);
     }
 
     reporter.report("verify", total, total, 0, 0);
@@ -1428,6 +1541,76 @@ async fn verify<R: Runtime>(
         if summary.cancelled { " (cancelled)" } else { "" }
     );
     Ok(summary)
+}
+
+/// `combos.combo_cover_name` for every live combo that has one.
+struct CoverRow {
+    combo_id: String,
+    name: String,
+    mime: String,
+}
+
+async fn cover_rows(pool: &SqlitePool) -> Result<Vec<CoverRow>, String> {
+    let rows = sqlx::query(
+        "SELECT combo_id, combo_cover_name, combo_cover_mime FROM combos
+          WHERE combo_deleted_at IS NULL AND combo_cover_name IS NOT NULL
+          ORDER BY combo_id",
+    )
+    .fetch_all(pool)
+    .await
+    .map_err(|error| {
+        log::error!("image optimizer: could not list combo covers: {error}");
+        FAILED.to_string()
+    })?;
+
+    Ok(rows
+        .iter()
+        .filter_map(|row| {
+            let mime: Option<String> = row.get("combo_cover_mime");
+            Some(CoverRow {
+                combo_id: row.get("combo_id"),
+                name: row.get("combo_cover_name"),
+                // The table's CHECK ties the two together, so a null mime beside a
+                // name is not a state this schema allows.
+                mime: mime?,
+            })
+        })
+        .collect())
+}
+
+/// Points one combo's cover at the file now on disk.
+///
+/// The mirror of `retarget`, and the same four facts: the name and mime the row must
+/// carry, the clock and `combo_cover_blob_version` moved together, the two blob
+/// markers cleared, `combo_sync_at` cleared so the next push sends it.
+async fn retarget_cover(
+    pool: &SqlitePool,
+    combo_id: &str,
+    stored: &Stored,
+    now: i64,
+) -> Result<(), String> {
+    sqlx::query(
+        "UPDATE combos SET
+           combo_cover_name = $1,
+           combo_cover_mime = $2,
+           combo_updated_at = max($3, combo_updated_at + 1),
+           combo_cover_blob_version = max($3, combo_updated_at + 1),
+           combo_cover_blob_sha256 = NULL,
+           combo_cover_blob_sync_at = NULL,
+           combo_sync_at = NULL
+         WHERE combo_id = $4",
+    )
+    .bind(&stored.name)
+    .bind(&stored.mime)
+    .bind(now)
+    .bind(combo_id)
+    .execute(pool)
+    .await
+    .map_err(|error| {
+        log::error!("image optimizer: could not retarget cover {combo_id}: {error}");
+        FAILED.to_string()
+    })?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1533,7 +1716,8 @@ mod tests {
     #[test]
     fn a_photograph_is_capped_on_its_long_edge() {
         let source = png(3000, 20);
-        let Transcoded::Smaller(converted) = transcode(&source, "image/png").expect("png converts")
+        let Transcoded::Smaller(converted) =
+            transcode(open(&source).expect("a picture")).expect("png converts")
         else {
             panic!("a 3000 px source must re-encode");
         };
@@ -1573,7 +1757,7 @@ mod tests {
     #[test]
     fn a_webp_is_never_re_encoded() {
         assert!(matches!(
-            transcode(STATIC_WEBP, WEBP),
+            transcode(open(STATIC_WEBP).expect("a picture")),
             Ok(Transcoded::NotWorthIt)
         ));
         // Opened, never encoded: what comes back to the caller is what went in.
@@ -1598,7 +1782,7 @@ mod tests {
             Verdict::Consistent
         );
         assert!(matches!(
-            transcode(ANIMATED_WEBP, WEBP),
+            transcode(open(ANIMATED_WEBP).expect("a picture")),
             Ok(Transcoded::NotWorthIt)
         ));
     }
@@ -1608,25 +1792,51 @@ mod tests {
         // The conflation this exists to prevent: a `.txt` renamed to image/png.
         // "Not smaller" would keep it and name it honestly; "undecodable" is a
         // failure the caller must not store.
-        let error = transcode(b"just some text", "image/png").expect_err("not a picture");
-        assert_eq!(error, UNREADABLE);
-        // The promise holds for all three types, including the one the optimizer
-        // never encodes.
-        assert_eq!(
-            transcode(b"just some text", WEBP).expect_err("not a WebP"),
-            UNREADABLE
-        );
+        assert_eq!(open(b"just some text").err().as_deref(), Some(UNREADABLE));
         // A real picture cut in half, which is what a lost `.part` tail looks like.
         let picture = png(64, 64);
-        assert!(transcode(&picture[..picture.len() / 2], "image/png").is_err());
-        // And a picture that is not the type it claims: the picker only sees the
-        // client-declared `file.type`, so this is the shape a renamed file takes, and
-        // storing it would put PNG bytes behind a `.webp` name.
         assert_eq!(
-            transcode(&picture, WEBP).expect_err("png declared as webp"),
-            UNREADABLE
+            open(&picture[..picture.len() / 2]).err().as_deref(),
+            Some(UNREADABLE)
         );
-        assert!(open(&picture, "image/jpeg").is_err());
+        // A format the decoder reads but the gallery does not hold: storable by
+        // neither path, so the answer is the same "not a picture" as far as the
+        // catalogue is concerned.
+        assert!(mime_of(image::ImageFormat::Gif).is_none());
+    }
+
+    #[test]
+    fn a_picture_under_the_wrong_label_is_corrected_not_refused() {
+        // A picker that lied about `file.type`, or a row written before `store_in`
+        // derived the type from the bytes. The bytes are fine, so refusing them is the
+        // wrong answer — and calling them damage left the row with no exit.
+        //
+        // The fixture is a WebP declared as a PNG, which is the sharpest case: the
+        // correction must not *convert* it (a WebP is never re-encoded), only relabel
+        // it, so the assertion can tell "stored as what it is" from "stored as
+        // something else that happens to be smaller".
+        let dir = tempfile::tempdir().expect("tempdir");
+        let stored =
+            store_in(dir.path(), STATIC_WEBP, "image/png").expect("a picture is a picture");
+
+        assert_eq!(stored.mime, WEBP);
+        assert_eq!(stored.name, format!("{}.webp", sha256_hex(STATIC_WEBP)));
+        assert_eq!(
+            std::fs::read(dir.path().join(&stored.name)).expect("read"),
+            STATIC_WEBP,
+            "relabelled, not re-encoded"
+        );
+
+        // The read path calls this a correction to make, not damage.
+        assert_eq!(
+            verdict(&stored.name, "image/png", STATIC_WEBP),
+            Verdict::Mislabeled { actual: WEBP }
+        );
+        // With the label fixed, the same row is simply consistent.
+        assert_eq!(
+            verdict(&stored.name, WEBP, STATIC_WEBP),
+            Verdict::Consistent
+        );
     }
 
     // ---- one job at a time -----------------------------------------------
@@ -1722,6 +1932,25 @@ mod tests {
     /// A file aged past `ORPHAN_GRACE`, so age never masks the rule under test.
     fn old() -> SystemTime {
         SystemTime::now() - ORPHAN_GRACE - Duration::from_secs(60)
+    }
+
+    #[test]
+    fn a_missing_images_folder_is_an_empty_one() {
+        // A fresh install: no picture has been saved or downloaded yet, so the folder
+        // the plan and the sweep walk does not exist. That is a state to describe, not
+        // an error to fail the read with.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = dir.path().join("images");
+        assert!(!missing.exists());
+
+        let list = entries(&missing).expect("an absent folder lists as empty");
+        assert!(list.is_empty());
+
+        // And walking it is a no-op, applying included: nothing to unlink, and the
+        // sweep does not create the folder either.
+        let swept = walk(&missing, list, SystemTime::now(), &HashMap::new(), true);
+        assert_eq!((swept.orphans, swept.parts), (0, 0));
+        assert!(!missing.exists());
     }
 
     #[test]

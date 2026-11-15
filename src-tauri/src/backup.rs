@@ -1,5 +1,10 @@
-//! Whole-install backup: one `.zip` holding the database, `store.json` and a
-//! manifest that says what the archive is.
+//! Whole-install backup: one `.zip` holding the database, `store.json`, every
+//! stored picture (`images/<sha256>.<ext>`, kept un-deflated because WebP is
+//! already entropy-coded) and a manifest that says what the archive is.
+//!
+//! The pictures are why the archive can be large — and the reason it is worth it:
+//! a receipt's photo has no byte route and no other copy, so this is the only way
+//! one survives a bad disk.
 //!
 //! # Why this is not a file copy
 //!
@@ -59,6 +64,9 @@ use zip::{CompressionMethod, ZipWriter};
 /// different directories, which is why the manifest records where each file
 /// belongs instead of the restore path being guessed.
 const STORE_FILE: &str = "store.json";
+
+/// The picture folder under `app_data_dir`, the same one `image_opt` writes.
+const IMAGES_DIR: &str = "images";
 
 const FAILED: &str = "Gagal membuat cadangan. Coba pilih folder lain.";
 const DB_BUSY: &str = "Database sibuk. Coba lagi sebentar lagi.";
@@ -206,21 +214,28 @@ pub async fn backup_data<R: Runtime>(
     })?;
 
     let at = Instant::now();
-    let files = describe_files(
-        &reporter,
-        &[
-            ("data.db", "appConfig", &snapshot),
-            (STORE_FILE, "appData", &store_path),
-        ],
-    )?;
+    let mut payload: Vec<(String, &'static str, PathBuf)> = vec![
+        ("data.db".to_string(), "appConfig", snapshot.clone()),
+        (STORE_FILE.to_string(), "appData", store_path.clone()),
+    ];
+    payload.extend(
+        pictures(&app)?
+            .into_iter()
+            .map(|(name, path)| (format!("{IMAGES_DIR}/{name}"), "appData", path)),
+    );
+    let files = describe_files(&reporter, &payload)?;
     log::info!("backup: hash in {} ms", at.elapsed().as_millis());
 
     let manifest_path = dir.path().join("manifest.json");
     write_manifest(&manifest_path, &files, schema, &store_json)?;
 
-    let payload = vec![files[0].path.clone(), files[1].path.clone(), manifest_path];
+    let mut entries: Vec<(String, PathBuf)> = files
+        .iter()
+        .map(|file| (file.name.clone(), file.path.clone()))
+        .collect();
+    entries.push(("manifest.json".to_string(), manifest_path));
     let at = Instant::now();
-    let archive = zip_into(&target, payload, &reporter).await?;
+    let archive = zip_into(&target, entries, &reporter).await?;
     log::info!("backup: compress in {} ms", at.elapsed().as_millis());
 
     reporter.report("finalize", COMPRESS_END, 100, 1.0);
@@ -428,7 +443,7 @@ fn write_manifest(
         .iter()
         .map(|file| {
             json!({
-                "name": file.name,
+                "name": &file.name,
                 "dir": file.dir,
                 "bytes": file.bytes,
                 "sha256": file.sha256,
@@ -463,7 +478,7 @@ fn write_manifest(
 /// backup untouched.
 async fn zip_into(
     target: &Path,
-    payload: Vec<PathBuf>,
+    payload: Vec<(String, PathBuf)>,
     reporter: &Reporter,
 ) -> Result<BackupSaved, String> {
     let mut part_name = target.as_os_str().to_owned();
@@ -473,7 +488,7 @@ async fn zip_into(
     // The bar tracks the bytes going *in*, since the archive's own size is only
     // known once the last entry is flushed.
     let mut total = 0_u64;
-    for source in &payload {
+    for (_, source) in &payload {
         total += fs::metadata(source)
             .map_err(|error| {
                 log::error!("backup_data could not size {}: {error}", source.display());
@@ -494,21 +509,24 @@ async fn zip_into(
             FAILED.to_string()
         })?;
         let mut zip = ZipWriter::new(file);
-        // Level 6 is zlib's default: SQLite pages compress several times over and
-        // the last two levels mostly cost CPU the cashier is waiting on.
-        let options = SimpleFileOptions::default()
-            .compression_method(CompressionMethod::Deflated)
-            .compression_level(Some(6));
-
         let mut done = 0_u64;
-        for source in &payload {
-            // Every entry is stored flat under its file name: the manifest carries
-            // the destination, so the archive stays readable by hand (and by any
-            // unzip tool) whatever a future restore decides.
-            let name = source
-                .file_name()
-                .map(|name| name.to_string_lossy().to_string())
-                .unwrap_or_default();
+        for (name, source) in &payload {
+            // Entries keep the shape a restore needs — `data.db`, `store.json`,
+            // `images/<sha256>.<ext>` — so the archive is readable by hand (and by
+            // any unzip tool) as well as by the manifest.
+            //
+            // A picture is already entropy-coded (WebP, or a JPEG nobody re-encoded):
+            // deflating it buys nothing and costs the cashier a full pass over the
+            // gallery, so those entries are stored as they are. Level 6 is zlib's
+            // default for the rest: SQLite pages compress several times over and the
+            // last two levels mostly cost CPU.
+            let options = if is_picture(name) {
+                SimpleFileOptions::default().compression_method(CompressionMethod::Stored)
+            } else {
+                SimpleFileOptions::default()
+                    .compression_method(CompressionMethod::Deflated)
+                    .compression_level(Some(6))
+            };
             zip.start_file(name.as_str(), options).map_err(|error| {
                 log::error!("backup_data could not add {name}: {error}");
                 FAILED.to_string()
@@ -620,19 +638,73 @@ fn sha256_hex(path: &Path, on_read: &mut dyn FnMut(u64)) -> Result<String, Strin
 
 /// One payload file as the manifest records it.
 struct ManifestFile {
-    name: &'static str,
+    /// The path inside the archive *and* the path a restore joins onto `dir`:
+    /// `data.db`, `store.json`, or `images/<sha256>.<ext>`.
+    name: String,
     /// Which app directory a restore puts it back into: `data.db` lives under
-    /// `app_config_dir`, `store.json` under `app_data_dir`.
+    /// `app_config_dir`, `store.json` and `images/` under `app_data_dir`.
     dir: &'static str,
     path: PathBuf,
     bytes: u64,
     sha256: String,
 }
 
+/// Every stored picture, as `(file name, path)`.
+///
+/// The folder is created lazily, so a shop that never saved a picture has none:
+/// that is an empty gallery, not a failed backup. Sorted by name so two backups of
+/// the same shop list the same entries in the same order.
+fn pictures<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<Vec<(String, PathBuf)>, String> {
+    // The optimizer's own definition of the folder, so the two cannot disagree
+    // about what "the pictures" are.
+    let dir = crate::image_opt::images_dir(app).map_err(|error| {
+        log::error!("backup_data could not find the picture folder: {error}");
+        FAILED.to_string()
+    })?;
+
+    let read = match fs::read_dir(&dir) {
+        Ok(read) => read,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => {
+            log::error!("backup_data could not read {}: {error}", dir.display());
+            return Err(FAILED.to_string());
+        }
+    };
+
+    let mut pictures = Vec::new();
+    for entry in read {
+        let entry = entry.map_err(|error| {
+            log::error!("backup_data could not read a picture entry: {error}");
+            FAILED.to_string()
+        })?;
+        // Only files: a `.part` scratch is a write in flight, and a subdirectory is
+        // not something this app puts there.
+        let Ok(meta) = entry.metadata() else { continue };
+        if !meta.is_file() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.ends_with(".part") {
+            continue;
+        }
+        pictures.push((name, entry.path()));
+    }
+    pictures.sort_by(|left, right| left.0.cmp(&right.0));
+    Ok(pictures)
+}
+
+/// True for an entry that is already compressed, so the archive stores it as-is.
+fn is_picture(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    [".webp", ".jpg", ".jpeg", ".png"]
+        .iter()
+        .any(|ext| lower.ends_with(ext))
+}
+
 /// Sizes and digests for the payload, reported as the hash stage's progress.
 fn describe_files(
     reporter: &Reporter,
-    files: &[(&'static str, &'static str, &Path)],
+    files: &[(String, &'static str, PathBuf)],
 ) -> Result<Vec<ManifestFile>, String> {
     let total: u64 = files
         .iter()
@@ -670,9 +742,9 @@ fn describe_files(
         };
         done += bytes;
         described.push(ManifestFile {
-            name,
+            name: name.clone(),
             dir,
-            path: path.to_path_buf(),
+            path: path.clone(),
             bytes,
             sha256,
         });
@@ -698,5 +770,26 @@ impl<R: Read> Read for CountingReader<'_, R> {
         self.read += read as u64;
         (self.on_read)(self.read);
         Ok(read)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pictures_are_stored_undeflated_and_the_rest_is_compressed() {
+        // A wrong prefix here would not break the archive, it would quietly make
+        // every backup spend a full deflate pass on bytes that are already
+        // entropy-coded — the kind of cost nobody notices until a 400 MB gallery
+        // takes minutes.
+        assert!(is_picture("images/3f2a.webp"));
+        assert!(is_picture("img-1-rumah.png"));
+        assert!(is_picture("photo.JPG"));
+        assert!(is_picture("photo.jpeg"));
+
+        assert!(!is_picture("data.db"));
+        assert!(!is_picture("store.json"));
+        assert!(!is_picture("manifest.json"));
     }
 }
