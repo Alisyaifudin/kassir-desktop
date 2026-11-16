@@ -240,8 +240,19 @@ export function Combobox({
               setOpen(true);
             }}
             onBlur={() => setText(labelFor(value, options))}
+            // A picker opens when you click into it. Until this existed the list
+            // only appeared after a keystroke or the chevron, so a field whose
+            // whole purpose is choosing from a list looked like a text box — and
+            // on a screen with six of them in a column, that reads as broken.
+            // `onClick`, not `onFocus`: tabbing through a form must not pop a
+            // listbox open on every stop.
+            onClick={() => setOpen(true)}
             onKeyDown={handleKeyDown}
-            className="pr-9"
+            // `pr-9` leaves room for the chevron button. The caller's `className`
+            // goes on the *input*, which is the field itself — the prop was
+            // declared and never applied, so it silently did nothing until the
+            // report's category cell needed to colour one.
+            className={cn("pr-9", className)}
           />
           <button
             type="button"
