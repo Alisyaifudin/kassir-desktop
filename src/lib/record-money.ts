@@ -2,7 +2,15 @@ import type { RecordExtra, RecordFull } from "~/services/record";
 import { roundToFix } from "~/services/record/round";
 
 /**
- * Money for the Record page: the sign leads, so a discount reads "-Rp5.000"
+ * Money for a record, shared by every screen that prints it — the record page, the
+ * receipt preview, and the financial report's classifier.
+ *
+ * It moved out of `pages/Record/z-Detail/` when the report became its second
+ * caller. A second formatter would eventually disagree with this one about the
+ * sign, the rounding or the minus's placement, and the disagreement would show up
+ * as two screens quoting different money for one record.
+ *
+ * Originally: money for the Record page. the sign leads, so a discount reads "-Rp5.000"
  * rather than "Rp-5.000", and the amount is rounded to the record's own
  * precision. `record_extra_eff` is stored unrounded — 1,840 rows carry more
  * decimals than the record's `fix` (e.g. 1492152.94272 on a `fix = 0` record) —

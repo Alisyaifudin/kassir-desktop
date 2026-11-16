@@ -6,7 +6,7 @@ import { integer } from "./utils";
  * Sanity bounds for an epoch-millis URL param. `Temporal.Instant` throws a
  * `RangeError` outside roughly ±8.64e15 ms, and a `RangeError` thrown during
  * render lands in the route error boundary — so a hand-edited `?start=` must be
- * rejected here, not there. 1900–2101 is the same window `Record/use-time.ts`
+ * rejected here, not there. 1900–2101 is the same window `hooks/use-time.ts`
  * uses for `?time=`.
  */
 export const EARLIEST_EPOCH = Temporal.ZonedDateTime.from({

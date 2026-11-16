@@ -1,6 +1,10 @@
 import type { Discount } from "~/services/record";
 
 /**
+ * Discounts on a record line, shared by the record page and the report's
+ * classifier. Moved out of `pages/Record/z-Detail/` with `record-money.ts`, for
+ * the same reason: one set of rules for what a line costs after its discounts.
+ *
  * The line's running total, one entry per discount — each row shows what that
  * discount left behind, which is what the receipt prints underneath the price.
  *

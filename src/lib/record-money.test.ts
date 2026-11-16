@@ -1,11 +1,11 @@
 /**
  * Behaviour checks for the extras table's money formatting and running column.
  *
- * Run with:  bun test src/pages/Record/z-Detail/extras.test.ts
+ * Run with:  bun test src/lib/record-money.test.ts
  */
 import { describe, expect, test } from "bun:test";
 import type { RecordExtra, RecordFull } from "~/services/record";
-import { extraAmount, extrasRunningTotals, rupiah } from "./extras";
+import { extraAmount, extrasRunningTotals, rupiah } from "./record-money";
 
 const extra = (name: string, value: number, eff: number, kind: "number" | "percent"): RecordExtra =>
   ({ id: name, name, value, eff, kind }) as unknown as RecordExtra;

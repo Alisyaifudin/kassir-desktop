@@ -3,7 +3,7 @@ import { TableCell, TableRow } from "~/components/ui/table";
 import { cn } from "~/lib/utils";
 import { roundToFix } from "~/services/record/round";
 import type { RecordFull, RecordListing } from "~/services/record";
-import { discountLabel, discountTotals } from "./discounts";
+import { discountLabel, discountTotals } from "~/lib/record-discounts";
 import { GotoProductBtn } from "./z-GotoProductBtn";
 import { LineCapital } from "./z-LineCapital";
 

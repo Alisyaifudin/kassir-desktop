@@ -9,7 +9,7 @@ import {
 } from "~/components/ui/table";
 import { cn } from "~/lib/utils";
 import type { RecordFull } from "~/services/record";
-import { extraAmount, extrasRunningTotals, rupiah } from "./extras";
+import { extraAmount, extrasRunningTotals, rupiah } from "~/lib/record-money";
 
 /**
  * Extras as their own table, mirroring the listings above it. The subtotal opens

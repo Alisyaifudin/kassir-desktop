@@ -2,6 +2,17 @@ import { useSearchParams } from "~/services/route/react";
 import { Temporal } from "temporal-polyfill";
 import { tz } from "~/lib/constants";
 
+/**
+ * The chosen day, kept in the URL, for every day-scoped screen (`/records`,
+ * `/report`).
+ *
+ * Shared rather than copied: two screens that pick a day must agree on what a day
+ * *is* — local midnight to the next local midnight, never a 24-hour span — and on
+ * the same 1900–2101 window. A second copy is a second answer to "which day is
+ * this record in?", against `scope.sql`'s `COALESCE(paid_at, credit_at,
+ * created_at)`.
+ */
+
 /** Sanity bounds for a `time` param; anything outside falls back to today. */
 const EARLIEST = Temporal.ZonedDateTime.from({
   timeZone: tz,

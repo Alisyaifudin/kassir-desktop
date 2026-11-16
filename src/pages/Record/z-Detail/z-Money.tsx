@@ -3,7 +3,7 @@ import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { METHOD_NAMES } from "~/lib/constants";
 import type { RecordFull } from "~/services/record";
-import { rupiah } from "./extras";
+import { rupiah } from "~/lib/record-money";
 import { usePayments } from "./use-payments";
 import { PaymentEditor } from "./z-Payments";
 

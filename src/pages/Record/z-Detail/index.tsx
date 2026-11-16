@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { RecordFull } from "~/services/record";
-import { useUnselect } from "../use-selected";
+import { useUnselect } from "~/hooks/use-selected";
 import { RecordsErrorFallback } from "../z-Error";
 import { Ledger } from "./z-Ledger";
 import { DetailSkeleton } from "./z-Loading";

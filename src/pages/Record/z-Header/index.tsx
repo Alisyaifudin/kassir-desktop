@@ -6,7 +6,7 @@ import { formatDate } from "~/lib/date";
 import { Filter } from "./FilterDialog";
 import { SearchBars } from "./SearchBars";
 import { ModeTab } from "./ModeTab";
-import { useTime } from "../use-time";
+import { useTime } from "~/hooks/use-time";
 
 export function Header({ busy }: { busy: boolean }) {
   const [{ yesterday, time, tomorrow }, setTime] = useTime();

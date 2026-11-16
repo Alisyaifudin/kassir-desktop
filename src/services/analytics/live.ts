@@ -19,9 +19,7 @@ import {
 import { DatabaseService, type DbError } from "../db";
 import { tz, type MethodKind } from "~/lib/constants";
 import type { RecordMode } from "../record";
-// The scope predicate is a file, not a constant: the Rust graph builder
-// (`src-tauri/src/graph.rs`) reads the same one with `include_str!`.
-import SCOPE_FILE from "./scope.sql?raw";
+import { SCOPE_PLAIN, SCOPE_R } from "./scope";
 
 /**
  * The effective date of a record — the day it belongs to, as everywhere else.
@@ -33,22 +31,8 @@ import SCOPE_FILE from "./scope.sql?raw";
 const EFF = "COALESCE(record_paid_at, record_credit_at, record_created_at)";
 const EFF_R = "COALESCE(r.record_paid_at, r.record_credit_at, r.record_created_at)";
 
-/**
- * `scope.sql`, with its alias substituted and its comments removed.
- *
- * Stripping is not cosmetic. The fragment is spliced in directly after a
- * `WHERE`, so a leading `--` would comment out the clause it belongs to.
- */
-function scope(alias: "" | "r."): string {
-  return SCOPE_FILE.replace(/--[^\n]*/g, " ")
-    .replace(/\{r\}/g, alias)
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 /** Every query is over the same set — see `scope.sql` for the three rules. */
-const SCOPE = scope("r.");
-const SCOPE_PLAIN = scope("");
+const SCOPE = SCOPE_R;
 
 type DailyRow = {
   day: string;

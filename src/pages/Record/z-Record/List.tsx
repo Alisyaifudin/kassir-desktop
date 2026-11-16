@@ -26,7 +26,7 @@ import {
 import { capitalize, cn } from "~/lib/utils";
 import { formatTime } from "~/lib/date";
 import type { Record as RecordModel } from "~/services/record";
-import { useSelected } from "../use-selected";
+import { useSelected } from "~/hooks/use-selected";
 import { useOrder } from "../use-order";
 import {
   EMPTY_SELECTION,

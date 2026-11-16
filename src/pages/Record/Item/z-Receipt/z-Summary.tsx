@@ -1,7 +1,7 @@
 import { ForEach } from "~/components/ForEach";
 import { Show } from "~/components/Show";
 import type { RecordFull } from "~/services/record";
-import { rupiah } from "~/pages/Record/z-Detail/extras";
+import { rupiah } from "~/lib/record-money";
 import { Extra } from "./z-Extra";
 
 /**

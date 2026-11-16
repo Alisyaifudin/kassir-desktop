@@ -1,6 +1,6 @@
 import { Show } from "~/components/Show";
 import type { RecordExtra } from "~/services/record";
-import { rupiah } from "~/pages/Record/z-Detail/extras";
+import { rupiah } from "~/lib/record-money";
 
 /**
  * One extra on the printed face: its label, and what it worked out to with the

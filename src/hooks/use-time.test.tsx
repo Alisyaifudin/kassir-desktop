@@ -6,7 +6,7 @@ import { tz } from "~/lib/constants";
 import { useTime } from "./use-time";
 
 /**
- * The selected day, kept in the URL. It drives every read on the Records screen,
+ * The selected day, kept in the URL. It drives every read on a day-scoped screen,
  * and the write has to take `selected` with it: picking a new day while an old
  * record is open would otherwise leave the right pane showing a record from the
  * day we just left.

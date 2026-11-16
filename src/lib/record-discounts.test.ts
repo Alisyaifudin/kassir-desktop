@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Discount } from "~/services/record";
-import { discountLabel, discountTotals } from "./discounts";
+import { discountLabel, discountTotals } from "./record-discounts";
 
 const discounts: Discount[] = [
   { id: "1", kind: "percent", value: 10, eff: 100 },

@@ -6,8 +6,8 @@ import { pageData, recordsSource } from "./data";
 import { Header } from "./z-Header";
 import { Records } from "./z-Record";
 import { Detail } from "./z-Detail";
-import { useSelected } from "./use-selected";
-import { useTime } from "./use-time";
+import { useSelected } from "~/hooks/use-selected";
+import { useTime } from "~/hooks/use-time";
 import { RecordsErrorFallback } from "./z-Error";
 import { RecordsLoading } from "./z-Loading";
 

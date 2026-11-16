@@ -1,7 +1,7 @@
 import { Either } from "effect";
 import { useMutation } from "~/components/Loader";
 import { service } from "~/services";
-import { useUnselect } from "../use-selected";
+import { useUnselect } from "~/hooks/use-selected";
 
 export function useDelete({ id, onClose }: { id: string; onClose: () => void }) {
   const unselect = useUnselect();
