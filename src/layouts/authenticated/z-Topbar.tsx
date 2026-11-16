@@ -22,6 +22,7 @@ const routeTitles: Record<string, string> = {
   "/extras": "Biaya Lainnya",
   "/records": "Riwayat",
   "/analytics": "Analisis",
+  "/report": "Laporan",
   "/money": "Uang",
   "/setting": "Pengaturan",
 };

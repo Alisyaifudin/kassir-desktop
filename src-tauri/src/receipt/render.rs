@@ -10,15 +10,13 @@
 //! * Text is measured with the same advance widths the PDF is embedded with, so
 //!   wrapping and right-alignment agree with what the printer puts on paper.
 
-use std::collections::BTreeSet;
-use std::sync::OnceLock;
-
-use allsorts::binary::read::ReadScope;
-use allsorts::font_data::FontData;
-use allsorts::subset::{CmapTarget, SubsetProfile};
 use printpdf::{
     Color, FontId, Line, LineDashPattern, LinePoint, Op, ParsedFont, PdfDocument, PdfFontHandle,
     PdfPage, PdfSaveOptions, Point, Pt, Rect, Rgb, TextItem,
+};
+
+use crate::pdf_text::{
+    fonts, line_height, subset_face, text_width, Fonts, ROBOTO_BOLD, ROBOTO_REGULAR,
 };
 
 use super::text::{create_receipt_data, Size, TextData};
@@ -43,32 +41,10 @@ const BLACK: Rgb = Rgb {
 /// goes to the app log; a 40-column dialog is no place for a font parser error.
 const RENDER_FAILED: &str = "Gagal menyiapkan struk.";
 
-// Both faces are `include_bytes!`d, so a packaged build cannot lose them and the
-// first print pays no disk I/O. Parsing is cached: it costs ~1 ms and a receipt
-// is printed dozens of times a day.
-const ROBOTO_REGULAR: &[u8] = include_bytes!("../../assets/fonts/Roboto-Regular.ttf");
-const ROBOTO_BOLD: &[u8] = include_bytes!("../../assets/fonts/Roboto-Bold.ttf");
-
-struct Fonts {
-    regular: ParsedFont,
-    bold: ParsedFont,
-}
-
-static FONTS: OnceLock<Option<Fonts>> = OnceLock::new();
-
-fn fonts() -> Result<&'static Fonts, String> {
-    FONTS
-        .get_or_init(|| {
-            let mut warnings = Vec::new();
-            let regular = ParsedFont::from_bytes(ROBOTO_REGULAR, 0, &mut warnings)?;
-            let bold = ParsedFont::from_bytes(ROBOTO_BOLD, 0, &mut warnings)?;
-            Some(Fonts { regular, bold })
-        })
-        .as_ref()
-        .ok_or_else(|| {
-            log::error!("receipt: could not parse the embedded Roboto faces");
-            RENDER_FAILED.to_string()
-        })
+/// The faces, parsed once for the process. The sentence below is what the cashier
+/// sees if they cannot be; the cause goes to the log.
+fn faces() -> Result<&'static Fonts, String> {
+    fonts(RENDER_FAILED)
 }
 
 struct Style {
@@ -115,68 +91,6 @@ fn used_text(rows: &[TextData], want: Size) -> String {
         }
     }
     used
-}
-
-/// Subset one face down to the glyphs `used` needs.
-///
-/// The embedded font program is what makes a receipt PDF big: each Roboto face is
-/// 159 KB and no receipt draws more than ~70 glyphs from either one, so the two
-/// programs (~320 KB, and every byte of it has to be deflated on every print)
-/// collapse to a few kilobytes.
-///
-/// `None` means "carry on with the full face": a slightly fat PDF is a much
-/// better outcome than a print that does not happen.
-fn subset_face(raw: &'static [u8], font: &ParsedFont, used: &str) -> Option<ParsedFont> {
-    // allsorts wants glyph 0 (.notdef) first and no duplicates. Omitting .notdef
-    // does not fail loudly — it renumbers and the first *real* glyph lands in slot
-    // 0, so every glyph the receipt does draw comes out as a missing-glyph box.
-    let ids: BTreeSet<u16> = used
-        .chars()
-        .filter_map(|character| font.lookup_glyph_index(character as u32))
-        .filter(|glyph| *glyph != 0)
-        .collect();
-    let glyphs: Vec<u16> = std::iter::once(0).chain(ids).collect();
-
-    let scope = ReadScope::new(raw);
-    let font_file = scope.read::<FontData<'_>>().ok()?;
-    let provider = font_file.table_provider(font.font_index as usize).ok()?;
-    let bytes =
-        allsorts::subset::subset(&provider, &glyphs, &SubsetProfile::Pdf, CmapTarget::Unicode)
-            .ok()?;
-
-    // Parse the subset so its cmap maps the same characters to the *new* glyph ids.
-    // printpdf derives the content stream, the /W widths and the /ToUnicode from
-    // the font it is given; all three have to agree with the embedded program, and
-    // this is what keeps them in step.
-    let mut warnings = Vec::new();
-    ParsedFont::from_bytes(&bytes, 0, &mut warnings)
-}
-
-/// What `pdf-lib`'s `heightAtSize` returns: the face's ascent-to-descent span,
-/// scaled from font units to points. The row height is the whole gap between two
-/// baselines, so this is what the page height is built from.
-fn line_height(font: &ParsedFont, size: f64) -> f64 {
-    let span = f64::from(font.font_metrics.ascent) - f64::from(font.font_metrics.descent);
-    span / f64::from(font.units_per_em) * size
-}
-
-/// `widthOfTextAtSize`: the sum of the glyph advances, scaled to points.
-///
-/// Kerning is deliberately *not* applied. printpdf writes glyph runs with no
-/// `TJ` adjustments, so the advance-width sum is what actually lands on the
-/// page — measuring a kerned width instead would make centred rows and the
-/// right-hand cell of a `spacebetween` row drift a hair past where they were
-/// measured.
-fn text_width(font: &ParsedFont, text: &str, size: f64) -> f64 {
-    let units: f64 = text
-        .chars()
-        .map(|character| {
-            font.lookup_glyph_index(character as u32)
-                .and_then(|glyph| font.get_glyph_width(glyph))
-                .map_or(0.0, f64::from)
-        })
-        .sum();
-    units / f64::from(font.units_per_em) * size
 }
 
 /// Word-wrap one row. Empty text produces no rows at all, which is what keeps an
@@ -271,7 +185,7 @@ fn push_text(ops: &mut Vec<Op>, font: &FontId, x: f64, y: f64, size: f64, text: 
 }
 
 pub fn render_pdf(data: &ReceiptData, option: &ReceiptOption) -> Result<Vec<u8>, String> {
-    let fonts = fonts()?;
+    let fonts = faces()?;
     let styles = Styles {
         big: Style {
             line_height: line_height(&fonts.bold, option.size.big),
@@ -496,7 +410,7 @@ mod tests {
     /// take the same bytes through `?arraybuffer`, so this is the seam that moved.
     #[test]
     fn the_embedded_faces_parse_with_their_metrics() {
-        let fonts = fonts().expect("both Roboto faces should parse");
+        let fonts = faces().expect("both Roboto faces should parse");
 
         // Roboto's ascent-to-descent span is larger than its point size.
         assert!(line_height(&fonts.regular, 8.0) > 8.0);
@@ -506,7 +420,7 @@ mod tests {
 
     #[test]
     fn wrapping_keeps_every_line_inside_the_roll() {
-        let fonts = fonts().expect("fonts");
+        let fonts = faces().expect("fonts");
         let option = option();
         let max_width = option.paper_width * PT_IN_MM - 2.0 * option.padding;
         let text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed at congue massa, in pharetra diam.";
@@ -526,7 +440,7 @@ mod tests {
 
     #[test]
     fn an_empty_row_produces_no_lines() {
-        let fonts = fonts().expect("fonts");
+        let fonts = faces().expect("fonts");
         assert!(split_wrapped_text("   ", 100.0, &fonts.regular, 8.0).is_empty());
         assert!(split_wrapped_text("", 100.0, &fonts.regular, 8.0).is_empty());
     }
@@ -562,7 +476,7 @@ mod tests {
     }
 
     fn styles() -> Styles {
-        let fonts = fonts().expect("fonts");
+        let fonts = faces().expect("fonts");
         Styles {
             big: Style {
                 line_height: line_height(&fonts.bold, 10.0),

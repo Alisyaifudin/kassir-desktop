@@ -5,6 +5,7 @@ import { restockRoute } from "./pages/Restock/index.tsx";
 import { productRoute } from "./pages/Product";
 import { settingRoute } from "./pages/Setting";
 import { recordRoute } from "./pages/Record";
+import { reportRoute } from "./pages/Report";
 import { moneyRoute } from "./pages/Money";
 import { cashierRoute } from "./pages/Cashier/index.tsx";
 import { customerRoute } from "./pages/Customer/index.tsx";
@@ -56,6 +57,7 @@ export const router = createHashRouter([
           productRoute,
           moneyRoute,
           recordRoute,
+          reportRoute,
           // The page-data pattern's playground; the route only exists in a DEV
           // build. See `~/components/page-data` and `src/pages/Dev/PageData`.
           ...(import.meta.env.DEV ? [devPageDataRoute, devPageCacheRoute] : []),

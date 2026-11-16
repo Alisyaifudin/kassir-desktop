@@ -402,5 +402,17 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/61-70/migration-62.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 63,
+            description: "create_report_tables",
+            sql: include_str!("../../src/database/61-70/migration-63.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 64,
+            description: "report_category_abaikan",
+            sql: include_str!("../../src/database/61-70/migration-64.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }

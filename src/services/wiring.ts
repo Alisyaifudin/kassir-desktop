@@ -33,6 +33,8 @@ import { PrinterService } from "./printer";
 import { PrinterLive } from "./printer/live";
 import { RecordService } from "./record";
 import { RecordLive } from "./record/live";
+import { ReportService } from "./report";
+import { ReportLive } from "./report/live";
 import { SocialService } from "./social";
 import { SocialLive } from "./social/live";
 import { SyncService } from "./sync";
@@ -84,6 +86,9 @@ export function buildAppLive(hidden: HiddenLive) {
   const zoomLive = ZoomLive.pipe(Layer.provide(hidden));
   // `record` reverses a deleted record's stock movement, so it needs `product`.
   const recordLive = RecordLive.pipe(Layer.provide(hidden), Layer.provide(productLive));
+  // The report reads records and its own two tables; it writes neither stock nor
+  // the record aggregate, so it needs only the database.
+  const reportLive = ReportLive.pipe(Layer.provide(hidden));
   // `transaction` commits a cart through `record` and restores one from it. It
   // also opens and drops the pictures attached to a cart, which is an unlink
   // that has to clear the `image` refcount first.
@@ -140,6 +145,7 @@ export function buildAppLive(hidden: HiddenLive) {
     printerLive,
     productLive,
     recordLive,
+    reportLive,
     socialLive,
     supplierLive,
     themeLive,
@@ -179,6 +185,7 @@ export function makeService(live: typeof appLive) {
         printer: yield* PrinterService,
         product: yield* ProductService,
         record: yield* RecordService,
+        report: yield* ReportService,
         social: yield* SocialService,
         store: yield* StoreService,
         supplier: yield* SupplierService,

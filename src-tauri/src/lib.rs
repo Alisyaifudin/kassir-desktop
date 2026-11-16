@@ -6,8 +6,12 @@ mod database;
 mod export;
 mod graph;
 mod image_opt;
+// The two documents the app produces share one text pipeline: the embedded
+// Roboto faces, their metrics, and the subsetter (`pdf_text`).
+mod pdf_text;
 mod printer;
 mod receipt;
+mod report;
 mod sync;
 mod sync_blob;
 mod sync_merge;
@@ -52,6 +56,12 @@ pub fn run() {
             printer::get_printers,
             printer::print_receipt,
             export::export_file,
+            // The same dialog and write, for bytes the webview already holds —
+            // the report's PDF (`src/report/`). `kind` picks the filter.
+            export::export_bytes,
+            // The financial report's PDF (`src/report/`): layout is pure, and the
+            // bytes go back as a raw IPC body so the frontend can blob them.
+            report::report_pdf,
             backup::backup_data,
             graph::product_graph_build,
             graph::product_graph_status,

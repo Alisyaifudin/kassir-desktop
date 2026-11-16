@@ -25,6 +25,34 @@ function fileNameOf(name: string): string {
  * Esc": reporting success on `null` leaves the operator hunting for a file that
  * was never written.
  */
+/**
+ * Bytes the webview already holds — a rendered report PDF — written to a
+ * user-picked path. `kind` picks the dialog's file filter (`"pdf"`, `"json"`).
+ *
+ * The same narrow-ACL reasoning as `saveJson`: the dialog and the write are in
+ * Rust, and this side never names a path. Unlike `saveJson`'s text, the bytes go
+ * over as a number array — roughly four times the file, which is the right shape
+ * for a once-per-click save dialog and the wrong shape for a stream.
+ */
+export function saveBytes(
+  defaultName: string,
+  kind: "pdf" | "json",
+  bytes: Uint8Array,
+): Effect.Effect<string | null, IOError> {
+  return Effect.tryPromise({
+    try: () =>
+      invoke<string | null>("export_bytes", {
+        defaultName: fileNameOf(defaultName),
+        kind,
+        bytes: Array.from(bytes),
+      }),
+    catch: (e) => {
+      log.error(e instanceof Error ? e : String(e));
+      return new IOError(e, FAILED);
+    },
+  });
+}
+
 export function saveJson(defaultName: string, value: unknown): Effect.Effect<string | null, IOError> {
   return Effect.gen(function* () {
     const contents = JSON.stringify(value, null, 2);

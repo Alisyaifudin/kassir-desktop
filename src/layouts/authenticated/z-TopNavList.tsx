@@ -50,6 +50,9 @@ export function TopNavList() {
       <TopNavLink path="/records" label="Riwayat" alt="alt+3" />
       <Show when={role === "admin"}>
         <TopNavLink path="/money" label="Uang" alt="alt+4" />
+        {/* The financial report is the owner's screen: it exposes margins, and the
+            classifier rewrites how every past period reads. */}
+        <TopNavLink path="/report" label="Laporan" alt="alt+6" />
       </Show>
     </div>
   );

@@ -9,7 +9,9 @@
 //! Everything below the command is pure: no Tauri types, no webview, so the
 //! layout rules are covered by ordinary `cargo test` (see the modules' tests).
 
-mod format;
+// `pub(crate)`: the report prints money with the same id-ID rules the receipt
+// does, and two formatters would eventually disagree on a separating dot.
+pub(crate) mod format;
 mod render;
 mod text;
 
