@@ -136,6 +136,33 @@ describe("RecordService.add.draft (incoming)", () => {
     expect(db.query("SELECT COUNT(*) AS n FROM tx_records").get()).toEqual({ n: 0 });
   });
 
+  test("a read record carries the journal row behind each portion", async () => {
+    const { recordLayer, seed } = setup();
+    seed();
+    const id = await runDraft(recordLayer, input());
+
+    // The Settings → Data export maps this read; without the joined event every
+    // line would export as "moved no stock" and the import would silently stop
+    // restoring the stock journal.
+    const full = await Effect.runPromise(
+      Effect.gen(function* () {
+        const record = yield* RecordService;
+        return yield* record.get.byId(id);
+      }).pipe(Effect.provide(recordLayer)),
+    );
+    const portions = full.listings[0]!.portions;
+
+    expect(portions).toHaveLength(2);
+    for (const portion of portions) {
+      expect(portion.productEventId).not.toBeNull();
+      expect(portion.event?.id ?? null).toBe(portion.productEventId);
+      // A sale's movement is negative pcs, and it is stamped when it happened.
+      expect(portion.event!.value).toBeLessThan(0);
+      expect(portion.event!.createdAt).toBeGreaterThan(0);
+    }
+    expect(portions.map((portion) => portion.event!.capital).sort()).toEqual([1000, 2000]);
+  });
+
   test("lets the last lot go negative on a shortage", async () => {
     const { db, recordLayer, seed } = setup();
     seed();

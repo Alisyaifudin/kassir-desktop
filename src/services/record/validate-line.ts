@@ -62,3 +62,46 @@ export function validateRecordLine(line: RecordLine): string | null {
   }
   return null;
 }
+
+/**
+ * The value checks a replayed portion has to pass.
+ *
+ * A portion is one lot's share of a line, and its `event` is the journal row it
+ * caused. When a file carries them, the writer appends that row directly instead
+ * of replaying FIFO — so the numbers are the movement itself, and a wrong sign
+ * would append an entry to permanent history that the record's own mode
+ * contradicts (a sale that adds stock, a purchase that takes it).
+ *
+ * Kept here, like `validateRecordLine`, so the import boundary and the service
+ * agree by construction.
+ */
+export function validateRecordPortion(
+  portion: {
+    unit: number;
+    qty: number;
+    capital: number;
+    event: {
+      value: number;
+      capital: number;
+      productId: string;
+      stockId: string | null;
+    } | null;
+  },
+  mode: "incoming" | "outcoming",
+): string | null {
+  if (!Number.isInteger(portion.unit) || portion.unit < 1) return "Satuan tidak valid";
+  if (!Number.isFinite(portion.qty) || portion.qty <= 0) return "Jumlah barang tidak valid";
+  if (!Number.isFinite(portion.capital) || portion.capital < 0) return "Modal tidak valid";
+
+  const event = portion.event;
+  if (event === null) return null;
+
+  // `product_events` holds pcs deltas as integers; a fractional one would not
+  // survive the round trip through the column.
+  if (!Number.isInteger(event.value)) return "Pergerakan stok tidak valid";
+  if (!Number.isFinite(event.capital) || event.capital < 0) return "Modal tidak valid";
+  if (event.productId.trim() === "") return "Barang tidak valid";
+  if (mode === "incoming" && event.value > 0) return "Arah pergerakan stok tidak sesuai";
+  if (mode === "outcoming" && event.value < 0) return "Arah pergerakan stok tidak sesuai";
+  return null;
+}

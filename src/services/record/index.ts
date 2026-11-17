@@ -50,6 +50,24 @@ export type Discount = {
   eff: number;
 };
 
+/**
+ * The journal movement a portion caused, read back beside it.
+ *
+ * An export restores the stock journal rather than replaying FIFO from today's
+ * lots, so the portion has to carry the event itself: its time, its signed delta
+ * and the lot it moved. `id` is the event's own key, which makes a re-import of
+ * the same file append the row once (the journal is append-only).
+ */
+export type RecordListingEvent = {
+  id: string;
+  createdAt: number;
+  /** Signed pcs delta: negative for a sale, positive for a purchase. */
+  value: number;
+  /** The lot's capital per pcs as the journal states it at this event. */
+  capital: number;
+  note: string;
+};
+
 /** One lot portion of a line — the internal split, never shown as its own row. */
 export type RecordListingPortion = {
   id: string;
@@ -62,6 +80,11 @@ export type RecordListingPortion = {
   qty: number;
   capital: number;
   total: number;
+  /**
+   * The `product_events` row `productEventId` names, joined beside the portion.
+   * `null` when the line moved no stock (a manual line) — see `RecordListingEvent`.
+   */
+  event: RecordListingEvent | null;
 };
 
 /**
@@ -189,11 +212,6 @@ export type ListingHistoryPage = {
 };
 
 /**
- * A record as the import file carries it: the full record with no ids of its
- * own. Listings link to the catalog by `listingId`, which is null when the
- * listing is gone (or was never catalogued), and such a line moves no stock.
- */
-/**
  * A line the live Pos/Restock cart hands to the record writer. The cart is the
  * editable source; this is the frozen shape the writer needs. `price` is per
  * listing unit, `qty` is in listing units, and `unit` converts them to pcs.
@@ -270,6 +288,47 @@ export type RecordDraftInput = {
   mirror?: RecordMirrorInput;
 };
 
+/**
+ * One lot of an exported line, with the journal row it caused.
+ *
+ * A group line is what the cashier entered; the portions are the lots it drew
+ * from (or arrived as). Restoring them, rather than one synthetic portion per
+ * line, is what lets an import put the stock journal back exactly as it was.
+ *
+ * The event is `null` for a portion that moved no stock: a manual line, or one
+ * written before the journal reached it. Everything else about the portion is
+ * still written, so the line keeps its shape even when nothing moved.
+ */
+export type RecordImportPortion = {
+  unit: number;
+  qty: number;
+  capital: number;
+  total: number;
+  event: {
+    /** `product_events.product_event_id`: the journal row's whole identity. */
+    id: string;
+    createdAt: number;
+    /** Signed pcs delta: negative for a sale, positive for a purchase. */
+    value: number;
+    /** The lot's capital per pcs. */
+    capital: number;
+    note: string;
+    productId: string;
+    /** The lot the event moved; `null` for a dangling event. */
+    stockId: string | null;
+  } | null;
+};
+
+/**
+ * A record as the import file carries it: the full record with no ids of its
+ * own. Listings link to the catalog by `listingId`, which is null when the
+ * listing is gone (or was never catalogued), and such a line moves no stock.
+ *
+ * An exported line instead carries its `portions` (one per lot, each with the
+ * journal row it caused), and the writer restores those events rather than
+ * replaying FIFO — so a downloaded record is a restorable backup, not only its
+ * header and money.
+ */
 export type RecordImport = {
   paidAt: number;
   rounding: number;
@@ -293,6 +352,12 @@ export type RecordImport = {
     capital: number;
     total: number;
     discounts: { kind: DiscountKind; value: number; eff: number }[];
+    /**
+     * The per-lot split, when the file came from an export. Present means the
+     * journal is restored as it was; absent means the line is written the old
+     * way (through the catalog listing, or as a manual line) — see `external`.
+     */
+    portions?: RecordImportPortion[];
   }[];
   extras: { name: string; value: number; eff: number; kind: ValueKind }[];
 };

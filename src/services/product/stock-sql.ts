@@ -51,6 +51,50 @@ function insertEvent(
 }
 
 /**
+ * A journal row restored from an export.
+ *
+ * `product_events` is append-only and its id is the whole identity (§5.3), so an
+ * id the target already holds is left exactly as it is: importing the same file
+ * twice restores the rows once, and the record lines both times point at them.
+ * `product_event_sync_at` stays NULL, so the restored history is pushed to the
+ * server like any other local write.
+ *
+ * No lot is written beside it: `stocks` is a projection of this table (§8.7), so
+ * `rebuildStockStatements` folds the lot out of the events afterwards — the same
+ * thing a sync pull does.
+ */
+export function archivedEventStatement(event: {
+  id: string;
+  createdAt: number;
+  value: number;
+  capital: number;
+  note: string;
+  productId: string;
+  /** The lot; `null` for a dangling event, which the fold then leaves alone. */
+  stockId: string | null;
+  recordId: string;
+}): Statement {
+  return {
+    sql: `INSERT INTO product_events (
+        product_event_id, product_event_created_at, product_event_sync_at,
+        product_event_value, product_event_capital, product_id, stock_id, record_id,
+        product_event_note
+      ) VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT(product_event_id) DO NOTHING`,
+    bindings: [
+      event.id,
+      event.createdAt,
+      event.value,
+      event.capital,
+      event.productId,
+      event.stockId,
+      event.recordId,
+      event.note,
+    ],
+  };
+}
+
+/**
  * A new cost lot plus its positive opening event, with the ids it minted so a
  * caller can point a `record_listings` portion at the exact event.
  */

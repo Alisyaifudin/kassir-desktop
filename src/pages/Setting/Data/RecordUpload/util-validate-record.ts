@@ -13,6 +13,31 @@ const discountSchema = z.object({
 });
 
 /**
+ * One lot of an exported line, with the journal row it caused. The numbers are
+ * the movement itself: the writer appends the event instead of replaying FIFO, so
+ * a wrong sign is refused by `validateRecordPortion` in the service.
+ *
+ * `event` is null for a portion that moved no stock (a manual line).
+ */
+const portionSchema = z.object({
+  unit: z.number().int().positive({ message: "Satuan tidak valid" }),
+  qty: z.number().positive({ message: "Jumlah barang harus lebih dari nol" }),
+  capital: z.number().nonnegative({ message: "Modal tidak boleh negatif" }),
+  total: z.number(),
+  event: z
+    .object({
+      id: z.string().nonempty(),
+      createdAt: z.number().int(),
+      value: z.number().int(),
+      capital: z.number().nonnegative({ message: "Modal tidak boleh negatif" }),
+      note: z.string(),
+      productId: z.string().nonempty(),
+      stockId: z.string().nullable(),
+    })
+    .nullable(),
+});
+
+/**
  * The shape *and the values* of a line. A backup is the one input the app takes
  * from outside its own writers, so the checks mirror `validateRecordLine` in
  * `src/services/record/validate-line.ts`: a negative or zero quantity, a
@@ -30,6 +55,12 @@ const listingSchema = z.object({
   capital: z.number().nonnegative({ message: "Modal tidak boleh negatif" }),
   total: z.number(),
   discounts: z.array(discountSchema),
+  // Optional on purpose: a file downloaded before the export carried its journal
+  // rows has no `portions`, and is still imported the old way (as manual lines).
+  portions: z
+    .array(portionSchema)
+    .min(1, { message: "Rincian stok tidak boleh kosong" })
+    .optional(),
 });
 
 const extraSchema = z.object({

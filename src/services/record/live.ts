@@ -29,6 +29,7 @@ import { roundToFix } from "./round";
 import { insertDiscounts, insertMethod, insertPortion, insertRecordStatement } from "./sql/insert";
 import { catalogueStatements, type CatalogueLink } from "./sql/catalogue";
 import {
+  archivedEventStatement,
   consumeStatements,
   depleteLots,
   drainStatements,
@@ -37,10 +38,11 @@ import {
   touchProduct,
   type StockLot,
 } from "../product/stock-sql";
+import { rebuildStockStatements } from "../sync/sql";
 import { generateId } from "~/lib/random";
 import { roundMoney } from "~/lib/purchase";
 import { allocateCapital } from "./capital";
-import { validateRecordLine } from "./validate-line";
+import { validateRecordLine, validateRecordPortion } from "./validate-line";
 import { notifySync } from "../sync/trigger";
 import { log } from "~/lib/log";
 
@@ -114,6 +116,15 @@ type ListingRow = {
   record_listing_qty: number;
   record_listing_capital: number;
   record_listing_total: number;
+  /**
+   * The joined journal row, when the portion points at one. `created_at` is the
+   * sentinel: it is NOT NULL on `product_events`, so a null here means the LEFT
+   * JOIN found nothing.
+   */
+  product_event_created_at: number | null;
+  product_event_value: number | null;
+  product_event_capital: number | null;
+  product_event_note: string | null;
 };
 
 type DiscountRow = {
@@ -246,7 +257,9 @@ const SELECT_LISTINGS = `
     pe.stock_id,
     rl.product_id, rl.record_listing_name, rl.record_listing_kind,
     rl.record_listing_unit, rl.record_listing_price, rl.record_listing_qty,
-    rl.record_listing_capital, rl.record_listing_total
+    rl.record_listing_capital, rl.record_listing_total,
+    pe.product_event_created_at, pe.product_event_value,
+    pe.product_event_capital, pe.product_event_note
   FROM record_listings rl
   LEFT JOIN product_events pe ON pe.product_event_id = rl.product_event_id
   WHERE rl.record_id = $1
@@ -598,9 +611,34 @@ function regroupListings(
         qty: portion.record_listing_qty,
         capital: portion.record_listing_capital,
         total: portion.record_listing_total,
+        // The joined row, when there is one. `product_event_created_at` is the
+        // sentinel because the journal column is NOT NULL.
+        event:
+          portion.product_event_id === null || portion.product_event_created_at === null
+            ? null
+            : {
+                id: portion.product_event_id,
+                createdAt: portion.product_event_created_at,
+                value: portion.product_event_value ?? 0,
+                capital: portion.product_event_capital ?? 0,
+                note: portion.product_event_note ?? "",
+              },
       })),
     };
   });
+}
+
+/**
+ * One portion's share of its line's money, for splitting the line's discount
+ * copies back across the portions an export restored.
+ *
+ * The share is by `total`, not by `qty`: a portion is a lot, and two lots of the
+ * same line can differ in capital but not in price, so the money is what the
+ * discount was taken off. A zero-total line (which the writer refuses anyway)
+ * falls back to `1`, so no copy is silently written with zero value.
+ */
+function portionShare(lineTotal: number, portionTotal: number): number {
+  return lineTotal === 0 ? 1 : portionTotal / lineTotal;
 }
 
 export const RecordLive = Layer.effect(
@@ -772,6 +810,35 @@ export const RecordLive = Layer.effect(
         for (const id of wanted) {
           if (!known.has(id)) {
             return yield* Effect.fail(new RecordError({ message: "Metode tidak ditemukan" }));
+          }
+        }
+      });
+    }
+
+    /**
+     * Fails when a restored event names a product this device does not have.
+     *
+     * `stocks.product_id` is a foreign key, and the fold only inserts a lot for a
+     * product that exists — so an unknown id would restore the journal while its
+     * stock silently vanished. Naming the product turns that into a reason the
+     * operator can act on. Deleted products count as known: `product.delete` is a
+     * tombstone, and an old record still points at the row.
+     */
+    function ensureProductsKnown(ids: Iterable<string>): Effect.Effect<void, RecordError> {
+      return Effect.gen(function* () {
+        const wanted = [...new Set(ids)].filter((id) => id !== "");
+        if (wanted.length === 0) return;
+        const list = wanted.map((_, index) => `$${index + 1}`).join(", ");
+        const rows = yield* db
+          .selectMany<{ product_id: string }>(
+            `SELECT product_id FROM products WHERE product_id IN (${list})`,
+            wanted,
+          )
+          .pipe(Effect.mapError(dbErrorToRecordError));
+        const known = new Set(rows.map((row) => row.product_id));
+        for (const id of wanted) {
+          if (!known.has(id)) {
+            return yield* Effect.fail(new RecordError({ message: "Barang tidak ditemukan" }));
           }
         }
       });
@@ -1122,6 +1189,26 @@ export const RecordLive = Layer.effect(
                   new RecordError({ message: `Catatan ${input.cashier || "impor"}: ${message}` }),
                 );
               }
+              // An exported line replays the journal, so its portions are held to
+              // the same standard: a wrong sign would append a movement the
+              // record's own mode contradicts.
+              if (line.portions !== undefined && line.portions.length === 0) {
+                return yield* Effect.fail(
+                  new RecordError({
+                    message: `Catatan ${input.cashier || "impor"}: Baris ${line.name} tidak punya rincian stok`,
+                  }),
+                );
+              }
+              for (const portion of line.portions ?? []) {
+                const portionMessage = validateRecordPortion(portion, input.mode);
+                if (portionMessage !== null) {
+                  return yield* Effect.fail(
+                    new RecordError({
+                      message: `Catatan ${input.cashier || "impor"}: ${line.name} — ${portionMessage}`,
+                    }),
+                  );
+                }
+              }
             }
             if (!(input.total > 0)) {
               return yield* Effect.fail(
@@ -1131,6 +1218,16 @@ export const RecordLive = Layer.effect(
               );
             }
             yield* ensureMethodsKnown(input.methods.map((method) => method.methodId));
+
+            // The products a restored journal names have to be here: the event
+            // names one, and its lot is a projection of the events per product.
+            const restoredProducts = new Set<string>();
+            for (const line of input.listings) {
+              for (const portion of line.portions ?? []) {
+                if (portion.event !== null) restoredProducts.add(portion.event.productId);
+              }
+            }
+            yield* ensureProductsKnown(restoredProducts);
 
             const recordId = generateId();
             const now = Date.now();
@@ -1163,6 +1260,96 @@ export const RecordLive = Layer.effect(
             for (const line of input.listings) {
               // The entered line; its portions share this group id.
               const groupId = generateId();
+
+              // A line exported with its per-lot split is *restored*, not
+              // replayed: the journal rows are written as they were and the line
+              // points at them, so an import reproduces the original movement
+              // instead of inventing a new one out of today's lots. That is what
+              // makes a records download a restorable backup.
+              if (line.portions !== undefined) {
+                const parts = line.portions.map((portion) => {
+                  const id = generateId();
+                  const event = portion.event;
+                  if (event === null) {
+                    // The line moved no stock (a manual line, or one written
+                    // before the journal reached it): keep its shape, no event.
+                    statements.push(
+                      insertPortion({
+                        id,
+                        groupId,
+                        recordId,
+                        productEventId: null,
+                        productId: null,
+                        name: line.name,
+                        kind: line.kind,
+                        unit: portion.unit,
+                        price: line.price,
+                        qty: portion.qty,
+                        capital: portion.capital,
+                        total: portion.total,
+                      }),
+                    );
+                    return { id, share: portionShare(line.total, portion.total) };
+                  }
+
+                  // The event is appended as-is; the fold at the end of this
+                  // record recreates the lot from the journal, so no placeholder
+                  // stock row is written here.
+                  statements.push(
+                    archivedEventStatement({
+                      id: event.id,
+                      createdAt: event.createdAt,
+                      value: event.value,
+                      capital: event.capital,
+                      note: event.note,
+                      productId: event.productId,
+                      stockId: event.stockId,
+                      recordId,
+                    }),
+                  );
+                  statements.push(
+                    insertPortion({
+                      id,
+                      groupId,
+                      recordId,
+                      productEventId: event.id,
+                      productId: event.productId,
+                      name: line.name,
+                      kind: line.kind,
+                      unit: portion.unit,
+                      price: line.price,
+                      qty: portion.qty,
+                      capital: portion.capital,
+                      total: portion.total,
+                    }),
+                  );
+                  return { id, share: portionShare(line.total, portion.total) };
+                });
+                // One group id per discount across the portions, the same way
+                // the FIFO sale path does it, so the read model regroups them
+                // into the single line the cashier entered.
+                for (const discount of line.discounts) {
+                  const discountGroupId = generateId();
+                  for (const part of parts) {
+                    statements.push({
+                      sql: `INSERT INTO discounts (
+                          discount_id, discount_group_id, record_listing_id,
+                          discount_kind, discount_value, discount_eff
+                        ) VALUES ($1, $2, $3, $4, $5, $6)`,
+                      bindings: [
+                        generateId(),
+                        discountGroupId,
+                        part.id,
+                        discount.kind,
+                        discount.value,
+                        discount.eff * part.share,
+                      ],
+                    });
+                  }
+                }
+                continue;
+              }
+
               const link =
                 line.listingId === null
                   ? null
@@ -1290,6 +1477,15 @@ export const RecordLive = Layer.effect(
                 }
               }
               lotsByProduct.set(link.product_id, depleteLots(lots, pcs));
+            }
+
+            // A restored journal is a projection, not a cache: re-fold every
+            // affected product's lots from the events just written (and the ones
+            // the target already had), exactly as a sync pull does. Without this
+            // the import would write history and leave the stock screen showing
+            // the old balance.
+            if (restoredProducts.size > 0) {
+              statements.push(...rebuildStockStatements([...restoredProducts]));
             }
 
             for (const extra of input.extras) {

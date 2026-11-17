@@ -32,6 +32,21 @@ const recordSchema = `{
       capital: number;
       total: number;
       discounts: { kind: "number" | "percent" | "pcs"; value: number; eff: number }[];
+      portions?: {                   // the per-lot split; absent in old files
+        unit: number;                // pcs per listing unit
+        qty: number;                 // listing units this lot supplied
+        capital: number;             // per listing unit
+        total: number;
+        event: {                     // the stock journal row it wrote
+          id: string;
+          createdAt: number;         // ms since epoch
+          value: number;             // signed pcs delta
+          capital: number;           // per pcs
+          note: string;
+          productId: string;
+          stockId: string | null;    // the lot that moved
+        } | null;                    // null = moved no stock
+      }[];
     }[];
     extras: { name: string; value: number; eff: number; kind: "number" | "percent" }[];
 }[]`;
@@ -51,6 +66,11 @@ export function SchemaDialog() {
           <DialogDescription asChild>
             <div className="space-y-3">
               <p className="text-sm">File JSON harus mengikuti bentuk data berikut:</p>
+              <p className="text-sm text-muted-foreground">
+                Berkas yang diunduh dari aplikasi ini membawa <code>portions</code> beserta
+                pergerakan stoknya, sehingga stok ikut dipulihkan saat diunggah. Berkas lama
+                tanpa <code>portions</code> tetap diterima dan ditulis sebagai baris manual.
+              </p>
               <pre className="max-h-[60vh] overflow-auto rounded-md border border-input bg-muted/50 p-4 text-sm text-foreground">
                 <code className="block whitespace-pre">{recordSchema}</code>
               </pre>

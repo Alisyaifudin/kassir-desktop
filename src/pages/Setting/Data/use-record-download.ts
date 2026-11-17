@@ -4,43 +4,9 @@ import { toast } from "sonner";
 import { useMutation } from "~/components/Loader";
 import { log } from "~/lib/log";
 import { service } from "~/services";
-import type { RecordFull, RecordImport } from "~/services/record";
 import { getDefaultInterval } from "./util-default-date-interval";
 import { messageOf, saveJson } from "./util-file";
-
-/** A record as the upload accepts it: the same shape `record.add.external` takes. */
-function toRecordImport(record: RecordFull): RecordImport {
-  return {
-    paidAt: record.paidAt ?? record.creditAt ?? record.createdAt,
-    rounding: record.rounding,
-    isCredit: record.isCredit,
-    cashier: record.cashier,
-    mode: record.mode,
-    pay: record.pay,
-    note: record.note,
-    fix: record.fix,
-    customer: { name: record.customer.name, phone: record.customer.phone },
-    supplier: { id: record.supplier.id, name: record.supplier.name },
-    subTotal: record.subTotal,
-    total: record.total,
-    methods: record.methods.map(({ methodId, pay }) => ({ methodId, pay })),
-    listings: record.listings.map(
-      ({ name, kind, price, qty, capital, total, discounts }) => ({
-        // The line no longer carries a catalog listing id; a download restores
-        // the line as a manual one (no stock movement).
-        listingId: null,
-        name,
-        kind,
-        price,
-        qty,
-        capital,
-        total,
-        discounts: discounts.map(({ kind, value, eff }) => ({ kind, value, eff })),
-      }),
-    ),
-    extras: record.extras.map(({ name, value, eff, kind }) => ({ name, value, eff, kind })),
-  };
-}
+import { toRecordImport } from "./util-record-export";
 
 export function useRecord() {
   const defaultInterval = useMemo(() => getDefaultInterval(), []);
@@ -77,8 +43,10 @@ export function useRecord() {
 function program({ start, end }: { start: number; end: number }) {
   return Effect.gen(function* () {
     const records = yield* service.record.get.byRange(start, end);
-    // The list carries no lines or extras, so each record is read in full. The
-    // concurrency bound stops a month's export from opening a query per row.
+    // The list carries no lines or extras, so each record is read in full — the
+    // lines, their per-lot portions and the `product_events` row each portion
+    // caused, joined in the same read. The concurrency bound stops a month's
+    // export from opening a query per row.
     const full = yield* Effect.forEach(records, (record) => service.record.get.byId(record.id), {
       concurrency: 8,
     });
