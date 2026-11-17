@@ -13,14 +13,14 @@ export function RailSkeleton() {
       aria-label="Memuat laporan"
     >
       <div className="min-h-0 flex-1 overflow-hidden">
-        <div className="grid grid-cols-[20px_1fr_14px_8px_74px] gap-1 px-1.5 pb-1">
+        <div className="grid grid-cols-[32px_1fr_14px_10px_72px] gap-1 px-1.5 pb-1">
           <Skeleton className="h-3 w-4" />
           <Skeleton className="h-3 w-12" />
           <Skeleton className="h-3 w-3" />
           <Skeleton className="ml-auto h-3 w-12" />
         </div>
         {Array.from({ length: 14 }).map((_, index) => (
-          <div key={index} className="grid grid-cols-[20px_1fr_14px_8px_74px] gap-1 px-1.5 py-1.5">
+          <div key={index} className="grid grid-cols-[32px_1fr_14px_10px_72px] gap-1 px-1.5 py-1.5">
             <Skeleton className="h-4 w-4" />
             <Skeleton className="h-4 w-10" />
             <Skeleton className="h-4 w-3" />

@@ -42,7 +42,7 @@ export function RailRow({
         // gets one of its own so a record that needs work does not shift its figure
         // a few pixels left of every record that does not — a ragged money column is
         // the one thing that makes a rail unreadable at a glance.
-        "grid-cols-[20px_1fr_14px_8px_74px]",
+        "grid-cols-[32px_1fr_14px_10px_72px]",
         "text-muted-foreground hover:bg-muted",
         "[&:not(:last-child)]:border-b [&:not(:last-child)]:border-border/50",
         selected && "bg-sky-200 text-foreground font-semibold hover:bg-sky-200 dark:bg-sky-800",

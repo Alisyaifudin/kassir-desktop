@@ -28,8 +28,11 @@ const OVERSCAN = 8;
 /**
  * The row template, shared by the column labels and every row so the two cannot
  * drift apart. Five columns (`z-RailRow` explains the dot's own column).
+ *
+ * The number column is 32px because a day can hold three digits: at 20px `100`
+ * ran into the time beside it. The money column gave up the 4px it gained.
  */
-const GRID = "grid grid-cols-[20px_1fr_14px_8px_74px] gap-1 px-1.5 py-1.5 text-sm";
+const GRID = "grid grid-cols-[32px_1fr_14px_10px_72px] gap-1 px-1.5 py-1.5 text-sm";
 
 export function Rail() {
   return (
