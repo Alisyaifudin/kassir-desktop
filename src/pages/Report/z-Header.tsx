@@ -1,9 +1,10 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Tags } from "lucide-react";
 import { Calendar } from "~/components/Calendar";
 import { useDelayedFlag } from "~/components/Loader";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { useTime } from "~/hooks/use-time";
+import { Link } from "~/services/route/react";
 import { labelOf, rangeOf, step } from "~/services/report/period";
 import { pageData } from "./data";
 import { usePeriod } from "./use-period";
@@ -78,7 +79,17 @@ export function Header() {
         </Button>
       </div>
 
-      <Counter />
+      <div className="flex items-center gap-1.5">
+        <Counter />
+        {/* A step *out* of this screen, so `push`: Back must return to the day the
+            operator was classifying, not walk the categories. */}
+        <Button variant="outline" className="h-10 gap-1.5 px-3" asChild>
+          <Link to="/report/categories" behavior="push">
+            <Tags className="size-4" />
+            Kategori
+          </Link>
+        </Button>
+      </div>
     </fieldset>
   );
 }

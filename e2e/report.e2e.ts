@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { boot, cashierSql, loginAndSettle, navTab } from "./harness";
+import type { Page } from "@playwright/test";
+import { boot, brand, cashierSql, loginAndSettle, navTab } from "./harness";
 
 /**
  * `/report`, phase 5: the shell and its states.
@@ -9,6 +10,21 @@ import { boot, cashierSql, loginAndSettle, navTab } from "./harness";
  * actually writes and the whole screen re-reads off *both* revision counters, and
  * that the admin gate holds. The classifier and the PDF viewer are phases 6 and 7.
  */
+
+/**
+ * Open the report the way a person does: from its tile on Beranda.
+ *
+ * There is deliberately no `/report` tab in the top bar — the report is the
+ * owner's once-a-day screen, not one the till moves between — so a test that
+ * looked for one would be asserting a behaviour the app does not have.
+ */
+async function openReport(page: Page) {
+  // By `href`, not by name: a menu tile's accessible name is assembled from its
+  // pieces — "admin Laporan Klasifikasi dan cetak" — so a name selector would have
+  // to know that composition and would break the day a badge changes.
+  await page.locator('main a[href="#/report"]').click();
+  await expect(page).toHaveURL(/#\/report$/);
+}
 
 const now = Date.now();
 const hour = 3_600_000;
@@ -36,7 +52,7 @@ test.beforeEach(async ({ page }) => {
 test("the day's rail and the split totals come from the real schema", async ({ page }) => {
   await boot(page, { sql: [cashierSql("Raisya", "123456"), ...DAY] });
   await loginAndSettle(page, "Raisya", "123456");
-  await navTab(page, "/report").click();
+  await openReport(page);
 
   // One row per record, in chronological order.
   await expect(page.getByRole("option")).toHaveCount(2);
@@ -51,7 +67,7 @@ test("the day's rail and the split totals come from the real schema", async ({ p
 test("Buat laporan seeds every line and the whole screen re-reads", async ({ page }) => {
   await boot(page, { sql: [cashierSql("Raisya", "123456"), ...DAY] });
   await loginAndSettle(page, "Raisya", "123456");
-  await navTab(page, "/report").click();
+  await openReport(page);
 
   await page.getByRole("button", { name: /buat laporan/i }).click();
 
@@ -66,14 +82,16 @@ test("Buat laporan seeds every line and the whole screen re-reads", async ({ pag
   // What was written survives leaving and coming back, which re-mounts the page and
   // re-reads from the database rather than from anything the click left in memory.
   await navTab(page, "/records").click();
-  await navTab(page, "/report").click();
+  // The report opens from its Beranda tile, so the way back is Beranda.
+  await brand(page).click();
+  await openReport(page);
   await expect(page.getByText("1 dari 4 baris belum jelas")).toBeVisible({ timeout: 5000 });
 });
 
 test("picking a record opens it, and the Laporan tab swaps the pane", async ({ page }) => {
   await boot(page, { sql: [cashierSql("Raisya", "123456"), ...DAY] });
   await loginAndSettle(page, "Raisya", "123456");
-  await navTab(page, "/report").click();
+  await openReport(page);
   await page.getByRole("button", { name: /buat laporan/i }).click();
   await expect(page.getByText("1 dari 4 baris belum jelas")).toBeVisible({ timeout: 5000 });
 
@@ -104,7 +122,7 @@ test("an empty day offers no report to make", async ({ page }) => {
   // not a schema failure: nothing happened, so there is nothing to classify.
   await boot(page, { sql: [cashierSql("Raisya", "123456")] });
   await loginAndSettle(page, "Raisya", "123456");
-  await navTab(page, "/report").click();
+  await openReport(page);
 
   await expect(page.getByText("Tidak ada transaksi pada hari ini")).toBeVisible();
   await expect(page.getByRole("button", { name: /buat laporan/i })).toHaveCount(0);
@@ -128,7 +146,7 @@ test("the classifier shows every line, and one pick writes without a save button
 }) => {
   await boot(page, { sql: [cashierSql("Raisya", "123456"), ...DAY] });
   await loginAndSettle(page, "Raisya", "123456");
-  await navTab(page, "/report").click();
+  await openReport(page);
   await page.getByRole("button", { name: /buat laporan/i }).click();
   await expect(page.getByText("1 dari 4 baris belum jelas")).toBeVisible({ timeout: 5000 });
 
@@ -158,7 +176,7 @@ test("the classifier shows every line, and one pick writes without a save button
 test("‹ › walks the day, and stops at both ends", async ({ page }) => {
   await boot(page, { sql: [cashierSql("Raisya", "123456"), ...DAY] });
   await loginAndSettle(page, "Raisya", "123456");
-  await navTab(page, "/report").click();
+  await openReport(page);
   await page.getByRole("button", { name: /buat laporan/i }).click();
   await expect(page.getByText("1 dari 4 baris belum jelas")).toBeVisible({ timeout: 5000 });
 
@@ -172,4 +190,74 @@ test("‹ › walks the day, and stops at both ends", async ({ page }) => {
   await expect(page.getByLabel("Kategori")).toHaveCount(1);
   await expect(page.getByLabel("Kategori").first()).toHaveValue("Beli");
   await expect(page.getByRole("button", { name: "Rekaman berikutnya" })).toBeDisabled();
+});
+
+test("a category the list does not hold is typed straight into the cell", async ({ page }) => {
+  // The classifier must not send the operator to another screen to mint a
+  // category: typing a name that is not in the list and pressing Enter *is*
+  // adding it, and the line takes it.
+  await boot(page, { sql: [cashierSql("Raisya", "123456"), ...DAY] });
+  await loginAndSettle(page, "Raisya", "123456");
+  await openReport(page);
+  await page.getByRole("button", { name: /buat laporan/i }).click();
+  await expect(page.getByText("1 dari 4 baris belum jelas")).toBeVisible({ timeout: 5000 });
+
+  await page.getByRole("option").first().click();
+  const ongkir = page.getByLabel("Kategori").nth(2);
+  await ongkir.click();
+  await ongkir.fill("Penyesuaian");
+
+  // Typing must not have filed anything yet — the field's text is not a category.
+  await expect(page.getByText("1 dari 4 baris belum jelas")).toBeVisible();
+
+  // The create row offers the words, and Enter takes it.
+  await expect(page.getByText("Tambahkan kategori: Penyesuaian")).toBeVisible();
+  await ongkir.press("Enter");
+
+  // The cell now reads the new name, and the day is done.
+  await expect(page.getByLabel("Kategori").nth(2)).toHaveValue("Penyesuaian", { timeout: 5000 });
+  await expect(page.locator('[data-classification="missing"]')).toHaveCount(0);
+  await expect(page.getByText("Semua baris sudah jelas")).toBeVisible({ timeout: 5000 });
+});
+
+test("categories: the built-ins are protected, the shop's own are fully its own", async ({
+  page,
+}) => {
+  await boot(page, { sql: [cashierSql("Raisya", "123456")] });
+  await loginAndSettle(page, "Raisya", "123456");
+
+  // Reached from the report screen's own button.
+  await page.goto("/e2e.html#/report");
+  await page.getByRole("link", { name: /Kategori/ }).click();
+  await expect(page).toHaveURL(/#\/report\/categories/);
+  // `main`, because the topbar's route title is the same words as a heading.
+  await expect(
+    page.locator("main").getByRole("heading", { name: "Kategori Laporan" }),
+  ).toBeVisible();
+
+  // Six built-ins plus `abaikan`, every one badged, none deletable.
+  await expect(page.getByText("bawaan")).toHaveCount(7);
+  await expect(page.getByRole("button", { name: /^Hapus/ })).toHaveCount(0);
+
+  // Add one of the shop's own.
+  await page.getByRole("button", { name: "Tambah" }).click();
+  await page.getByPlaceholder("Nama").fill("Penyesuaian");
+  await page.getByRole("button", { name: "Tambah", exact: true }).last().click();
+  await expect(page.getByLabel("Nama kategori Penyesuaian")).toBeVisible({ timeout: 5000 });
+  // The built-ins cannot be deleted; this one can.
+  await expect(page.getByRole("button", { name: "Hapus Penyesuaian" })).toBeVisible();
+
+  // Rename it in place.
+  await page.getByLabel("Nama kategori Penyesuaian").fill("Penyesuaian Bulanan");
+  await page.getByLabel("Nama kategori Penyesuaian").press("Enter");
+  await expect(page.getByLabel("Nama kategori Penyesuaian Bulanan")).toBeVisible({
+    timeout: 5000,
+  });
+
+  // And soft-delete it.
+  await page.getByRole("button", { name: "Hapus Penyesuaian Bulanan" }).click();
+  await page.getByRole("button", { name: "Hapus", exact: true }).click();
+  await expect(page.getByLabel("Nama kategori Penyesuaian Bulanan")).toHaveCount(0, {
+    timeout: 5000,
+  });
 });
