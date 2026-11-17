@@ -142,18 +142,20 @@ describe("toReportData", () => {
       rangeLabel: "14 Maret 2026",
       totals: totals({
         excluded: [
-          { name: "Ongkir", mode: "incoming", total: 10_000 },
-          { name: "Ongkir", mode: "outcoming", total: 10_000 },
+          { name: "Ongkir", at: 1_770_000_000_000, mode: "incoming", total: 10_000 },
+          { name: "Ongkir", at: 1_770_000_000_000, mode: "outcoming", total: 10_000 },
         ],
       }),
       days: [],
       info: INFO,
     });
 
-    expect(data.excluded).toEqual([
-      { name: "Ongkir", direction: "Masuk", total: 10_000 },
-      { name: "Ongkir", direction: "Keluar", total: 10_000 },
+    expect(data.excluded.map((row) => [row.name, row.direction, row.total])).toEqual([
+      ["Ongkir", "Masuk", 10_000],
+      ["Ongkir", "Keluar", 10_000],
     ]);
+    // When it happened: an excluded line has to be findable on a busy day.
+    expect(data.excluded[0]?.at).toMatch(/^\d{2}-\d{2}-\d{4} \d{2}:\d{2}$/);
   });
 
   test("money is printed in whole rupiah unless told otherwise", () => {

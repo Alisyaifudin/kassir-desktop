@@ -76,16 +76,19 @@ function portion(db: Db, recordId: string, group: string, price = 20_000, qty = 
   ).run(`p-${recordId}-${group}-${price}-${qty}`, group, recordId, price, qty, price * qty);
 }
 
-function extra(db: Db, recordId: string, name: string, eff: number): string {
+function extra(db: Db, recordId: string, name: string, eff: number, flag = 0): string {
   const id = `e-${recordId}-${name}`;
   db.query(
     `INSERT INTO record_extras (
         record_extra_id, record_extra_name, record_id,
         record_extra_value, record_extra_eff, record_extra_kind, record_extra_flag
-      ) VALUES (?, ?, ?, ?, ?, 'number', 0)`,
-  ).run(id, name, recordId, eff, eff);
+      ) VALUES (?, ?, ?, ?, ?, 'number', ?)`,
+  ).run(id, name, recordId, eff, eff, flag);
   return id;
 }
+
+/** `DUAL_FLAG` — the charge books twice, so the sale's own line is pass-through. */
+const DUAL_FLAG = 1;
 
 /** One day: a sale with two goods lines and an Ongkir, and a purchase. */
 function setup() {
@@ -243,6 +246,37 @@ describe("Buat laporan — startDay", () => {
     expect(await run(reportLayer, (r) => r.get.progress(FROM, TO))).toMatchObject({
       unclassified: 1,
     });
+  });
+
+  test("excludes a dual charge, because the row says it books twice", async () => {
+    // The one extra that *is* filled in — and not because of its name. `DUAL_FLAG`
+    // is a fact about the row: the sale carries the charge and commits an
+    // extras-only twin for the same money, which `scope.sql` keeps out. Counting
+    // the sale's own line would count money the shop both earned and spent.
+    const { db, layer } = makeTestDatabase();
+    record(db, "r1", { hour: 10, subTotal: 10_000, total: 20_000 });
+    portion(db, "r1", "g1", 10_000, 1);
+    extra(db, "r1", "Ongkir", 10_000, DUAL_FLAG);
+    extra(db, "r1", "Admin", 500, 0);
+    const reportLayer = ReportLive.pipe(Layer.provide(layer));
+
+    await run(reportLayer, (r) => r.set.startDay(FROM, TO));
+
+    expect(await lineOf(reportLayer, "r1", "e-r1-Ongkir")).toEqual({
+      slug: "abaikan",
+      auto: true,
+    });
+    // Everything else is still a question.
+    expect(await lineOf(reportLayer, "r1", "e-r1-Admin")).toBeUndefined();
+    expect(await lineOf(reportLayer, "r1", "g1")).toEqual({ slug: "jual", auto: true });
+
+    // And it shows up where excluded lines go, with the moment it happened.
+    const totals = await run(reportLayer, (r) => r.get.totals(FROM, TO));
+    expect(totals.excluded.map((row) => [row.name, row.mode, row.total])).toEqual([
+      ["Ongkir", "incoming", 10_000],
+    ]);
+    // Out of the figures, so Jual is the goods only.
+    expect(totals.categories.find((row) => row.slug === "jual")?.total).toBe(10_000);
   });
 
   test("never remembers a charge, however often it has been classified", async () => {
@@ -508,20 +542,60 @@ describe("categories", () => {
     expect(after.map((category) => category.order)).toEqual([0, 1, 2, 3, 4, 5, 6]);
   });
 
-  test("removal is refused while lines still name it, and says how many", async () => {
+  test("a built-in cannot be removed at all", async () => {
+    // The six built-ins are the vocabulary the service itself reads: the seed asks
+    // for `jual`/`beli` by slug, and `abaikan` is what keeps an excluded line out
+    // of the totals. Deleting one would fail quietly — the seed would write NULL
+    // into a NOT NULL column and be skipped — so it is refused with a sentence.
     const { reportLayer } = setup();
-    await run(reportLayer, (r) => r.set.startDay(FROM, TO));
     const jual = await idOf(reportLayer, "jual");
 
-    // Two goods lines; the Ongkir was never seeded, so it names nothing.
     expect(await refusal(reportLayer, (r) => r.delete.category(jual))).toBe(
-      "Kategori ini dipakai 2 baris laporan, jadi belum bisa dihapus.",
+      "Kategori bawaan tidak bisa dihapus. Tambahkan kategori baru bila perlu.",
+    );
+  });
+
+  test("a custom category in use is refused, and says how many lines", async () => {
+    const { db, reportLayer } = setup();
+    await run(reportLayer, (r) => r.set.startDay(FROM, TO));
+    const added = await run(reportLayer, (r) => r.add.category("Sementara"));
+    await run(reportLayer, (r) =>
+      r.set.line({ recordId: "r1", source: "extra", lineId: "e-r1-Ongkir", categoryId: added.id }),
     );
 
-    // Still there — and still named, which is what a past report needs.
-    expect((await run(reportLayer, (r) => r.get.categories())).some((c) => c.slug === "jual")).toBe(
-      true,
+    expect(await refusal(reportLayer, (r) => r.delete.category(added.id))).toBe(
+      "Kategori ini dipakai 1 baris laporan, jadi belum bisa dihapus.",
     );
+    // Still there — and still named, which is what a past report needs.
+    expect(
+      (await run(reportLayer, (r) => r.get.categories())).some((c) => c.id === added.id),
+    ).toBe(true);
+    expect(db.query(`SELECT COUNT(*) AS n FROM report_lines`).get()).toEqual({ n: 4 });
+  });
+
+  test("a second category with the same name is refused in the operator's words", async () => {
+    const { reportLayer } = setup();
+    await run(reportLayer, (r) => r.add.category("Penyesuaian"));
+
+    expect(await refusal(reportLayer, (r) => r.add.category("penyesuaian"))).toBe(
+      "Nama kategori itu sudah ada.",
+    );
+    // …and the six built-ins are names too.
+    expect(await refusal(reportLayer, (r) => r.add.category("Jual"))).toBe(
+      "Nama kategori itu sudah ada.",
+    );
+  });
+
+  test("a rename onto a name already in use is refused", async () => {
+    const { reportLayer } = setup();
+    const added = await run(reportLayer, (r) => r.add.category("Penyesuaian"));
+    const ppn = await idOf(reportLayer, "ppn");
+
+    expect(await refusal(reportLayer, (r) => r.set.category(added.id, "PPN"))).toBe(
+      "Nama kategori itu sudah ada.",
+    );
+    // Renaming to its own name is not a collision with itself.
+    await run(reportLayer, (r) => r.set.category(ppn, "PPN"));
   });
 
   test("an unused category can be removed, and disappears from the list", async () => {

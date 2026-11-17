@@ -110,6 +110,8 @@ export type PeriodDay = {
  */
 export type ExcludedLine = {
   name: string;
+  /** The record's effective date, so the line can be found on `/records`. */
+  at: number;
   mode: RecordMode;
   total: number;
 };

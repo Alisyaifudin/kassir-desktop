@@ -1,4 +1,4 @@
-import { MONTHS } from "~/lib/date";
+import { formatDate, formatTime } from "~/lib/date";
 import type { Info } from "~/services/info";
 import type { PeriodKind } from "./period";
 import type { ReportTotals } from ".";
@@ -37,7 +37,7 @@ export type ReportData = {
    * Lines the operator left out of the report. The PDF prints them as their own
    * section: a total that quietly skips lines is a total nobody can audit.
    */
-  excluded: { name: string; direction: string; total: number }[];
+  excluded: { name: string; at: string; direction: string; total: number }[];
   /** A memo: already deducted from every total, printed so it is not invisible. */
   discounts: { direction: string; entries: number; total: number }[];
   days: {
@@ -57,10 +57,25 @@ const PERIOD_LABEL: Record<PeriodKind, string> = {
   year: "Tahunan",
 };
 
-/** `14 Mar` — the `Per hari` table's date column. */
+/** `14-03-2026` — the `Per hari` table's date column, in the shop's zone. */
 function shortDay(epoch: number): string {
-  const date = new Date(epoch);
-  return `${date.getDate()} ${MONTHS[date.getMonth()]}`;
+  return formatDate(epoch, "short");
+}
+
+/**
+ * `14-03-2026 12:34` — when the record happened.
+ *
+ * An excluded line is something the reader will want to find again, and a name
+ * alone does not find it on a day with 150 records. The epoch is formatted here
+ * rather than in Rust so both documents read the clock in the shop's zone
+ * (`lib/date`), which the Rust side would have to be told separately.
+ */
+function atLabel(epoch: number): string {
+  // `formatTime` does not pad the hour — the receipt prints `9:05`, which reads
+  // fine on a slip. A table column does not: `2:40` beside `12:34` breaks the
+  // alignment that makes a list of times scannable.
+  const time = formatTime(epoch, "short").padStart(5, "0");
+  return `${formatDate(epoch, "short")} ${time}`;
 }
 
 /**
@@ -105,6 +120,7 @@ export function toReportData(input: {
     })),
     excluded: input.totals.excluded.map((row) => ({
       name: row.name,
+      at: atLabel(row.at),
       direction: row.mode === "incoming" ? "Masuk" : "Keluar",
       total: row.total,
     })),

@@ -423,7 +423,9 @@ describe("Abaikan — lines kept out of the report", () => {
     expect(totals.incoming).toBe(50_000);
     expect(totals.categories.some((row) => row.slug === "abaikan")).toBe(false);
     // …and named in the section instead, so the figures above can be audited.
-    expect(totals.excluded).toEqual([{ name: "Hanasui", mode: "incoming", total: 26_000 }]);
+    expect(totals.excluded).toEqual([
+      { name: "Hanasui", at: at(0, 12), mode: "incoming", total: 26_000 },
+    ]);
     // It is classified, so it does not block the day.
     expect(totals.unclassified).toBe(0);
   });

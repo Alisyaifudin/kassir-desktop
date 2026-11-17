@@ -316,7 +316,7 @@ const SELECT_DISCOUNTS = `
  */
 const SELECT_EXCLUDED = `
   WITH ${SCOPED}, ${LINES}
-  SELECT l.name, sc.record_mode AS mode, l.amount AS total
+  SELECT l.name, sc.eff AS at, sc.record_mode AS mode, l.amount AS total
   FROM lines l
   JOIN scoped sc ON sc.record_id = l.record_id
   JOIN report_categories cat ON cat.report_category_id = l.category_id
@@ -425,18 +425,53 @@ const SEED_LISTING_LINES = `
   WHERE ${SCOPE_R}
   GROUP BY rl.record_listing_group_id`;
 
-// There is deliberately no `SEED_EXTRA_LINES`.
+// There is deliberately no general `SEED_EXTRA_LINES`.
 //
 // A charge is a free-text string. Nothing in `record_extras` says what "Ongkir"
 // means: today it is freight, tomorrow it is packaging, and on one record it was a
-// typo for a product. So the app does not guess. Every extra line is left
-// unclassified until the operator decides it — per line, per record — which is the
-// whole reason the classifier exists. Recording the answer for next time would turn
-// one careless click into an assumption that outlives the record it came from.
+// typo for a product. So the app does not guess a charge, and — this is the part
+// that was tried and removed — it does not remember one either. Every extra is a
+// question, per line, per record. Recording an answer would turn one careless click
+// into an assumption that outlives the record it came from.
+//
+// There is exactly one exception, below: a `dual` charge. That is not a guess about
+// a name, it is a fact about the row.
 //
 // Listings are different: a line of goods on a sale *is* revenue and on a purchase
 // *is* cost, because the record's direction says which way the money went. That is
-// the only thing that may be filled in for the operator.
+// the only thing that may be filled in "for the operator" by inference.
+
+/**
+ * A `dual` charge's line is `abaikan` — excluded, not guessed.
+ *
+ * `DUAL_FLAG` (`FLAGS.md`) says the charge books twice: the sale carries it *and*
+ * commits an extras-only `outcoming` twin for the same money. `scope.sql` keeps
+ * that twin out, so counting the sale's own line would count one charge once while
+ * the shop both earned and spent it — the net is what it wants, and excluding the
+ * line is how the net is reached. Nothing here reads the line's *name*: the flag is
+ * a fact about the row, which is the one thing the app may act on without asking.
+ *
+ * `report_line_auto = 1`, so the cell renders it as a filled-in guess the operator
+ * can still override. It is a defensible default, not a decision that hides.
+ */
+const SEED_DUAL_LINES = `
+  INSERT OR IGNORE INTO report_lines (
+    report_line_id, record_id, record_listing_group_id, record_extra_id,
+    report_category_id, report_line_source_rev, report_line_auto, report_line_at
+  )
+  SELECT
+    upper(hex(randomblob(13))),
+    r.record_id,
+    NULL,
+    re.record_extra_id,
+    (SELECT report_category_id FROM report_categories WHERE report_category_slug = 'abaikan'),
+    r.record_updated_at,
+    1,
+    ${NOW_MS}
+  FROM record_extras re
+  JOIN records r ON r.record_id = re.record_id
+  WHERE ${SCOPE_R}
+    AND (re.record_extra_flag & 1) <> 0`;
 
 /**
  * One line's category.
@@ -511,6 +546,15 @@ const SELECT_SLUGS_LIKE = `
   SELECT report_category_slug AS slug FROM report_categories WHERE report_category_slug = $1`;
 
 const SELECT_MAX_ORDER = `SELECT COALESCE(MAX(report_category_order), -1) AS ord FROM report_categories`;
+
+const COUNT_NAME = `
+  SELECT COUNT(*) AS n FROM report_categories
+  WHERE report_category_deleted_at IS NULL AND lower(report_category_name) = lower($1)`;
+
+const COUNT_NAME_OTHER = `
+  SELECT COUNT(*) AS n FROM report_categories
+  WHERE report_category_deleted_at IS NULL
+    AND lower(report_category_name) = lower($1) AND report_category_id <> $2`;
 
 const UPDATE_CATEGORY_NAME = `
   UPDATE report_categories SET report_category_name = $1 WHERE report_category_id = $2`;
@@ -708,8 +752,11 @@ export const ReportLive = Layer.effect(
               bindings: [generateId(), start, end, now],
             },
             // Only the scope's own `$1`/`$2` — see `NOW_MS` for why a third
-            // placeholder cannot go here. Extras are not seeded (see above).
+            // placeholder cannot go here.
             { sql: SEED_LISTING_LINES, bindings: [start, end] },
+            // The one extra that is filled in: a `dual` charge is excluded by
+            // default. See `SEED_DUAL_LINES`.
+            { sql: SEED_DUAL_LINES, bindings: [start, end] },
           ])
           .pipe(Effect.mapError(failure)),
       );
@@ -798,6 +845,18 @@ export const ReportLive = Layer.effect(
 
       return bump(
         Effect.gen(function* () {
+          // A name is what the pickers show, so two categories reading the same is
+          // a mistake the operator can still make — say so in their words rather
+          // than passing on the UNIQUE constraint's.
+          const [taken] = yield* db
+            .selectMany<{ n: number }>(COUNT_NAME, [trimmed])
+            .pipe(Effect.mapError(failure));
+          if ((taken?.n ?? 0) > 0) {
+            return yield* Effect.fail(
+              new ReportError({ message: "Nama kategori itu sudah ada." }),
+            );
+          }
+
           // The slug is a stable handle, so it may not collide. The name is
           // already UNIQUE; a name that merely *slugs* to a taken one gets the
           // next free suffix instead of being refused.
@@ -838,7 +897,17 @@ export const ReportLive = Layer.effect(
         return Effect.fail(new ReportError({ message: "Nama kategori harus diisi." }));
       }
       return bump(
-        db.execute(UPDATE_CATEGORY_NAME, [trimmed, id]).pipe(Effect.mapError(failure)),
+        Effect.gen(function* () {
+          const [taken] = yield* db
+            .selectMany<{ n: number }>(COUNT_NAME_OTHER, [trimmed, id])
+            .pipe(Effect.mapError(failure));
+          if ((taken?.n ?? 0) > 0) {
+            return yield* Effect.fail(
+              new ReportError({ message: "Nama kategori itu sudah ada." }),
+            );
+          }
+          yield* db.execute(UPDATE_CATEGORY_NAME, [trimmed, id]).pipe(Effect.mapError(failure));
+        }),
       );
     }
 
@@ -855,6 +924,28 @@ export const ReportLive = Layer.effect(
     function removeCategory(id: string): Effect.Effect<void, ReportError> {
       return bump(
         Effect.gen(function* () {
+          const [builtin] = yield* db
+            .selectMany<{ report_category_builtin: number; report_category_slug: string }>(
+              SELECT_CATEGORY_BY_ID,
+              [id],
+            )
+            .pipe(Effect.mapError(failure));
+          if (builtin === undefined) {
+            return yield* Effect.fail(new ReportError({ message: "Kategori tidak ditemukan." }));
+          }
+          // The six built-ins are the vocabulary this service itself reads: the
+          // seed asks for `jual`/`beli` by slug, and `abaikan` is what keeps an
+          // excluded line out of the totals. Deleting one would not break loudly —
+          // the seed would write NULL into a NOT NULL column and the statement
+          // would be skipped — so it is refused here instead.
+          if (builtin.report_category_builtin !== 0) {
+            return yield* Effect.fail(
+              new ReportError({
+                message: "Kategori bawaan tidak bisa dihapus. Tambahkan kategori baru bila perlu.",
+              }),
+            );
+          }
+
           const [used] = yield* db
             .selectMany<{ n: number }>(COUNT_LINES_FOR_CATEGORY, [id])
             .pipe(Effect.mapError(failure));
@@ -867,13 +958,6 @@ export const ReportLive = Layer.effect(
                 message: `Kategori ini dipakai ${used?.n} baris laporan, jadi belum bisa dihapus.`,
               }),
             );
-          }
-
-          const kept = yield* db
-            .selectMany<{ report_category_id: string }>(SELECT_CATEGORY_BY_ID, [id])
-            .pipe(Effect.mapError(failure));
-          if (kept.length === 0) {
-            return yield* Effect.fail(new ReportError({ message: "Kategori tidak ditemukan." }));
           }
 
           yield* db.execute(SOFT_DELETE_CATEGORY, [Date.now(), id]).pipe(Effect.mapError(failure));

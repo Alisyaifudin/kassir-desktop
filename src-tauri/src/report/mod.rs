@@ -91,6 +91,9 @@ pub struct DiscountRow {
 #[serde(rename_all = "camelCase")]
 pub struct ExcludedRow {
     pub name: String,
+    /// When the record happened, `14-03-2026 12:34`. Formatted by the frontend so
+    /// both documents read the clock in the shop's zone.
+    pub at: String,
     /// `Masuk` or `Keluar`.
     pub direction: String,
     pub total: f64,

@@ -24,7 +24,10 @@ const BOTTOM: f64 = MARGIN_BOTTOM;
 
 // Column edges for the detail table. `_R` means "the right edge the cell is
 // aligned to"; money sits flush right, the count just before it.
-const COL_DIRECTION: f64 = 330.0;
+/// When it happened. Ahead of the direction so the eye reaches the name, then the
+/// moment, then which way the money went.
+const COL_TIME: f64 = 190.0;
+const COL_DIRECTION: f64 = 380.0;
 const COL_LINES_R: f64 = 470.0;
 const COL_TOTAL_R: f64 = RIGHT;
 
@@ -39,6 +42,8 @@ const S_NOTE: f64 = 7.5;
 
 /// Baseline step for a body row.
 const ROW: f64 = 13.5;
+/// Air between a table's column labels and the rule under them.
+const RULE_GAP: f64 = 5.0;
 /// Vertical air between two blocks of the document.
 const BLOCK_GAP: f64 = 14.0;
 
@@ -147,8 +152,13 @@ impl<'a> Flow<'a> {
     }
 }
 
+/// Rupiah: the sign leads, then `Rp`, then the grouped figure — `-Rp5.000`, never
+/// `Rp-5.000`. The same rule `lib/record-money.ts`'s `rupiah` follows, so the paper
+/// and the screen place the minus in the same spot.
 fn money(value: f64, fix: u32) -> String {
-    crate::receipt::format::format_money(value, f64::from(fix))
+    let amount = crate::receipt::format::format_money(value.abs(), f64::from(fix));
+    let sign = if value < 0.0 { "-" } else { "" };
+    format!("{sign}Rp{amount}")
 }
 
 fn printed_at(epoch_ms: i64) -> String {
@@ -211,9 +221,12 @@ fn detail_header(flow: &mut Flow<'_>) {
     flow.at("Arah", S_BODY, true, COL_DIRECTION);
     flow.right("Baris", S_BODY, true, COL_LINES_R);
     flow.right("Total", S_BODY, true, COL_TOTAL_R);
-    flow.step(6.0);
+    // Air on both sides of the rule. It used to sit 6pt above the first row's
+    // baseline, which read as an underline on the header rather than as a
+    // separator between two blocks.
+    flow.step(RULE_GAP);
     flow.rule();
-    flow.step(ROW - 6.0);
+    flow.step(ROW);
 }
 
 fn detail_row(flow: &mut Flow<'_>, data: &ReportData, row: &CategoryRow) {
@@ -261,7 +274,7 @@ fn total_rows(data: &ReportData) -> [(&'static str, String); 3] {
 /// How tall the totals block is: the rule, the three figures, the line count, and
 /// one memo row per direction that gave a discount.
 fn totals_height(data: &ReportData) -> f64 {
-    6.0 + ROW * (1.0 + total_rows_rows() + 1.0 + data.discounts.len() as f64)
+    RULE_GAP + ROW * (1.0 + total_rows_rows() + 1.0 + data.discounts.len() as f64)
 }
 
 const fn total_rows_rows() -> f64 {
@@ -274,7 +287,7 @@ fn totals(flow: &mut Flow<'_>, data: &ReportData) {
         flow.page_break();
     }
 
-    flow.step(6.0);
+    flow.step(RULE_GAP);
     flow.rule();
     flow.step(ROW);
     for (label, value) in rows {
@@ -354,8 +367,8 @@ fn excluded(flow: &mut Flow<'_>, data: &ReportData) {
     flow.left("Dikecualikan dari laporan", S_SECTION, true);
     flow.step(ROW);
     flow.left("Nama", S_BODY, true);
+    flow.at("Waktu", S_BODY, true, COL_TIME);
     flow.at("Arah", S_BODY, true, COL_DIRECTION);
-    flow.right("Baris", S_BODY, true, COL_LINES_R);
     flow.right("Nilai", S_BODY, true, COL_TOTAL_R);
     flow.step(6.0);
     flow.rule();
@@ -371,8 +384,8 @@ fn excluded(flow: &mut Flow<'_>, data: &ReportData) {
 
 fn excluded_row(flow: &mut Flow<'_>, data: &ReportData, row: &ExcludedRow) {
     flow.left(&row.name, S_BODY, false);
+    flow.at(&row.at, S_BODY, false, COL_TIME);
     flow.at(&row.direction, S_BODY, false, COL_DIRECTION);
-    flow.right("1", S_BODY, false, COL_LINES_R);
     flow.right(&money(row.total, data.fix), S_BODY, false, COL_TOTAL_R);
     flow.step(ROW);
 }
@@ -641,11 +654,13 @@ mod tests {
         data.excluded = vec![
             ExcludedRow {
                 name: "Ongkir".to_string(),
+                at: "14-03-2026 12:34".to_string(),
                 direction: "Masuk".to_string(),
                 total: 10_000.0,
             },
             ExcludedRow {
                 name: "Ongkir".to_string(),
+                at: "14-03-2026 15:02".to_string(),
                 direction: "Keluar".to_string(),
                 total: 12_000.0,
             },
@@ -658,14 +673,16 @@ mod tests {
             .collect();
 
         assert!(text.iter().any(|line| line == "Dikecualikan dari laporan"));
+        // The moment, so the line can be found again on `/records`.
+        assert!(text.iter().any(|line| line == "14-03-2026 12:34"));
         assert!(text
             .iter()
             .any(|line| line == "2 baris sengaja tidak dimasukkan ke laporan ini."));
         // Both directions are named, not merged into one figure.
         assert!(text.iter().any(|line| line == "Masuk"));
         assert!(text.iter().any(|line| line == "Keluar"));
-        assert!(text.iter().any(|line| line == "10.000"));
-        assert!(text.iter().any(|line| line == "12.000"));
+        assert!(text.iter().any(|line| line == "Rp10.000"));
+        assert!(text.iter().any(|line| line == "Rp12.000"));
     }
 
     #[test]
@@ -693,8 +710,8 @@ mod tests {
         assert!(text
             .iter()
             .any(|line| line.contains("Diskon baris (sudah dikurangkan)")));
-        assert!(text.contains(&"279.650.342"));
-        assert!(text.contains(&"1.500"));
+        assert!(text.contains(&"Rp279.650.342"));
+        assert!(text.contains(&"Rp1.500"));
         // One memo row per direction, both on the last page with the totals.
         assert_eq!(
             text.iter()
@@ -723,6 +740,7 @@ mod tests {
         data.excluded = (1..=40)
             .map(|n| ExcludedRow {
                 name: format!("Baris {n}"),
+                at: "14-03-2026 12:34".to_string(),
                 direction: "Masuk".to_string(),
                 total: 1_000.0 * n as f64,
             })
@@ -777,9 +795,11 @@ mod tests {
     }
 
     #[test]
-    fn money_prints_with_indonesian_separators() {
-        assert_eq!(money(1_234_567.0, 0), "1.234.567");
-        assert_eq!(money(0.0, 0), "0");
-        assert_eq!(money(-5_000.0, 0), "-5.000");
+    fn money_prints_the_currency_with_the_sign_in_front() {
+        assert_eq!(money(1_234_567.0, 0), "Rp1.234.567");
+        assert_eq!(money(0.0, 0), "Rp0");
+        // The minus leads, as `lib/record-money.ts`'s `rupiah` has it: never
+        // `Rp-5.000`.
+        assert_eq!(money(-5_000.0, 0), "-Rp5.000");
     }
 }
