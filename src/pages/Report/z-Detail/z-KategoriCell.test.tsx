@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { LineClassification } from "~/services/report";
 import { KategoriCell } from "./z-KategoriCell";
 
@@ -58,6 +58,32 @@ describe("KategoriCell", () => {
     const field = screen.getByLabelText("Kategori") as HTMLInputElement;
     expect(field.value).toBe("Jual");
     expect(field.className).not.toContain("border-dashed");
+  });
+
+  test("typing does not write anything: the field's text is not a category", () => {
+    // The regression. `Combobox` reports the field's raw text on every keystroke,
+    // so the cell used to file `p`, `pe`, `pen`… as categories and the service
+    // refused each one with "Kategori tidak ditemukan." while the operator typed.
+    const { container } = render(
+      <KategoriCell
+        recordId="r1"
+        source="listing"
+        lineId="g1"
+        category={undefined}
+        categories={CATEGORIES}
+      />,
+    );
+
+    const field = screen.getByLabelText("Kategori") as HTMLInputElement;
+    fireEvent.change(field, { target: { value: "Penyesuaian" } });
+
+    // Still undecided, and nothing failed.
+    expect(
+      container.querySelector("[data-classification]")?.getAttribute("data-classification"),
+    ).toBe("missing");
+    expect(screen.queryByRole("alert")).toBeNull();
+    // The typed text survives in the field, ready for the create row.
+    expect(field.value).toBe("Penyesuaian");
   });
 
   test("a category the operator chose reads `chosen`", () => {

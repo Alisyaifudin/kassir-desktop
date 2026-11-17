@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { useMutation } from "~/components/Loader";
 import { Combobox } from "~/components/ui/combobox";
+import { useMemo } from "react";
 import { cn } from "~/lib/utils";
 import { service } from "~/services";
 import type { LineClassification } from "~/services/report";
@@ -11,9 +12,15 @@ import type { Categories } from "./data";
  *
  * **Every change writes immediately**, which is the decision that makes `‹ ›`
  * pure navigation: there is no save button, so there is nothing to lose by
- * quitting mid-walk and only one way to lose nothing. `Combobox` calls
- * `onValueChange` when an option is picked or the field is blurred — not per
- * keystroke — so the write lands once per decision.
+ * quitting mid-walk and only one way to lose nothing.
+ *
+ * What a "change" is, precisely — this is the part that was wrong first and filed
+ * `pen`, `peny`, `penye` as categories:
+ *
+ * `Combobox` reports the field's **raw text on every keystroke** (its `onChange`)
+ * and an option's *value* when a row is picked. Only a value is a category, so
+ * `onValueChange` ignores anything that is not a known id — a half-typed word is
+ * the business of the create row, which fires once when it is used.
  *
  * A category the list does not hold yet is typed straight into the field
  * (`onCreate`) and written to `report_categories` in the same action, so the
@@ -61,6 +68,25 @@ export function KategoriCell({
   const pending = setLine.pending || createThenSet.pending;
   const error = setLine.error ?? createThenSet.error;
 
+  /**
+   * The options this field offers: the page's list, plus the row *this* cell just
+   * created if the list has not caught up.
+   *
+   * The page re-reads the categories on every write, so the gap is a frame or two
+   * — but in that frame `Combobox`'s `labelFor` cannot resolve the new id and falls
+   * back to printing it, so the field would blink the raw id and then correct
+   * itself. `createThenSet.data` is the row the add returned, so the name is known
+   * here without asking anyone.
+   */
+  const options = useMemo(() => {
+    const list = categories.map((item) => ({ value: item.id, label: item.name }));
+    const added = createThenSet.data;
+    if (added !== null && !categories.some((item) => item.id === added.id)) {
+      list.push({ value: added.id, label: added.name });
+    }
+    return list;
+  }, [categories, createThenSet.data]);
+
   return (
     // The state is data, not just a class: it is what the tests assert and what an
     // e2e run can select on ("how many lines are still missing?"), and Tailwind's
@@ -72,23 +98,29 @@ export function KategoriCell({
       <Combobox
         aria-label="Kategori"
         value={category?.categoryId ?? ""}
-        options={categories.map((item) => ({ value: item.id, label: item.name }))}
+        options={options}
         placeholder="Pilih"
         emptyText="Belum ada kategori"
         disabled={pending}
         className={cn(
-          "h-8 w-[132px] text-sm",
+          // Wide enough for a category name (`Penyesuaian`), not just for `Jual`.
+          "h-8 w-[152px] text-sm",
           missing && "border-dashed border-amber-500/70 text-amber-700",
           !missing && category.auto && "text-muted-foreground",
           !missing && !category.auto && "font-medium text-foreground",
         )}
         onValueChange={(next) => {
-          // Blur reports what the field already held; writing that again would be
-          // a no-op query per line the operator merely tabbed past.
-          if (next === "" || next === category?.categoryId) return;
+          // Typed text is not a category. Writing it would file every prefix of
+          // every search as a category, and the service would refuse each one with
+          // "Kategori tidak ditemukan." — which is what the operator saw.
+          if (!options.some((item) => item.value === next)) return;
+          if (next === category?.categoryId) return;
           void setLine.mutate(next);
         }}
-        createLabel={(text) => `Buat kategori “${text}”`}
+        // The field takes any text: a shop names its own charges, and sending the
+        // operator to another screen to mint a category first would break the
+        // walk. The row has to read as "add this", not as "create a thing".
+        createLabel={(text) => `Tambahkan kategori: ${text}`}
         onCreate={(text) => void createThenSet.mutate(text)}
       />
       {error === null ? null : (

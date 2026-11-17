@@ -89,10 +89,13 @@ export function reportSources(
     info: service.info.info(),
     // The categories, the day and the progress above still read the day; only
     // `totals`, `days` and `started` scope to the period.
-    // The catalogue of categories is not a stream: it is a handful of rows that
-    // change only when the operator adds one, which is an `Effect` on mount and a
-    // re-read through the page's own refetch.
-    categories: service.report.get.categories(),
+    //
+    // `categories` is on the revision too, and that is load-bearing: adding one
+    // from a cell bumps the revision, and a list read once at mount would hand
+    // every picker a set of options that does not contain the category the
+    // operator just made — which the combobox then renders as its raw id. Seven
+    // rows per write is nothing.
+    categories: revs.pipe(Stream.mapEffect(() => service.report.get.categories())),
   };
 }
 
