@@ -282,7 +282,13 @@ export function Combobox({
         onPointerDownOutside={(event) => {
           if (rootRef.current?.contains(event.target as Node)) event.preventDefault();
         }}
-        className="w-[var(--radix-popover-trigger-width)] min-w-0 overflow-hidden p-1"
+        // At least as wide as the field, and as wide as its widest row when that
+        // is wider. The old fixed `w-[trigger-width]` made the list exactly as
+        // narrow as the input, so every long option — and the "add this" row,
+        // which carries a whole sentence — was truncated to `Tambahk…` in any
+        // field narrower than the words. Capped so a list of long product names
+        // cannot run off the window.
+        className="min-w-[var(--radix-popover-trigger-width)] w-auto max-w-[var(--radix-popover-content-available-width)] overflow-hidden p-1"
         // A handle for a host that portals its own layers *around* this one — a
         // Dialog counts a press in here as an outside interaction and would close
         // on the pick. See the filter dialog's `onInteractOutside`.
@@ -293,10 +299,19 @@ export function Combobox({
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={create}
-            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-base text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            // `items-start`, not `items-center`: this row wraps, and the icon
+            // belongs beside the first line rather than floating between two.
+            className="flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left text-base text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
           >
-            <PlusIcon className="size-4 shrink-0" />
-            <span className="truncate">{createText}</span>
+            <PlusIcon className="mt-0.5 size-4 shrink-0" />
+            {/*
+              Wraps, unlike an option's label. An option is one name and reads
+              fine cut short at the viewport's edge; this row is a sentence — the
+              verb plus whatever was typed — and `Tambahk…` asks the operator to
+              press Enter on something they cannot read. The row's whole job is to
+              say what will be created.
+            */}
+            <span className="min-w-0 break-words">{createText}</span>
           </button>
         )}
 
