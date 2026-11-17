@@ -10,9 +10,8 @@ const linkMap = {
   3: "/records",
   4: "/money",
   5: "/setting",
-  // Admin-only; the route's own `AdminOnly` sends a cashier back, the same way
-  // `alt+4` towards `/money` is gated by the screen rather than by the key.
-  6: "/report",
+  // `/report` deliberately has no key: it is a screen the owner opens from
+  // Beranda once a day, not one the till jumps between. See `Home/z-Menu`.
 } as Record<string, string>;
 
 /** Alt typing / AltGr / IME belong to the field the operator is in, not to us. */

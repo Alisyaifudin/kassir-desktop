@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import {
   BadgePercent,
   FilePlus2,
+  FileText,
   BarChart3,
   CreditCard,
   HandCoins,
@@ -110,6 +111,16 @@ const DESTINATIONS: Destination[] = [
     alt: "alt+3",
     hue: 300,
     description: "Transaksi tercatat",
+  },
+  {
+    // The owner's once-a-day job, not a tab the till moves between — which is why
+    // it lives here and carries no shortcut.
+    label: "Laporan",
+    path: "/report",
+    icon: FileText,
+    admin: true,
+    hue: 35,
+    description: "Klasifikasi dan cetak",
   },
   {
     label: "Uang",

@@ -110,8 +110,6 @@ describe("useNavigationShortcuts", () => {
     expect(path).toBe("/records");
     press("5", { altKey: true });
     expect(path).toBe("/setting");
-    press("6", { altKey: true });
-    expect(path).toBe("/report");
   });
 
   test("Alt alone shows the legend while no dialog owns the screen", () => {
