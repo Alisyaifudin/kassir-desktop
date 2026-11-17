@@ -19,7 +19,7 @@ side channel (§8.7.1)
 > It also adds the **image-byte side channel** (§2.10, §8.7.1): `image` rows keep
 > syncing through `product_group_change_log` exactly as before, while the bytes
 > travel over three routes that are **not** the change log and spend **no**
-> `seq`. Nothing about the row wire, the merge rules or the nine groups
+> `seq`. Nothing about the row wire, the merge rules or the ten groups
 > changes; a client that does not implement the side channel keeps showing
 > placeholders and loses nothing. The server half is implemented; the desktop
 > half is an open item (§15.6).
@@ -33,7 +33,7 @@ side channel (§8.7.1)
 > migration 59 and server migration 0022 add the table.
 
 This is the consolidated reference for **all** of Kassir Sync v2. It combines
-the shared protocol with the nine group contracts, the cross-group rules, the
+the shared protocol with the ten group contracts, the cross-group rules, the
 client checklist, the server requirements, the rollout procedures, and the
 operational surface.
 
@@ -65,7 +65,7 @@ entries so the record of what was pending stays readable.
 - §5 Merge
 - §6 Deletion
 - §7 Ordering and dependencies
-- §8 Group reference: money, customer, supplier, method, social, extra, product, combo, record
+- §8 Group reference: money, customer, supplier, method, social, extra, product, combo, record, report
 - §9 Client state and cycles
 - §10 Guarantees and non-guarantees
 - §11 Client contract and conformance checklist
@@ -348,7 +348,7 @@ between groups: `money_bookmark` says nothing about the product log.
 `limit` is `default / maximum` entries. The record group additionally has an
 8 MB pull-page payload budget (§3.5).
 
-All nine groups use the same wire format, auth, compression, error codes and
+All ten groups use the same wire format, auth, compression, error codes and
 pull/push cycle. The differences are the entities, the merge rule, the limits,
 and—for record—the aggregate frame and the full-refresh rollout.
 
@@ -2615,6 +2615,76 @@ the one served, and an unchanged cover's claim follows the clock when a save
 bumps it. A device that has not received the file shows its placeholder. Push
 bounds: 1000 frames / 8 MB; pull: 1000 default / 5000 maximum, 8 MB page budget.
 
+### 8.10 `report` — categories, period closure, classifications
+
+The financial report's synced state — and only its synced state. Every figure the
+report shows is derived on read from `records` + these rows; nothing here is a
+total, so nothing can go stale. The three entities travel in one log because a
+classification always names a category, and one bookmark over the three is what
+lets a device finish a day in one pass.
+
+```
+report_categories (7 wire columns)
+  report_category_id         TEXT PK    -- 'C:' || slug (derived, see below)
+  report_category_name       TEXT NOT NULL
+  report_category_slug       TEXT NOT NULL
+  report_category_builtin    INTEGER NOT NULL   (0 | 1)
+  report_category_order      INTEGER NOT NULL
+  report_category_updated_at INTEGER NOT NULL   -- clock
+  report_category_deleted_at INTEGER?
+
+report_periods (8 wire columns)
+  report_period_id         TEXT PK     -- 'P:' || kind || ':' || start
+  report_period_kind       TEXT NOT NULL   (day | week | month | quarter | year)
+  report_period_start      INTEGER NOT NULL
+  report_period_end        INTEGER NOT NULL
+  report_period_final      INTEGER NOT NULL   (1 = closed)
+  report_period_final_at   INTEGER?
+  report_period_created_at INTEGER NOT NULL
+  report_period_updated_at INTEGER NOT NULL   -- clock
+
+report_lines (9 wire columns)
+  report_line_id          TEXT PK     -- 'L:' || group id, 'X:' || extra id
+  record_id               TEXT NOT NULL
+  record_listing_group_id TEXT?       -- exactly one of these two is set
+  record_extra_id         TEXT?
+  report_category_id      TEXT NOT NULL
+  report_line_source_rev  INTEGER NOT NULL   -- record_updated_at at decision time
+  report_line_auto        INTEGER NOT NULL   (0 = chosen, 1 = seeded)
+  report_line_at          INTEGER NOT NULL   -- clock (when a human decided)
+  report_line_deleted_at  INTEGER?
+```
+
+**The ids are derived, and that is the conflict rule.** Every other group keys
+on an id its own device minted and accepts that two devices creating "the same"
+row is two rows. The report cannot: the built-in categories are seeded on every
+install, a classification is per *line*, and "Buat laporan" is per *day*. Random
+ids would make the first merge a UNIQUE violation. The id is therefore derived
+from the cross-device identity — the slug, the period, the line's own group/extra
+id — so both tills write the same primary key and ordinary last-writer-wins
+decides.
+
+**One precedence rule, before the clock.** `report_line_auto` is a rank: a
+category a human chose (`0`) outranks one the app filled in (`1`), whatever the
+clocks say. Without it, "Buat laporan" on a till that had not pulled yet (clock:
+now) would overwrite a partner's deliberate classification (clock: earlier) and
+then push the seed back over it everywhere. Equal ranks fall through to the
+clock; a tie keeps the stored row. Both the client (`services/sync/merge.ts`) and
+the server (`src/v2/report-merge.ts`) implement the rule, and the client's upsert
+SQL repeats it so a write that races the decision cannot invert it.
+
+**No foreign keys, on either side.** A page may carry a line before the category
+or record it names: the record travels in its own group (which is visited first),
+and the server does not enforce cross-row order (§7.2). The desktop's
+`report_lines.record_extra_id` deliberately has no `ON DELETE CASCADE` either —
+a record aggregate is replaced wholesale by a merge (children deleted, re-inserted),
+and the cascade would delete the classifications of every extra on every device
+that merged the record. `record_id` keeps the line attached to a real record.
+
+Limits: pull 5000 default / 20 000 maximum, push 1000 frames / 1 MB. The
+desktop writes `report_line_sync_at`/`report_category_sync_at`/
+`report_period_sync_at`; those are the dirty flags and never cross the wire.
+
 ## 9. Client state and cycles
 
 ### 9.1 Bookmarks and dirty flags
@@ -3085,11 +3155,11 @@ Otomatis, stored as one `sync.auto` object in `store.json`):
 | --- | --- | --- |
 | app start | the master switch, armed once from `main.tsx` | forks a cycle; boot never waits for it |
 | timer | `everyMinutes` ∈ {1, 2, 5, 10} | measured from the **end** of the previous cycle; a tick that lands while any run is in flight is skipped, not queued |
-| local edit | `editGroups` (any subset of the nine groups) | each domain service announces a commit on a `PubSub` (`SyncTrigger`); the scheduler debounces 1.5 s of quiet, then starts one cycle |
+| local edit | `editGroups` (any subset of the ten groups) | each domain service announces a commit on a `PubSub` (`SyncTrigger`); the scheduler debounces 1.5 s of quiet, then starts one cycle |
 | manual button | Sinkronisasi / Sinkronisasi Ulang | never automatic: `reset` re-uploads the whole local dataset |
 
 A device with no token configured is skipped in silence rather than failing at
-every interval, and a local edit starts a full cycle over all nine groups — the
+every interval, and a local edit starts a full cycle over all ten groups — the
 edit trigger decides *when*, never *where*. Pulls cannot feed back into the bus:
 a merged page is applied by `sync_merge` in Rust, not by a domain service.
 
@@ -3111,7 +3181,7 @@ of the client contract, not an optimisation.
   page/ack transaction; the bookmark stays where the last commit left it and
   the next cycle resumes there.
 - **`401` stops every group,** not only the one that hit it: the device is not
-  authorised, so continuing with the other eight just produces nine errors.
+  authorised, so continuing with the other nine just produces ten errors.
 - **A cycle that is already pushing is never cancelled by a pull trigger**; the
   request is queued behind the running batch, so an ack transaction is never
   abandoned mid-batch.
@@ -3617,7 +3687,7 @@ Integration:
 
 ### 13.1 What the server serves
 
-Every synced table belongs to exactly one of the nine v2 groups:
+Every synced table belongs to exactly one of the ten v2 groups:
 
 | group | entities |
 | --- | --- |
@@ -3933,7 +4003,7 @@ to end.
 
    - **What is recorded.** Every pull upserts `(token_id, group_name, last_seq,
      last_seen_at)` into `client_bookmark`, with `MAX` on `last_seq` so progress
-     is monotonic. Enrolment writes `last_seq = 0` for all nine groups, so a
+     is monotonic. Enrolment writes `last_seq = 0` for all ten groups, so a
      device that has never pulled pins its groups at `0`; revoking the token
      cascades those rows away and releases the pin.
    - **The floor.** `floor = min(last_seq)` over the tokens whose `last_seen_at`
@@ -4287,6 +4357,7 @@ the record header's `record_updated_at`), and `dirty` is `*_sync_at`.
 | `docs/SYNC-V2-METHOD.md` | method group |
 | `docs/SYNC-V2-SOCIAL.md` | social group |
 | `docs/SYNC-V2-EXTRA.md` | extra group |
+| `docs/SYNC-V2-REPORT.md` | report group (categories, period closure, classifications) |
 | `docs/SYNC-V2-PRODUCT.md` | product catalog and stock journal |
 | `docs/SYNC-V2-RECORD.md` | record aggregate, full refresh, streamed acks |
 | `docs/PROPOSAL-DISCUSSION.md` | the review that led to the change-log design |

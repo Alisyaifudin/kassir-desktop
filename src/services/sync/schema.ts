@@ -27,7 +27,8 @@ export type SyncGroup =
   | "extra"
   | "product"
   | "combo"
-  | "record";
+  | "record"
+  | "report";
 
 /** Every group this build syncs, in the order the cycle visits them. */
 export const SYNC_GROUPS: readonly SyncGroup[] = [
@@ -43,6 +44,11 @@ export const SYNC_GROUPS: readonly SyncGroup[] = [
   // page carrying only a combo still merges.
   "combo",
   "record",
+  // The report classifies record lines, so it is visited after `record`: by the
+  // time a classification is merged, the record (and its extras) it names is
+  // already on the device. Categories and periods travel in the same group and
+  // are written before their lines (see `GROUPS.report`).
+  "report",
 ];
 
 /**
@@ -75,6 +81,18 @@ export type EntityDef = {
   /** Push bookkeeping; never crosses the wire (§3.2). */
   syncAt: string;
   kind: MergeKind;
+  /**
+   * Optional precedence column: a **lower** value outranks a higher one when two
+   * copies disagree, before the clock is consulted.
+   *
+   * It exists for one entity: `report_line`, whose `report_line_auto` is `0` for
+   * a category a human chose and `1` for one the app filled in. Without it, a
+   * "Buat laporan" seed on a till that had not synced yet (clock: now) would
+   * overwrite a partner's deliberate classification (clock: earlier) and push
+   * the guess back over it. With it, the human decision wins whichever side of
+   * the wire it comes from; the clock only breaks ties at the same rank.
+   */
+  authority?: string;
   /** `ORDER BY` for the push selector, so a batch is deterministic. */
   order: string;
 };
@@ -279,6 +297,7 @@ function row(
   syncAt: string,
   kind: MergeKind,
   order: string,
+  authority?: string,
 ): EntityDef {
   return {
     entity,
@@ -292,6 +311,7 @@ function row(
     syncAt,
     kind,
     order,
+    ...(authority === undefined ? {} : { authority }),
   };
 }
 
@@ -602,6 +622,82 @@ export const TABLES: Record<string, EntityDef> = {
     "aggregate",
     "combo_name COLLATE NOCASE, combo_id",
   ),
+  // ------------------------------------------------------------------------
+  // The report group (migration-65): categories, period closure, and the
+  // classification of a record line. All three are ordinary LWW rows, but their
+  // ids are *derived* from a cross-device identity (slug, (kind,start), line id),
+  // so two tills writing the same thing write the same primary key and no
+  // merge-by-something-else rule is needed. See migration-65.
+  // ------------------------------------------------------------------------
+  report_category: row(
+    "report",
+    "report_category",
+    "report_categories",
+    "report_category_id",
+    [
+      "report_category_id",
+      "report_category_name",
+      "report_category_slug",
+      "report_category_builtin",
+      "report_category_order",
+      "report_category_updated_at",
+      "report_category_deleted_at",
+    ],
+    ["report_category_deleted_at"],
+    "report_category_updated_at",
+    "report_category_deleted_at",
+    "report_category_sync_at",
+    "lww",
+    "report_category_order, report_category_id",
+  ),
+  report_period: row(
+    "report",
+    "report_period",
+    "report_periods",
+    "report_period_id",
+    [
+      "report_period_id",
+      "report_period_kind",
+      "report_period_start",
+      "report_period_end",
+      "report_period_final",
+      "report_period_final_at",
+      "report_period_created_at",
+      "report_period_updated_at",
+    ],
+    ["report_period_final_at"],
+    "report_period_updated_at",
+    null,
+    "report_period_sync_at",
+    "lww",
+    "report_period_kind, report_period_start, report_period_id",
+  ),
+  report_line: row(
+    "report",
+    "report_line",
+    "report_lines",
+    "report_line_id",
+    [
+      "report_line_id",
+      "record_id",
+      "record_listing_group_id",
+      "record_extra_id",
+      "report_category_id",
+      "report_line_source_rev",
+      "report_line_auto",
+      "report_line_at",
+      "report_line_deleted_at",
+    ],
+    ["record_listing_group_id", "record_extra_id", "report_line_deleted_at"],
+    // `report_line_at` is when a human decided, and that is the only clock a
+    // classification has (migration-63's note against a second timestamp).
+    "report_line_at",
+    "report_line_deleted_at",
+    "report_line_sync_at",
+    "lww",
+    "report_line_at, report_line_id",
+    "report_line_auto",
+  ),
   record: row(
     "record",
     "record",
@@ -698,6 +794,15 @@ export const GROUPS: Record<SyncGroup, GroupDef> = {
       pushBytes: 8 * 1024 * 1024,
     },
     RECORD_CHILDREN,
+  ),
+  report: group(
+    "report",
+    // Categories and periods first: a line names a category, and a push sends its
+    // rows in this order, so the category's seq is lower than the line's. The
+    // pull is seq-ordered anyway — a line cannot reference a category created
+    // after it.
+    ["report_category", "report_period", "report_line"],
+    SIMPLE_LIMITS,
   ),
 };
 

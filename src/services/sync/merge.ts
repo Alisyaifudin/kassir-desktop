@@ -144,6 +144,14 @@ export function decide(def: EntityDef, local: WireRow, incoming: WireRow): Merge
     if (revalued) return "stale";
   }
   if (sameRow(def, local, incoming)) return "noop";
+  // A lower authority value wins before the clock is consulted: an explicit
+  // report classification (0) outranks an app-seeded default (1), whichever is
+  // newer. Only equal ranks fall through to last-writer-wins.
+  if (def.authority !== undefined) {
+    const incomingRank = Number(incoming[def.authority]);
+    const localRank = Number(local[def.authority]);
+    if (incomingRank !== localRank) return incomingRank < localRank ? "applied" : "stale";
+  }
   return clockOf(def, incoming) > clockOf(def, local) ? "applied" : "stale";
 }
 

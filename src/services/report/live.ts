@@ -1,7 +1,6 @@
 import { Effect, Layer, SubscriptionRef } from "effect";
 import { Temporal } from "temporal-polyfill";
 import { tz } from "~/lib/constants";
-import { generateId } from "~/lib/random";
 import {
   ReportError,
   ReportService,
@@ -20,6 +19,7 @@ import {
 import { SCOPE_R } from "../analytics/scope";
 import { DatabaseService, type DbError } from "../db";
 import type { RecordMode } from "../record";
+import { notifySync } from "../sync/trigger";
 import type { PeriodKind } from "./period";
 
 // ============================================================================
@@ -363,9 +363,9 @@ const SELECT_MODE_TOTALS = `
 //  * a classification is an upsert on the line's own identity, because there is
 //    exactly one row per line (`migration-63`) — re-classifying is never a second
 //    insert, and the UI's auto-save needs no client-side "is it new" state.
-//  * ids are minted in SQL with `upper(hex(randomblob(13)))` where a statement
-//    writes more than one row per click — 26 characters, the length `ulid()` mints,
-//    the same trick `migration-61` uses. A single row gets `generateId()`.
+//  * every id is derived, not minted: the line, the category and the period each
+//    have a cross-device identity (migration-65), so two tills write the same
+//    primary key for the same thing and ordinary last-writer-wins can decide.
 
 /**
  * "Now", in SQL.
@@ -388,8 +388,8 @@ const START_DAY = `
   INSERT OR IGNORE INTO report_periods (
     report_period_id, report_period_kind, report_period_start, report_period_end,
     report_period_final, report_period_final_at,
-    report_period_created_at, report_period_updated_at
-  ) VALUES ($1, 'day', $2, $3, 0, NULL, $4, $4)`;
+    report_period_created_at, report_period_updated_at, report_period_sync_at
+  ) VALUES ('P:day:' || $1, 'day', $1, $2, 0, NULL, $3, $3, NULL)`;
 
 /**
  * Every **goods** line of the day gets the default its direction implies.
@@ -410,7 +410,7 @@ const SEED_LISTING_LINES = `
     report_category_id, report_line_source_rev, report_line_auto, report_line_at
   )
   SELECT
-    upper(hex(randomblob(13))),
+    'L:' || rl.record_listing_group_id,
     r.record_id,
     rl.record_listing_group_id,
     NULL,
@@ -460,7 +460,7 @@ const SEED_DUAL_LINES = `
     report_category_id, report_line_source_rev, report_line_auto, report_line_at
   )
   SELECT
-    upper(hex(randomblob(13))),
+    'X:' || re.record_extra_id,
     r.record_id,
     NULL,
     re.record_extra_id,
@@ -483,34 +483,40 @@ const SEED_DUAL_LINES = `
 const UPSERT_LISTING_LINE = `
   INSERT INTO report_lines (
     report_line_id, record_id, record_listing_group_id, record_extra_id,
-    report_category_id, report_line_source_rev, report_line_auto, report_line_at
+    report_category_id, report_line_source_rev, report_line_auto, report_line_at,
+    report_line_sync_at
   )
-  SELECT $1, r.record_id, rl.record_listing_group_id, NULL, $2, r.record_updated_at, 0, $3
+  SELECT 'L:' || rl.record_listing_group_id, r.record_id, rl.record_listing_group_id, NULL,
+         $1, r.record_updated_at, 0, $2, NULL
   FROM record_listings rl
   JOIN records r ON r.record_id = rl.record_id
-  WHERE rl.record_listing_group_id = $4 AND rl.record_id = $5
+  WHERE rl.record_listing_group_id = $3 AND rl.record_id = $4
   LIMIT 1
   ON CONFLICT (record_listing_group_id) DO UPDATE SET
     report_category_id     = excluded.report_category_id,
     report_line_source_rev = excluded.report_line_source_rev,
     report_line_auto       = 0,
-    report_line_at         = excluded.report_line_at`;
+    report_line_at         = excluded.report_line_at,
+    report_line_sync_at    = NULL`;
 
 const UPSERT_EXTRA_LINE = `
   INSERT INTO report_lines (
     report_line_id, record_id, record_listing_group_id, record_extra_id,
-    report_category_id, report_line_source_rev, report_line_auto, report_line_at
+    report_category_id, report_line_source_rev, report_line_auto, report_line_at,
+    report_line_sync_at
   )
-  SELECT $1, r.record_id, NULL, re.record_extra_id, $2, r.record_updated_at, 0, $3
+  SELECT 'X:' || re.record_extra_id, r.record_id, NULL, re.record_extra_id,
+         $1, r.record_updated_at, 0, $2, NULL
   FROM record_extras re
   JOIN records r ON r.record_id = re.record_id
-  WHERE re.record_extra_id = $4 AND re.record_id = $5
+  WHERE re.record_extra_id = $3 AND re.record_id = $4
   LIMIT 1
   ON CONFLICT (record_extra_id) DO UPDATE SET
     report_category_id     = excluded.report_category_id,
     report_line_source_rev = excluded.report_line_source_rev,
     report_line_auto       = 0,
-    report_line_at         = excluded.report_line_at`;
+    report_line_at         = excluded.report_line_at,
+    report_line_sync_at    = NULL`;
 
 const SELECT_LIVE_CATEGORY = `
   SELECT report_category_id FROM report_categories
@@ -528,19 +534,21 @@ const CLOSE_PERIOD = `
   INSERT INTO report_periods (
     report_period_id, report_period_kind, report_period_start, report_period_end,
     report_period_final, report_period_final_at,
-    report_period_created_at, report_period_updated_at
-  ) VALUES ($1, $2, $3, $4, 1, $5, $5, $5)
+    report_period_created_at, report_period_updated_at, report_period_sync_at
+  ) VALUES ('P:' || $1 || ':' || $2, $1, $2, $3, 1, $4, $4, $4, NULL)
   ON CONFLICT (report_period_kind, report_period_start) DO UPDATE SET
     report_period_end       = excluded.report_period_end,
     report_period_final     = 1,
     report_period_final_at  = excluded.report_period_final_at,
-    report_period_updated_at = excluded.report_period_updated_at`;
+    report_period_updated_at = excluded.report_period_updated_at,
+    report_period_sync_at   = NULL`;
 
 const INSERT_CATEGORY = `
   INSERT INTO report_categories (
     report_category_id, report_category_name, report_category_slug,
-    report_category_builtin, report_category_order, report_category_deleted_at
-  ) VALUES ($1, $2, $3, 0, $4, NULL)`;
+    report_category_builtin, report_category_order,
+    report_category_updated_at, report_category_sync_at, report_category_deleted_at
+  ) VALUES ('C:' || $1, $2, $1, 0, $3, $4, NULL, NULL)`;
 
 const SELECT_SLUGS_LIKE = `
   SELECT report_category_slug AS slug FROM report_categories WHERE report_category_slug = $1`;
@@ -557,16 +565,27 @@ const COUNT_NAME_OTHER = `
     AND lower(report_category_name) = lower($1) AND report_category_id <> $2`;
 
 const UPDATE_CATEGORY_NAME = `
-  UPDATE report_categories SET report_category_name = $1 WHERE report_category_id = $2`;
+  UPDATE report_categories SET
+    report_category_name = $1,
+    report_category_updated_at = max($2, report_category_updated_at + 1),
+    report_category_sync_at = NULL
+  WHERE report_category_id = $3`;
 
 const UPDATE_CATEGORY_ORDER = `
-  UPDATE report_categories SET report_category_order = $1 WHERE report_category_id = $2`;
+  UPDATE report_categories SET
+    report_category_order = $1,
+    report_category_updated_at = max($2, report_category_updated_at + 1),
+    report_category_sync_at = NULL
+  WHERE report_category_id = $3`;
 
 const COUNT_LINES_FOR_CATEGORY = `
   SELECT COUNT(*) AS n FROM report_lines WHERE report_category_id = $1`;
 
 const SOFT_DELETE_CATEGORY = `
-  UPDATE report_categories SET report_category_deleted_at = $1
+  UPDATE report_categories SET
+    report_category_deleted_at = max($1, report_category_updated_at + 1),
+    report_category_updated_at = max($1, report_category_updated_at + 1),
+    report_category_sync_at = NULL
   WHERE report_category_id = $2 AND report_category_deleted_at IS NULL`;
 
 const SELECT_CATEGORY_BY_ID = `
@@ -724,10 +743,16 @@ export const ReportLive = Layer.effect(
       });
     }
 
-    /** Every write bumps the counter, so an open report page re-reads. */
+    /**
+     * Every write bumps the counter, so an open report page re-reads, and tells the
+     * sync scheduler a `report` row is now dirty. The announcement is best effort
+     * (`notifySync` swallows a missing or failing bus); a committed write is never
+     * turned into a failed one because nobody was listening.
+     */
     function bump<A>(effect: Effect.Effect<A, ReportError>): Effect.Effect<A, ReportError> {
       return effect.pipe(
         Effect.tap(() => SubscriptionRef.update(revisionRef, (current) => current + 1)),
+        Effect.tap(() => notifySync("report")),
       );
     }
 
@@ -749,7 +774,7 @@ export const ReportLive = Layer.effect(
           .transaction([
             {
               sql: START_DAY,
-              bindings: [generateId(), start, end, now],
+              bindings: [start, end, now],
             },
             // Only the scope's own `$1`/`$2` — see `NOW_MS` for why a third
             // placeholder cannot go here.
@@ -786,7 +811,6 @@ export const ReportLive = Layer.effect(
 
           yield* db
             .execute(isListing ? UPSERT_LISTING_LINE : UPSERT_EXTRA_LINE, [
-              generateId(),
               input.categoryId,
               now,
               input.lineId,
@@ -821,7 +845,7 @@ export const ReportLive = Layer.effect(
           }
 
           yield* db
-            .execute(CLOSE_PERIOD, [generateId(), kind, start, end, Date.now()])
+            .execute(CLOSE_PERIOD, [kind, start, end, Date.now()])
             .pipe(Effect.mapError(failure));
         }),
       );
@@ -875,7 +899,10 @@ export const ReportLive = Layer.effect(
             .pipe(Effect.mapError(failure));
 
           const category: ReportCategory = {
-            id: generateId(),
+            // The slug is the cross-device identity (migration-65), so the id is
+            // derived from it rather than minted: two tills naming a category the
+            // same way produce one row, not a UNIQUE failure.
+            id: `C:${slug}`,
             name: trimmed,
             slug,
             builtin: false,
@@ -883,7 +910,7 @@ export const ReportLive = Layer.effect(
           };
 
           yield* db
-            .execute(INSERT_CATEGORY, [category.id, category.name, category.slug, category.order])
+            .execute(INSERT_CATEGORY, [category.slug, category.name, category.order, Date.now()])
             .pipe(Effect.mapError(failure));
 
           return category;
@@ -906,7 +933,9 @@ export const ReportLive = Layer.effect(
               new ReportError({ message: "Nama kategori itu sudah ada." }),
             );
           }
-          yield* db.execute(UPDATE_CATEGORY_NAME, [trimmed, id]).pipe(Effect.mapError(failure));
+          yield* db
+            .execute(UPDATE_CATEGORY_NAME, [trimmed, Date.now(), id])
+            .pipe(Effect.mapError(failure));
         }),
       );
     }
@@ -915,7 +944,10 @@ export const ReportLive = Layer.effect(
       return bump(
         db
           .transaction(
-            ids.map((id, index) => ({ sql: UPDATE_CATEGORY_ORDER, bindings: [index, id] })),
+            ids.map((id, index) => ({
+              sql: UPDATE_CATEGORY_ORDER,
+              bindings: [index, Date.now(), id],
+            })),
           )
           .pipe(Effect.mapError(failure)),
       );
@@ -965,6 +997,16 @@ export const ReportLive = Layer.effect(
       );
     }
 
+    /**
+     * Re-reads everything an open report page derives from these tables. The
+     * service holds no row cache — every read is SQL — so a merge that wrote rows
+     * from the server only has to bump the revision counter. Sync calls this after
+     * the `report` group commits.
+     */
+    function refresh(): Effect.Effect<void> {
+      return SubscriptionRef.update(revisionRef, (current) => current + 1);
+    }
+
     return {
       get: {
         categories,
@@ -985,6 +1027,7 @@ export const ReportLive = Layer.effect(
       },
       add: { category: addCategory },
       delete: { category: removeCategory },
+      refresh,
     };
   }),
 );

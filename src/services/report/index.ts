@@ -261,5 +261,11 @@ export class ReportService extends Context.Tag("ReportService")<
       /** Soft-delete. Refused while any report line still names it. */
       category: (id: string) => Effect.Effect<void, ReportError>;
     };
+    /**
+     * Re-reads every derived view (bumps the `revision` counter). Every read is
+     * SQL over these tables, so a sync merge that wrote rows from the server only
+     * has to bump it. Sync calls this after the `report` group commits.
+     */
+    refresh: () => Effect.Effect<void>;
   }
 >() {}

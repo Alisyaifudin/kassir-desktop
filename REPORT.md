@@ -1206,17 +1206,51 @@ served by *adding* a category.
 See §4.1: a free-text name carries no meaning the app may infer, and the wizard
 exists to ask. Only goods lines are filled in, from `record_mode` alone.
 
-### Deferred until sync exists
+### Synced (migration-65)
 
-**Two tills.** `report_categories` / `report_lines` carry no sync trio, unlike
-`pockets` — which **is** synced (`{"e":"pocket",…}`, `sync/frames.ts:6`), so an
-earlier revision's "local config like pockets" was simply wrong. The precedent that
-does apply is `records.record_flag` / `record_pair_id`: local, never synced, because
-they annotate a row rather than describing a fact.
+**Two tills, resolved.** The report is the tenth v2 group (`report`): the three
+tables carry the sync trio and travel as ordinary rows. `migration-65` adds the
+columns and, more importantly, re-keys every row on an identity two tills agree
+on:
 
-The shop's decision: **the report feature is finished before sync is touched.**
-When sync arrives, this needs the trio plus a merge rule for "both registers
-classified one line differently". Until then, one device, no divergence.
+```
+report_category_id = 'C:' || slug
+report_period_id   = 'P:' || kind || ':' || start
+report_line_id     = 'L:' || record_listing_group_id   ('X:' for an extra)
+```
+
+With random ids the first merge was a UNIQUE violation in every direction — the
+built-ins are seeded per install, a classification is per line, and "Buat
+laporan" is per day. Derived ids make the same category/day/line the same row,
+so the ordinary last-writer-wins rule already resolves "both registers classified
+one line differently".
+
+The one addition to that rule is a **rank**: `report_line_auto = 0` (a human
+chose) outranks `= 1` (the app filled in a default), before the clock is read.
+Without it, pressing "Buat laporan" on a till that had not pulled yet would
+overwrite a partner's deliberate classification with a seeded guess. The client
+(`sync/merge.ts` and its upsert SQL) and the server (`src/v2/report-merge.ts`)
+implement the same rule.
+
+Two schema consequences, both in `migration-65`:
+
+- `report_lines` loses its foreign keys entirely. A record aggregate is replaced
+  wholesale by the record merge, and an `ON DELETE CASCADE` from `record_extras`
+  deleted the classifications of its extras on every device that merged it —
+  after the bookmark had moved past them. The `record_id` / `report_category_id`
+  FKs would meanwhile make a page fail forever whenever the line arrived before
+  the row it names (the server enforces no cross-row order). Without them the
+  line lands, the report's universe simply does not see it until the record
+  exists, and an orphan is inert rather than a stuck group. The app still checks
+  both on a local write.
+- `report_category_name` stops being UNIQUE, for the reason `migration-55`
+dropped `category_name_unique`: two devices may independently create the same
+  label, and a pull page has to be able to store both. The slug stays UNIQUE — it
+  is the primary key now.
+
+Normative protocol: `SYNC-V2.md` §8.10 (and the backend's
+`docs/SYNC-V2-REPORT.md`). Rows written by a merge bump the service's revision, so
+an open report page re-reads without a restart.
 
 ### Open
 

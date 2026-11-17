@@ -274,14 +274,15 @@ struct WireError {
     floor: Option<i64>,
 }
 
-/// The nine groups the desktop speaks, exactly as the routes name them (§1.4).
+/// The ten groups the desktop speaks, exactly as the routes name them (§1.4).
 ///
 /// Validated here rather than trusted from the frontend: `group` becomes a path
 /// segment, and an unvalidated value could escape the `/v2/` prefix. Keep this
 /// list in step with `SYNC_GROUPS` in `src/services/sync/schema.ts` — a group
 /// the frontend cycles but this list rejects fails the whole run.
-const GROUPS: [&str; 9] = [
+const GROUPS: [&str; 10] = [
     "money", "customer", "supplier", "method", "social", "extra", "product", "combo", "record",
+    "report",
 ];
 
 fn valid_group(group: &str) -> bool {
@@ -907,10 +908,10 @@ mod tests {
     }
 
     #[test]
-    fn only_the_nine_groups_reach_a_path() {
+    fn only_the_ten_groups_reach_a_path() {
         for group in [
             "money", "customer", "supplier", "method", "social", "extra", "product", "combo",
-            "record",
+            "record", "report",
         ] {
             assert!(valid_group(group), "{group} must reach a /v2/ path");
         }

@@ -39,6 +39,7 @@ export const GROUP_LABEL: Record<SyncGroup, string> = {
   product: "Produk & Stok",
   combo: "Paket Combo",
   record: "Catatan Transaksi",
+  report: "Laporan Keuangan",
 };
 
 export function groupLabel(group: SyncGroup): string {

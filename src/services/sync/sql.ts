@@ -52,6 +52,22 @@ function rowBindings(def: EntityDef, row: WireRow, syncAt: number): (string | nu
 }
 
 /**
+ * The `WHERE` that decides whether an incoming row may replace the stored one.
+ *
+ * For an ordinary row it is the clock. For a row with an `authority` column it is
+ * the rank first and the clock on a tie — the same rule `decide` applies in
+ * TypeScript, repeated here because a cashier can write between the read and the
+ * write (§5.2).
+ */
+function incomingWins(def: EntityDef): string {
+  const clock = def.updatedAt ?? def.pk;
+  if (def.authority === undefined) return `excluded.${clock} > ${def.table}.${clock}`;
+  const rank = def.authority;
+  return `(excluded.${rank} < ${def.table}.${rank}
+      OR (excluded.${rank} = ${def.table}.${rank} AND excluded.${clock} > ${def.table}.${clock}))`;
+}
+
+/**
  * Inserts a pulled row, or overwrites the local one when the incoming clock is
  * strictly newer (§5.2). A tie keeps the local row — the server applies the same
  * comparison, so a tie can only mean the two copies are the same change.
@@ -62,11 +78,10 @@ function rowBindings(def: EntityDef, row: WireRow, syncAt: number): (string | nu
  */
 export function upsertIfNewerStatement(def: EntityDef, row: WireRow, syncAt: number): Statement {
   const columns = insertColumns(def);
-  const clock = def.updatedAt ?? def.pk;
   return {
     sql: `INSERT INTO ${def.table} (${columns.join(", ")}) VALUES (${placeholders(columns.length)})
       ON CONFLICT(${def.pk}) DO UPDATE SET ${assignments(def)}
-      WHERE excluded.${clock} > ${def.table}.${clock}`,
+      WHERE ${incomingWins(def)}`,
     bindings: rowBindings(def, row, syncAt),
   };
 }
@@ -100,10 +115,20 @@ export function forceUpsertStatement(
 ): Statement {
   const columns = insertColumns(def);
   const clock = def.updatedAt ?? def.pk;
+  // The server's copy won the push, so it overwrites the local one unless the
+  // local row was edited *after* the frame left (`clock <= since`). A more
+  // authoritative incoming row (a human's classification) is written even then;
+  // a less authoritative one never overwrites a newer local decision.
+  const guard =
+    def.authority === undefined
+      ? `${def.table}.${clock} <= $${columns.length + 1}`
+      : `(excluded.${def.authority} < ${def.table}.${def.authority}
+          OR (excluded.${def.authority} = ${def.table}.${def.authority}
+              AND ${def.table}.${clock} <= $${columns.length + 1}))`;
   return {
     sql: `INSERT INTO ${def.table} (${columns.join(", ")}) VALUES (${placeholders(columns.length)})
       ON CONFLICT(${def.pk}) DO UPDATE SET ${assignments(def)}
-      WHERE ${def.table}.${clock} <= $${columns.length + 1}`,
+      WHERE ${guard}`,
     bindings: [...rowBindings(def, row, syncAt), since],
   };
 }

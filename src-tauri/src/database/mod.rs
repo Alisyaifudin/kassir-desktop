@@ -414,5 +414,11 @@ pub fn generate_migration() -> Vec<Migration> {
             sql: include_str!("../../src/database/61-70/migration-64.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 65,
+            description: "report_group_sync",
+            sql: include_str!("../../src/database/61-70/migration-65.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }

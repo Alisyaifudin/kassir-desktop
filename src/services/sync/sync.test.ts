@@ -22,6 +22,7 @@ import { ProductService } from "../product";
 import { ProductLive } from "../product/live";
 import { RecordService } from "../record";
 import { RecordLive } from "../record/live";
+import { ReportLive } from "../report/live";
 import { SocialLive } from "../social/live";
 import { makeTestStore } from "../store/test-support";
 import { SupplierLive } from "../supplier/live";
@@ -347,6 +348,11 @@ function shaOf(imageId: string, version: number): string {
 
 /** Every synced table, children before parents, so a fresh test starts empty. */
 const TRUNCATE = [
+  // Report lines point at records; they go first so the record delete below
+  // cannot trip the FK.
+  "DELETE FROM report_lines",
+  "DELETE FROM report_periods",
+  "DELETE FROM report_categories",
   "DELETE FROM combo_discounts",
   "DELETE FROM combo_extras",
   "DELETE FROM combo_listings",
@@ -492,6 +498,8 @@ function setup(
   const comboLayer = ComboLive.pipe(Layer.provide(dbLayer));
   const productLayer = ProductLive.pipe(Layer.provide(dbLayer));
   const recordLayer = RecordLive.pipe(Layer.provide(dbLayer), Layer.provide(productLayer));
+  // The report group is merged by SyncLive and refreshed through this layer.
+  const reportLayer = ReportLive.pipe(Layer.provide(dbLayer));
   const transportLayer = Layer.succeed(SyncTransportService, transport);
   // The local-write bus, held here so a test can publish a write and assert the
   // cycle it started (``auto` sync`, below).
@@ -514,6 +522,7 @@ function setup(
         comboLayer,
         productLayer,
         recordLayer,
+        reportLayer,
       ),
     ),
   );

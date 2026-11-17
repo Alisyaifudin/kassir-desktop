@@ -11,7 +11,7 @@ Aplikasi untuk kasir.
 
 # Sinkronisasi
 
-**Sync v2, all nine groups.** Contract: `SYNC-V2.md`. The desktop mirrors `money`
+**Sync v2, all ten groups.** Contract: `SYNC-V2.md`. The desktop mirrors `money`
 (pockets + ledger), `customer`, `supplier`, `method`, `social`, `extra`, `product`
 (catalog + stock journal), `combo` (the catalogue template aggregate) and `record`
 (the sale aggregate). It is **started manually by default**: the operator presses a

@@ -125,6 +125,10 @@ export function buildAppLive(hidden: HiddenLive) {
         // Records are pulled as whole aggregates; the service holds no row cache,
         // so a merge only bumps its revision counter — but it has to be told.
         recordLive,
+        // The report group is categories + period closure + line classifications.
+        // Its reads are SQL over those tables, so a merge only has to bump the
+        // revision an open report page watches.
+        reportLive,
       ),
     ),
   );

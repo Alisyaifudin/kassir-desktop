@@ -143,37 +143,39 @@ describe("the six built-in categories", () => {
     ]);
   });
 
-  test("ids are the 26 characters `ulid()` mints", () => {
-    // Not cosmetic: every id in the app is 26 chars, and a migration is the one
-    // writer that could quietly introduce a different length.
+  test("the id is the slug's, so every device derives the same row (65)", () => {
+    // migration-65 re-keyed the seeded rows: with a random id per install, two
+    // tills syncing would have two `Jual` rows and a UNIQUE failure, not one
+    // category. The slug is the cross-device identity, so the id is derived.
     const { db } = makeTestDatabase();
-    const rows = db.query(`SELECT report_category_id AS id FROM report_categories`).all() as {
-      id: string;
-    }[];
+    const rows = db
+      .query(`SELECT report_category_id AS id, report_category_slug AS slug FROM report_categories`)
+      .all() as { id: string; slug: string }[];
 
     expect(rows.length).toBeGreaterThanOrEqual(6);
-    for (const row of rows) expect(row.id).toMatch(/^[0-9A-F]{26}$/);
+    for (const row of rows) expect(row.id).toBe(`C:${row.slug}`);
   });
 
-  test("a name or a slug can only be used once", () => {
+  test("a slug can only be used once; a name can repeat across tills (65)", () => {
     const { db } = makeTestDatabase();
 
+    // The slug is the primary key, so a second row with the same slug is the same
+    // category — refused, as the app's own "that name is taken" rule expects.
     expect(() =>
       db
         .query(
           `INSERT INTO report_categories (report_category_id, report_category_name, report_category_slug)
-           VALUES ('X1', 'Jual', 'jual-2')`,
+           VALUES ('C:jual-2', 'Jual', 'jual')`,
         )
         .run(),
     ).toThrow();
-    expect(() =>
-      db
-        .query(
-          `INSERT INTO report_categories (report_category_id, report_category_name, report_category_slug)
-           VALUES ('X2', 'Jual Lagi', 'jual')`,
-        )
-        .run(),
-    ).toThrow();
+    // The name is not UNIQUE any more: migration-65 dropped it for the reason
+    // migration-55 dropped `category_name_unique` — two devices may independently
+    // create the same label, and the pull has to be able to store both.
+    db.query(
+      `INSERT INTO report_categories (report_category_id, report_category_name, report_category_slug)
+       VALUES ('C:jual-2', 'Jual', 'jual-2')`,
+    ).run();
   });
 
   test("a custom category is an ordinary row", () => {
@@ -312,36 +314,50 @@ describe("a report line has exactly one identity", () => {
     expect(db.query(`SELECT COUNT(*) AS n FROM report_lines`).get()).toEqual({ n: 4 });
   });
 
-  test("a line whose record does not exist is refused", () => {
-    // No FK points at `record_listing_group_id`, so `record_id` is the constraint
-    // that keeps a classification attached to something real.
+  test("a line whose record has not arrived yet is stored, and is inert (65)", () => {
+    // migration-65 dropped the `record_id` FK for the same reason it dropped the
+    // category one: the server enforces no cross-row order, so a page may carry a
+    // classification before the record it names. With an FK that page fails
+    // forever (the bookmark cannot advance past it); without one the row lands and
+    // the report's universe — `records` joined to its own lines — ignores it until
+    // the record arrives.
     const { db } = makeTestDatabase();
 
-    expect(() => classifyListing(db, "rl1", "ghost", "g1")).toThrow();
+    classifyListing(db, "rl1", "ghost", "g1");
+
+    expect(db.query(`SELECT COUNT(*) AS n FROM report_lines`).get()).toEqual({ n: 1 });
   });
 
-  test("an unknown category is refused", () => {
+  test("a category reference is not a schema constraint (65)", () => {
+    // migration-65 dropped the FK to `report_categories`: the server does not
+    // enforce cross-row order, so a page can carry a line before the category it
+    // names, and an FK would turn that legal ordering into a failed transaction.
+    // The service checks the category itself (`mustFindCategory`) before a local
+    // write; the merge must be able to store what the server sent.
     const { db } = makeTestDatabase();
     record(db, "r1");
     listing(db, "p1", "r1", "g1");
 
-    expect(() =>
-      db
-        .query(
-          `INSERT INTO report_lines (
-              report_line_id, record_id, record_listing_group_id, record_extra_id,
-              report_category_id, report_line_source_rev, report_line_auto, report_line_at
-            ) VALUES ('rl1', 'r1', 'g1', NULL, 'GHOST', ?, 1, ?)`,
-        )
-        .run(NOW, NOW),
-    ).toThrow();
+    db.query(
+      `INSERT INTO report_lines (
+          report_line_id, record_id, record_listing_group_id, record_extra_id,
+          report_category_id, report_line_source_rev, report_line_auto, report_line_at
+        ) VALUES ('rl1', 'r1', 'g1', NULL, 'GHOST', ?, 1, ?)`,
+    ).run(NOW, NOW);
+
+    expect(
+      db.query(`SELECT COUNT(*) AS n FROM report_lines`).get() as { n: number },
+    ).toEqual({ n: 1 });
   });
 });
 
 describe("deleting a record", () => {
-  test("takes its classifications with it", () => {
-    // A real DELETE (a sync merge, a purge) cascades. A soft delete does not, and
-    // that is the point: undeleting a record finds its classifications intact.
+  test("leaves the classification behind, inert (65)", () => {
+    // No FK, so a real DELETE does not cascade. That is deliberate: the record
+    // merge *replaces* a record's children wholesale, and a cascade would delete
+    // the classifications of its extras on every device that merged it — after
+    // their bookmark had moved past them. An orphan line is never read (the report
+    // starts from `records`), so keeping it is the harmless choice.
     const { db } = makeTestDatabase();
     record(db, "r1");
     listing(db, "p1", "r1", "g1");
@@ -351,7 +367,7 @@ describe("deleting a record", () => {
 
     db.query(`DELETE FROM records WHERE record_id = 'r1'`).run();
 
-    expect(db.query(`SELECT COUNT(*) AS n FROM report_lines`).get()).toEqual({ n: 0 });
+    expect(db.query(`SELECT COUNT(*) AS n FROM report_lines`).get()).toEqual({ n: 2 });
   });
 
   test("a soft delete leaves them exactly as they were", () => {

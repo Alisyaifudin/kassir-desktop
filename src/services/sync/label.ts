@@ -29,6 +29,9 @@ const NAME_COLUMN: Record<string, string> = {
   listing: "listing_name",
   image: "image_name",
   record: "record_customer_name",
+  report_category: "report_category_name",
+  report_period: "report_period_kind",
+  report_line: "report_line_id",
 };
 
 /** Indonesian rupiah, the same shape the app's own fields print. */

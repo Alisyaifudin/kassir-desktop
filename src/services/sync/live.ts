@@ -48,6 +48,7 @@ import { MethodService } from "../method";
 import { MoneyService } from "../money";
 import { ProductService } from "../product";
 import { RecordService } from "../record";
+import { ReportService } from "../report";
 import { SocialService } from "../social";
 import { StoreService } from "../store";
 import { SupplierService } from "../supplier";
@@ -323,6 +324,10 @@ export const SyncLive = Layer.effect(
     const combo = yield* ComboService;
     const product = yield* ProductService;
     const record = yield* RecordService;
+    // The report holds no row cache either (every view is SQL over its tables),
+    // but its `revision` stream is what keeps an open report page live after a
+    // merged classification lands.
+    const report = yield* ReportService;
     const trigger = yield* SyncTriggerService;
 
     const stateRef = yield* SubscriptionRef.make<SyncState>(SYNC_IDLE);
@@ -593,7 +598,9 @@ export const SyncLive = Layer.effect(
                       ? Effect.all([product.refresh(), category.refresh()], { discard: true })
                       : group === "combo"
                         ? combo.refresh()
-                        : record.refresh();
+                        : group === "record"
+                          ? record.refresh()
+                          : report.refresh();
       return refresh.pipe(
         Effect.asVoid,
         Effect.catchAllCause((cause) =>
