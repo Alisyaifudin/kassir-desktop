@@ -45,7 +45,7 @@ export function KategoriExtras({
           <TableHead className="font-normal">Nama</TableHead>
           <TableHead className="w-[170px] text-end font-normal">Nilai</TableHead>
           <TableHead className="w-[110px] text-end font-normal">Total</TableHead>
-          <TableHead className="w-[148px] text-end font-normal">Kategori</TableHead>
+          <TableHead className="w-[168px] text-end font-normal">Kategori</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody className="border-b">

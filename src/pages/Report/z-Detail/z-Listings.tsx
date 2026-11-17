@@ -44,7 +44,7 @@ export function KategoriListings({
           <TableHead className="w-[40px]">No</TableHead>
           <TableHead>Nama</TableHead>
           <TableHead className="w-[100px] text-end">Total</TableHead>
-          <TableHead className="w-[148px] text-end">Kategori</TableHead>
+          <TableHead className="w-[168px] text-end">Kategori</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody className="border-b">
