@@ -91,6 +91,16 @@ function objectLine(verb: string, entity: string, label: string | null): string 
 export function textOf(entry: SyncLogEntry): LogLine {
   switch (entry.kind) {
     case "pull":
+      // The merge's verdict, not the frame's existence: a row this device already
+      // had is not listed at all, and the one where the local copy won did not
+      // come down — nothing was written, and its own row is still owed a push.
+      if (entry.winner === "local") {
+        return {
+          at: entry.at,
+          mark: "note",
+          text: `Lokal menang: ${namedOf(entry.entity, entry.label)}`,
+        };
+      }
       return { at: entry.at, mark: "down", text: objectLine("Mengunduh", entry.entity, entry.label) };
     case "delete":
       // The frame carried an id and nothing else, so the noun is all there is.

@@ -1,5 +1,11 @@
 import { ProgressBar } from "~/components/ProgressBar";
-import type { GroupState, SyncGroup, SyncState, TransferSide } from "~/services/sync";
+import {
+  downloadedOf,
+  type GroupState,
+  type SyncGroup,
+  type SyncState,
+  type TransferSide,
+} from "~/services/sync";
 
 /**
  * The one word for each phase.
@@ -212,11 +218,14 @@ export function summaryOf(state: SyncState): string | null {
   const report = state.report;
   if (report === null) return null;
   const stale = report.stale > 0 ? `, ${report.stale} diambil dari server` : "";
+  // The frames this device already had crossed the wire and wrote nothing (§9.8),
+  // so they are counted apart rather than as downloads.
+  const already = report.noop > 0 ? `, ${report.noop} sudah ada` : "";
   // Pictures are the half a number of rows cannot describe: a run that moved the
   // whole catalogue and half its gallery is not a finished run, and saying so is
   // what stops an operator from wondering why the other till is missing photos.
   // "berkas" covers both product images and combo covers: the two byte
   // channels are counted in the same field, and a group's own note names which.
   const images = report.imagesOwed > 0 ? ` · ${report.imagesOwed} berkas belum terkirim` : "";
-  return `${report.pulled} diunduh, ${report.pushed} diunggah${stale}${images}.`;
+  return `${downloadedOf(report)} diunduh${already}, ${report.pushed} diunggah${stale}${images}.`;
 }

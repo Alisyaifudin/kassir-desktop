@@ -13,7 +13,15 @@ import { ENTITY_NOUN, clockOf, rowsOf, textOf } from "./z-Log";
  */
 
 function entry(overrides: Partial<SyncLogEntry> = {}): SyncLogEntry {
-  return { kind: "pull", at: 0, group: "product", entity: "product", label: null, ...overrides } as SyncLogEntry;
+  return {
+    kind: "pull",
+    at: 0,
+    group: "product",
+    entity: "product",
+    label: null,
+    winner: "server",
+    ...overrides,
+  } as SyncLogEntry;
 }
 
 describe("textOf", () => {
@@ -29,6 +37,14 @@ describe("textOf", () => {
 
   test("prints only the noun when the row has no name", () => {
     expect(textOf(entry()).text).toBe("Mengunduh produk");
+  });
+
+  test("a row the local copy won is not reported as downloaded", () => {
+    // Nothing came down: the merge kept the local row and dropped the server's, so
+    // the line says which of the two won instead of claiming a download.
+    const line = textOf(entry({ label: "Masker Kain", winner: "local" }));
+    expect(line.text).toBe("Lokal menang: produk Masker Kain");
+    expect(line.mark).toBe("note");
   });
 
   test("a stock event carries its own direction in the label", () => {

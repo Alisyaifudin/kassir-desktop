@@ -98,6 +98,20 @@ export type MergeStats = {
   parked: number;
 };
 
+/**
+ * What each frame of one page decided, keyed by its `seq` (§4.3).
+ *
+ * Keyed by `seq` and not by index because a page is re-ordered before it is
+ * applied: `row` lines land in the group's dependency order, so position `3` of
+ * the page is not position `3` of the statement batch. A `seq` names one log
+ * entry and nothing else.
+ *
+ * A frame with no entry here has no decision to report, and the caller keeps its
+ * line for it: a `del` is applied unconditionally, and a money row parked for a
+ * pocket that has not arrived was neither written nor compared.
+ */
+export type MergeDecisions = Map<number, MergeDecision>;
+
 /** Applies statements as one transaction. Injected: Rust in the app, SQLite in tests. */
 export type MergeExecutor = (
   statements: MergeStatement[],
@@ -500,6 +514,10 @@ function planRow(
  * and its child in the "wrong" seq order still lands. Within one entity the
  * changes keep their seq order, so a row that appears twice ends on the newer
  * version (§3.2, P4).
+ *
+ * `decisions` is the same judgement `stats` counts, kept per frame: a caller that
+ * describes a page line by line (`Mengunduh produk …`) must say what each row
+ * decided, not that the server sent it. A `noop` wrote nothing.
  */
 export function mergePage(
   deps: MergeDeps,
@@ -508,9 +526,10 @@ export function mergePage(
   parked: readonly ParkedMoney[] = [],
   /** The commit unit: the page's rows, its parked rows and its bookmark together. */
   commit?: { bookmark: number },
-): Effect.Effect<{ stats: MergeStats; parked: ParkedMoney[] }, SyncError> {
+): Effect.Effect<{ stats: MergeStats; decisions: MergeDecisions; parked: ParkedMoney[] }, SyncError> {
   return Effect.gen(function* () {
     const stats: MergeStats = { applied: 0, noop: 0, stale: 0, parked: 0 };
+    const decisions: MergeDecisions = new Map();
     const statements: MergeStatement[] = [];
     const defs = GROUPS[group];
     const aggregateDef = defs.entities.find((entry) => entry.kind === "aggregate");
@@ -543,6 +562,7 @@ export function mergePage(
             ...upsertAggregateStatements(aggregateDef, aggregate.row, aggregate.children, aggregate.seq),
           );
           stats.applied += 1;
+          decisions.set(aggregate.seq, "applied");
           continue;
         }
         const decision = decideAggregate(
@@ -554,6 +574,7 @@ export function mergePage(
           aggregate.children,
         );
         stats[decision] += 1;
+        decisions.set(aggregate.seq, decision);
         if (decision === "applied") {
           statements.push(
             ...upsertAggregateStatements(aggregateDef, aggregate.row, aggregate.children, aggregate.seq),
@@ -610,7 +631,10 @@ export function mergePage(
             return;
           }
           stillParked.delete(id);
-          planRow(moneyDef, local.get("money")?.get(id), row, seq, statements, stats);
+          decisions.set(
+            seq,
+            planRow(moneyDef, local.get("money")?.get(id), row, seq, statements, stats),
+          );
         };
         // The park from earlier pages first: their pocket may have just arrived.
         for (const waiting of parked) writeMoney(waiting.row, waiting.seq);
@@ -623,6 +647,7 @@ export function mergePage(
       for (const change of changes) {
         const stored = local.get(def.entity)?.get(idOf(def, change.row));
         const decision = planRow(def, stored, change.row, change.seq, statements, stats);
+        decisions.set(change.seq, decision);
         // A row that changed nothing needs nothing folded: a page of five
         // thousand catalogue rows that this device already had is not a reason to
         // re-derive five thousand stock lots.
@@ -664,7 +689,7 @@ export function mergePage(
     }
 
     yield* deps.execute(statements, group);
-    return { stats, parked: [...parkedNext] };
+    return { stats, decisions, parked: [...parkedNext] };
   });
 }
 

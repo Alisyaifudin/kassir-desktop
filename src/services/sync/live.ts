@@ -61,6 +61,7 @@ import {
   SyncError,
   SyncService,
   AUTO_IDLE,
+  downloadedOf,
   idleTransfer,
   normalizeAuto,
   type AutoSyncState,
@@ -84,6 +85,7 @@ import {
   stockFoldStatements,
   type MergeExecutor,
   type ParkedMoney,
+  type PullChange,
   type PullPage,
 } from "./merge";
 import { countImageBlobs, fetchImageBlobs, uploadImageBlobs, type BlobTick } from "./blob";
@@ -984,6 +986,7 @@ export const SyncLive = Layer.effect(
       return Effect.gen(function* () {
         let parked = yield* readParked(group);
         let pulled = 0;
+        let noops = 0;
         let stale = 0;
         // Image bytes are their own channel (§8.7.1): no `seq`, no log entry, no
         // bookmark. Only the product group moves them, and both passes are bounded.
@@ -1020,6 +1023,17 @@ export const SyncLive = Layer.effect(
         // --- what has crossed so far ----------------------------------------
         let changesDone = 0;
         let pushedRows = 0;
+        /**
+         * True once a page came back with rows in it and not one of them was new.
+         *
+         * A re-seed pulls the whole log back over rows that are already here
+         * (§9.8), and calling thirty such pages "Mengunduh" is a claim the run
+         * cannot support. Naming it after the first page is evidence, not a guess:
+         * the merge already knows it decided `noop` for every frame, which the
+         * bookmark alone could never say. Sticky for the rest of the cycle — the
+         * run is reconciling, whichever page proves it.
+         */
+        let matching = false;
         const moved = { rowsDown: 0, rowsUp: 0, imagesDown: 0, imagesUp: 0 };
         /**
          * The log entries this device's own push created in this cycle.
@@ -1145,9 +1159,11 @@ export const SyncLive = Layer.effect(
                 phase: settling ? "settle" : "pull",
                 message: settling
                   ? "Memeriksa perubahan lain…"
-                  : after === 0
-                    ? "Mengunduh semua perubahan…"
-                    : "Mengunduh perubahan…",
+                  : matching
+                    ? "Menyamakan data…"
+                    : after === 0
+                      ? "Mengunduh semua perubahan…"
+                      : "Mengunduh perubahan…",
               });
               const outcome = yield* pullPageWithRetry({
                 transport,
@@ -1162,7 +1178,11 @@ export const SyncLive = Layer.effect(
                   // A page arrives whole, so there is nothing to report mid-request.
                   publishGroup(group, {
                     phase: settling ? "settle" : "pull",
-                    message: settling ? "Memeriksa perubahan lain…" : "Mengunduh perubahan…",
+                    message: settling
+                      ? "Memeriksa perubahan lain…"
+                      : matching
+                        ? "Menyamakan data…"
+                        : "Mengunduh perubahan…",
                   }),
               }).pipe(Effect.either);
               // Only the first request of this sequence asks for a count.
@@ -1239,26 +1259,41 @@ export const SyncLive = Layer.effect(
               // page that failed to merge has nothing to announce. They describe
               // the incoming page minus the entries this device's own push
               // created — those were dropped above and never landed.
+              //
+              // A line is written from the **decision**, not from the frame (§9.8).
+              // An identical row wrote nothing but a sync marker, and a `stale` row
+              // was the local copy winning: printing both as "Mengunduh" is how a
+              // re-seed came to look like a download of data the device already
+              // had. So only the frames with something to say are named — the rows
+              // this device took and the rows it kept — and the rest are counted in
+              // the one summary line below.
               const now = Date.now();
               const lines: SyncLogEntry[] = [];
-              for (const change of incoming.changes) {
-                lines.push({
+              /** The line one frame earned, or `null` when it has nothing to say. */
+              const namedPull = (
+                entity: string,
+                row: PullChange["row"],
+                seq: number,
+              ): SyncLogEntry | null => {
+                const decision = merged.decisions.get(seq);
+                if (decision === "noop") return null;
+                return {
                   kind: "pull",
                   at: now,
                   group,
-                  entity: change.entity,
-                  label: labelOf(change.entity, change.row),
-                });
+                  entity,
+                  label: labelOf(entity, row),
+                  winner: decision === "stale" ? "local" : "server",
+                };
+              };
+              for (const change of incoming.changes) {
+                const line = namedPull(change.entity, change.row, change.seq);
+                if (line !== null) lines.push(line);
               }
               for (const aggregate of incoming.aggregates) {
                 if (aggregateEntity === null) continue;
-                lines.push({
-                  kind: "pull",
-                  at: now,
-                  group,
-                  entity: aggregateEntity,
-                  label: labelOf(aggregateEntity, aggregate.row),
-                });
+                const line = namedPull(aggregateEntity, aggregate.row, aggregate.seq);
+                if (line !== null) lines.push(line);
               }
               for (const deletion of incoming.deletions) {
                 // No name: a `del` frame carries an id alone (§6).
@@ -1267,11 +1302,11 @@ export const SyncLive = Layer.effect(
               const { applied, noop, stale: lost, parked: stillParked } = merged.stats;
               // The page's rows are listed one by one above, so summarising them
               // again would be the same sentence twice. The line exists for what a
-              // row cannot say: a lost row, a parked one, and the page that came
-              // back carrying nothing but this device's own entries
-              // (`Melewati 12 data yang sudah ada`).
+              // row cannot say: a lost row, a parked one, the rows this device
+              // already had, and the page that came back carrying nothing but this
+              // device's own entries (`Melewati 12 data yang sudah ada`).
               const skipped = echoPage ? arrived : 0;
-              if (lost > 0 || stillParked > 0 || skipped > 0) {
+              if (noop > 0 || lost > 0 || stillParked > 0 || skipped > 0) {
                 lines.push({
                   kind: "merge",
                   at: now,
@@ -1284,6 +1319,7 @@ export const SyncLive = Layer.effect(
               }
               pushLog(lines);
 
+              noops += noop;
               changesDone += frames;
               moved.rowsDown += echoPage ? 0 : page.bytes;
 
@@ -1293,6 +1329,10 @@ export const SyncLive = Layer.effect(
               // pages are done (`fetchBlobs` below), so a run ends with every byte.
               if (movesBytes && !echoPage) yield* fetchBlobs(1);
 
+              // The page proved whether this run is moving data or re-reading what
+              // is already here; the message follows the evidence from the next
+              // request on.
+              if (applied === 0 && noop > 0) matching = true;
               pulled += frames;
               stale += merged.stats.stale;
               // Progress is published after the commit, so the bar only ever
@@ -1305,8 +1345,12 @@ export const SyncLive = Layer.effect(
                     ? "Memeriksa perubahan lain…"
                     : "Pemeriksaan selesai"
                   : page.more
-                    ? "Mengunduh perubahan…"
-                    : "Unduhan selesai",
+                    ? matching
+                      ? "Menyamakan data…"
+                      : "Mengunduh perubahan…"
+                    : matching
+                      ? "Data sudah sama"
+                      : "Unduhan selesai",
                 transfer: transfer(),
               });
               if (!page.more) {
@@ -1514,6 +1558,7 @@ export const SyncLive = Layer.effect(
         return {
           bookmark: yield* readBookmark(group),
           pulled,
+          noop: noops,
           pushed: pushed.pushed,
           // Anything the push could not send is part of this group's outcome, not
           // a footnote: the screen must not say "Selesai" over owed rows.
@@ -1622,7 +1667,11 @@ export const SyncLive = Layer.effect(
           // The one line a finished bar shows. Image counts only appear when the
           // product group actually moved bytes, so a money-only till is not told
           // about pictures it does not have.
-          const parts = [`${report.pulled} diunduh`, `${report.pushed} diunggah`];
+          const parts = [`${downloadedOf(report)} diunduh`, `${report.pushed} diunggah`];
+          // Rows that were already here are said apart: a re-seed crosses the whole
+          // log back over data the device has, and calling that many rows
+          // "downloaded" is the claim this report exists to avoid.
+          if (report.noop > 0) parts.push(`${report.noop} sudah ada`);
           if (report.imagesUp > 0) parts.push(`${report.imagesUp} gambar diunggah`);
           if (report.imagesAdopted > 0)
             parts.push(`${report.imagesAdopted} gambar sudah ada di server`);
@@ -1665,6 +1714,7 @@ export const SyncLive = Layer.effect(
         const totals = Object.values(complete).reduce(
           (sum, report) => ({
             pulled: sum.pulled + report.pulled,
+            noop: sum.noop + report.noop,
             pushed: sum.pushed + report.pushed,
             stale: sum.stale + report.stale,
             rejected: sum.rejected + report.rejected,
@@ -1675,6 +1725,7 @@ export const SyncLive = Layer.effect(
           }),
           {
             pulled: 0,
+            noop: 0,
             pushed: 0,
             stale: 0,
             rejected: 0,
@@ -1695,7 +1746,7 @@ export const SyncLive = Layer.effect(
         publishNow(
           state("done", {
             groups: latest.groups,
-            message: `Selesai — ${totals.pulled} diunduh, ${totals.pushed} diunggah${owed}`,
+            message: `Selesai — ${downloadedOf(totals)} diunduh, ${totals.pushed} diunggah${owed}`,
             // The lines this run wrote, carried over: `state` empties the log
             // because it also builds the run's *first* publish.
             logs: latest.logs,

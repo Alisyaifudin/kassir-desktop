@@ -166,6 +166,14 @@ export type GroupReport = {
   bookmark: number;
   /** Changes merged from the server. */
   pulled: number;
+  /**
+   * Of `pulled`, the frames this device already had, byte for byte.
+   *
+   * They crossed the wire and wrote nothing but a sync marker: a re-seed pulls the
+   * whole log back over rows that are already here (§9.8), and the screen must not
+   * call that N rows downloaded.
+   */
+  noop: number;
   /** Frames the server acknowledged while pushing. */
   pushed: number;
   /**
@@ -241,8 +249,23 @@ export type GroupReport = {
  * only an id, and pretending otherwise would print an empty name.
  */
 export type SyncLogEntry =
-  /** One row arrived in a pull and was committed with its page. */
-  | { kind: "pull"; at: number; group: SyncGroup; entity: string; label: string | null }
+  /**
+   * One row arrived in a pull and was judged with its page.
+   *
+   * `winner` is the merge's verdict, not the frame's existence: `server` means the
+   * incoming row was written (or is parked for a pocket that has not arrived), and
+   * `local` means this device's copy was newer and the server's row was dropped.
+   * An identical row produces no line at all — it wrote nothing, and the page's
+   * counted summary says how many of those there were (§9.8).
+   */
+  | {
+      kind: "pull";
+      at: number;
+      group: SyncGroup;
+      entity: string;
+      label: string | null;
+      winner: "server" | "local";
+    }
   /** One tombstone arrived; the frame carries an id and nothing else. */
   | { kind: "delete"; at: number; group: SyncGroup; entity: string }
   /** One frame this device owed the server came back acknowledged. */
@@ -388,6 +411,8 @@ export type SyncReport = {
   groups: Record<SyncGroup, GroupReport>;
   /** Totals across groups, for the one-line summary. */
   pulled: number;
+  /** Of `pulled`, the frames this device already had; `0` on a run that changed everything. */
+  noop: number;
   pushed: number;
   stale: number;
   /** Rows the server refused outright (`bad_frame`) across the run; `0` on a clean one. */
@@ -401,6 +426,21 @@ export type SyncReport = {
   /** Image files still owed the server across the run; `0` on a clean run. */
   imagesOwed: number;
 };
+
+/**
+ * Rows a group or a run actually took off the wire.
+ *
+ * `pulled` counts frames — every line of every page, the ones this device already
+ * had included (§9.8) — so a sentence that reports a transfer subtracts them
+ * rather than claiming a download that wrote nothing. A parked money row is not
+ * subtracted: it did cross, and it is held until its pocket arrives.
+ *
+ * Lives beside the report because two places say the sentence (the run's closing
+ * message and the panel's summary), and one number should not be derived twice.
+ */
+export function downloadedOf(report: { pulled: number; noop: number }): number {
+  return Math.max(0, report.pulled - report.noop);
+}
 
 export type SyncMode = "sync" | "reset";
 

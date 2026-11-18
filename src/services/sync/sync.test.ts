@@ -579,6 +579,28 @@ function runSync(
   );
 }
 
+/**
+ * A cycle, with the state it left behind — the report *and* the log it wrote.
+ *
+ * Both halves have to happen inside one build of the layer: `state` is a
+ * subscription ref, and a second `Effect.provide` would hand back a fresh, idle
+ * one with an empty log. The ref replays its current value to a new subscriber, so
+ * `take(1)` is the state the run finished in.
+ */
+function runObserved(
+  layer: Layer.Layer<SyncService>,
+  mode: "sync" | "reset" = "sync",
+): Promise<{ report: SyncReport; state: SyncState }> {
+  return Effect.runPromise(
+    Effect.gen(function* () {
+      const sync = yield* SyncService;
+      const report = yield* sync.run(mode);
+      const head = yield* sync.state.pipe(Stream.take(1), Stream.runHead);
+      return { report, state: Option.getOrThrow(head) };
+    }).pipe(Effect.provide(layer)),
+  );
+}
+
 type Db = ReturnType<typeof makeTestDatabase>["db"];
 
 /** Inserts a row from the entity's dictionary; `syncAt` defaults to dirty. */
@@ -1636,6 +1658,59 @@ describe("product stock projection", () => {
     expect(second.db.query("SELECT stock_value, stock_capital FROM stocks").all()).toEqual([
       { stock_value: 10, stock_capital: 5_000 },
     ]);
+  });
+
+  test("a page this device already had names no rows: nothing was downloaded", async () => {
+    // The re-seed shape (§9.8): a device holding the shop's data with no bookmark
+    // asks for the whole log again. Every frame merges as `noop`, so the log owes
+    // one counted sentence — not one "Mengunduh" per row for data that was already
+    // on disk, which is how a reconciliation came to look like a download.
+    const server = new FakeServer();
+    const first = setup(server);
+    insertRow(first.db, "customer", customer("c_01", "Ani", 1_000));
+    await runSync(first.layer);
+
+    const second = setup(server);
+    insertRow(second.db, "customer", customer("c_01", "Ani", 1_000));
+
+    const { report, state } = await runObserved(second.layer);
+
+    // The row crossed the wire and matched the local copy byte for byte...
+    expect(report.pulled).toBe(1);
+    expect(report.noop).toBe(1);
+    // ...and was marked synced rather than written, so it is not owed a push.
+    expect(second.db.query("SELECT customer_sync_at FROM customers").get()).toEqual({
+      customer_sync_at: report.groups.customer.bookmark,
+    });
+
+    const lines = state.logs.filter((entry) => entry.group === "customer");
+    expect(lines.some((entry) => entry.kind === "pull")).toBe(false);
+    expect(lines.filter((entry) => entry.kind === "merge")).toMatchObject([
+      { applied: 0, noop: 1 },
+    ]);
+  });
+
+  test("a pull row the local copy outranks is named as the local win, not a download", async () => {
+    const server = new FakeServer();
+    const first = setup(server);
+    insertRow(first.db, "customer", customer("c_01", "Ani", 1_000));
+    await runSync(first.layer);
+
+    const second = setup(server);
+    // Edited offline and newer than the server's copy, so the merge keeps this one
+    // and drops the incoming row (§5.2). It is not a row that came down.
+    insertRow(second.db, "customer", customer("c_01", "Ani (baru)", 2_000));
+
+    const { state } = await runObserved(second.layer);
+
+    const pulls = state.logs.filter(
+      (entry) => entry.group === "customer" && entry.kind === "pull",
+    );
+    expect(pulls).toMatchObject([{ entity: "customer", label: "Ani", winner: "local" }]);
+    // The row it kept is still owed a push, so the local copy is what survives.
+    expect(second.db.query("SELECT customer_name FROM customers").get()).toEqual({
+      customer_name: "Ani (baru)",
+    });
   });
 
   test("an event that carries no cost does not erase the lot's cost", async () => {

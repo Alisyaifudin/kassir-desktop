@@ -1,12 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import {
   SYNC_GROUPS,
+  SYNC_IDLE,
   idleGroup,
   type GroupPhase,
   type GroupState,
   type GroupTransfer,
+  type SyncReport,
+  type SyncState,
 } from "~/services/sync";
-import { PHASE_LABEL, activeGroup, formatBytes, transferOf } from "./z-Progress";
+import { PHASE_LABEL, activeGroup, formatBytes, summaryOf, transferOf } from "./z-Progress";
 
 /**
  * The two numbers under a sync bar.
@@ -25,6 +28,45 @@ import { PHASE_LABEL, activeGroup, formatBytes, transferOf } from "./z-Progress"
 function group(overrides: Partial<GroupState> = {}): GroupState {
   return { ...idleGroup("money"), ...overrides };
 }
+
+/** A finished run's totals; only the fields a test sets are non-zero. */
+function report(overrides: Partial<SyncReport> = {}): SyncReport {
+  return {
+    // The summary reads totals, never the per-group slice.
+    groups: {} as SyncReport["groups"],
+    pulled: 0,
+    noop: 0,
+    pushed: 0,
+    stale: 0,
+    rejected: 0,
+    pending: 0,
+    orphans: 0,
+    remaining: 0,
+    imagesOwed: 0,
+    ...overrides,
+  };
+}
+
+describe("summaryOf", () => {
+  test("counts the rows this device already had apart from the downloads", () => {
+    // A re-seed crosses the whole log back over data the device holds (§9.8), and a
+    // sentence that called that "300 diunduh" is the claim this change removes.
+    const state: SyncState = {
+      ...SYNC_IDLE,
+      report: report({ pulled: 310, noop: 300, pushed: 5 }),
+    };
+    expect(summaryOf(state)).toBe("10 diunduh, 300 sudah ada, 5 diunggah.");
+  });
+
+  test("leaves the phrase out when every row was new", () => {
+    const state: SyncState = { ...SYNC_IDLE, report: report({ pulled: 12, pushed: 3 }) };
+    expect(summaryOf(state)).toBe("12 diunduh, 3 diunggah.");
+  });
+
+  test("says nothing before a run has finished", () => {
+    expect(summaryOf(SYNC_IDLE)).toBeNull();
+  });
+});
 
 function transfer(down: GroupTransfer["down"], up: GroupTransfer["up"]): GroupTransfer {
   return { down, up };
