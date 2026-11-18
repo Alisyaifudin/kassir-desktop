@@ -11,13 +11,17 @@ export type { SyncGroup };
  * A sync failure. `message` is the one sentence the Sinkronisasi screen renders;
  * `code` and `status` keep the protocol detail for the log and for the branches
  * in `pull.ts`/`push.ts` (retry vs. re-seed, §4.11/§9.8). `floor` is present only
- * on a `410 too_old`, and is the lowest seq the server still serves.
+ * on a `410 too_old`, and is the lowest seq the server still serves. `index` is
+ * present only on a `400 bad_frame`, and is the 0-based line the server refused —
+ * the one field that turns "this batch is unacceptable" into "drop that line and
+ * send the rest" (§4.5).
  */
 export class SyncError extends Data.TaggedError("SyncError")<{
   message: string;
   code?: string;
   status?: number;
   floor?: number;
+  index?: number;
 }> {}
 
 /**
@@ -175,6 +179,14 @@ export type GroupReport = {
   remaining: number;
   /** Frames the server won and this device took back. */
   stale: number;
+  /**
+   * Rows the server refused with `400 bad_frame` in this run.
+   *
+   * Counted apart from `remaining` because they are diagnosed: the log names the
+   * row and repeats the server's sentence, and the row stays dirty so the next run
+   * offers it again. A refused row is never marked sent (§4.5).
+   */
+  rejected: number;
   /** Money rows still waiting for a pocket that has not arrived (§7.5). */
   pending: number;
   /**
@@ -378,6 +390,8 @@ export type SyncReport = {
   pulled: number;
   pushed: number;
   stale: number;
+  /** Rows the server refused outright (`bad_frame`) across the run; `0` on a clean one. */
+  rejected: number;
   /** Parked money rows across the run. */
   pending: number;
   /** Orphans kept and hidden across the run. */

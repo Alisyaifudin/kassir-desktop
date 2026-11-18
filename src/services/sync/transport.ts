@@ -29,13 +29,16 @@ export class TransportError extends Error {
   readonly code: string;
   /** Present only on a `410 too_old`: the lowest seq the group still serves. */
   readonly floor?: number;
+  /** Present only on a `400 bad_frame`: the 0-based line the server refused. */
+  readonly index?: number;
 
-  constructor(status: number, code: string, message: string, floor?: number) {
+  constructor(status: number, code: string, message: string, floor?: number, index?: number) {
     super(message);
     this.name = "TransportError";
     this.status = status;
     this.code = code;
     this.floor = floor;
+    this.index = index;
   }
 }
 
@@ -49,13 +52,20 @@ export class TransportError extends Error {
  */
 function normalizeError(error: unknown): TransportError {
   if (typeof error === "object" && error !== null) {
-    const candidate = error as { status?: unknown; code?: unknown; message?: unknown; floor?: unknown };
+    const candidate = error as {
+      status?: unknown;
+      code?: unknown;
+      message?: unknown;
+      floor?: unknown;
+      index?: unknown;
+    };
     if (typeof candidate.code === "string") {
       return new TransportError(
         typeof candidate.status === "number" ? candidate.status : 0,
         candidate.code,
         typeof candidate.message === "string" ? candidate.message : candidate.code,
         typeof candidate.floor === "number" ? candidate.floor : undefined,
+        typeof candidate.index === "number" ? candidate.index : undefined,
       );
     }
   }

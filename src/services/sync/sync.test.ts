@@ -65,6 +65,12 @@ class FakeServer {
   readonly pulls: { group: string; after: number }[] = [];
   /** Set to answer a pull with `410 too_old` and this floor. */
   floor: number | null = null;
+  /**
+   * Rows this server refuses with `400 bad_frame`, by id — the one frame the
+   * client cannot describe (§4.5). Sticky on purpose: the real server refuses the
+   * batch every time until the client stops sending that line.
+   */
+  readonly refusedIds = new Set<string>();
 
   private key(entity: string, id: string): string {
     return `${entity}:${id}`;
@@ -195,7 +201,21 @@ class FakeServer {
       (line) => JSON.parse(line) as { e: string; r: WireRow; ch?: WireChildren },
     );
     // Before the transaction, exactly like the real server: a refusal applies
-    // nothing at all.
+    // nothing at all — and it names the 0-based line, which is what lets the client
+    // drop that one frame and send the rest.
+    const refused = frames.findIndex((frame) => {
+      const def = TABLES[frame.e];
+      return def !== undefined && this.refusedIds.has(idOf(def, frame.r));
+    });
+    if (refused >= 0) {
+      throw new TransportError(
+        400,
+        "bad_frame",
+        `frame ${refused}: ${frames[refused]!.e} is not a row this server can store`,
+        undefined,
+        refused,
+      );
+    }
     this.validateChildOwnership(frames.filter((frame) => frame.e === "record"));
     frames.forEach((frame, index) => {
       const outcome = this.apply(frame.e, frame.r, frame.ch);
@@ -414,7 +434,13 @@ function setup(
     },
     push(_endpoint, input) {
       beforePush?.();
-      return lineStream(server.push(input.body));
+      // A refusal (`400 bad_frame`) is a failed request, not a thrown one: the real
+      // transport answers with a stream whose summary rejects.
+      try {
+        return lineStream(server.push(input.body));
+      } catch (error) {
+        return failedStream(error);
+      }
     },
     productPull(_endpoint, input) {
       try {
@@ -1391,6 +1417,44 @@ describe("sync cycle", () => {
       .get() as { combo_cover_blob_sha256: string; combo_cover_blob_sync_at: number | null };
     expect(combo.combo_cover_blob_sha256).toBe(shaOf("cb_01", 1_000));
     expect(combo.combo_cover_blob_sync_at).not.toBeNull();
+  });
+
+  test("a row the server refuses is dropped, and the rest of the batch still lands", async () => {
+    // §4.5: `400 bad_frame` names the line. The client cannot rewrite a row it read
+    // from the database, so the honest repair is to send the batch without that one
+    // line: everything else reaches the server, and the refused row stays dirty for
+    // the next run. Before this, one undescribable row failed the whole group's push
+    // on every cycle and the catalogue behind it never left the device.
+    const device = setup();
+    insertRow(device.db, "customer", { ...customer("c_good", "Ani", 1_000), syncAt: null });
+    insertRow(device.db, "customer", { ...customer("c_bad", "Budi", 1_000), syncAt: null });
+    device.server.refusedIds.add("c_bad");
+
+    const report = await runSync(device.layer);
+
+    // The good row landed; the refused one is on neither side.
+    expect(device.server.rows.get("customer:c_good")).toBeDefined();
+    expect(device.server.rows.get("customer:c_bad")).toBeUndefined();
+    const synced = (id: string) =>
+      device.db
+        .query("SELECT customer_sync_at FROM customers WHERE customer_id = ?")
+        .get(id) as { customer_sync_at: number | null };
+    // `applied` on one side, still owed on the other — and never claimed sent.
+    expect(synced("c_good").customer_sync_at).not.toBeNull();
+    expect(synced("c_bad").customer_sync_at).toBeNull();
+
+    // Counted and named, so the operator can act on the server's sentence.
+    expect(report.groups.customer.rejected).toBe(1);
+    expect(report.groups.customer.remaining).toBe(1);
+    expect(report.rejected).toBe(1);
+
+    // A second run is not stuck either: the good row is already synced so nothing
+    // else is offered, and the one refused row costs exactly one request — counted
+    // once, never twice in the same run.
+    const again = await runSync(device.layer);
+    expect(again.groups.customer.rejected).toBe(1);
+    expect(again.groups.customer.pushed).toBe(0);
+    expect(again.groups.customer.remaining).toBe(1);
   });
 
   test("a money row whose pocket is unknown is parked, then written once it arrives", async () => {

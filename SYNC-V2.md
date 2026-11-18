@@ -1045,7 +1045,8 @@ loop:
 
     response = POST /v2/<group>/push  (body = batch)
 
-    if 400 bad_frame → fix frame `index`; nothing landed; retry the batch
+    if 400 bad_frame → nothing landed; drop the line at `index`, retry with the
+                      rest of the batch (§4.8.1)
     if 413          → send a smaller batch (record: a single record over 8 MB
                       cannot be sent; surface it)
     if 415          → retry without Content-Encoding
@@ -1082,11 +1083,45 @@ larger than the request. The server must not materialise the whole response:
 
 | HTTP | code | when | client action |
 | --- | --- | --- | --- |
-| `400` | `bad_frame` + `index` | a line is invalid (see §8 per group). Nothing was applied | fix the frame at `index`, resend the batch |
+| `400` | `bad_frame` + `index` | a line is invalid (see §8 per group). Nothing was applied | drop the line at `index`, resend the rest, keep that row owed (§4.8.1) |
 | `401` | `unauthorized` | bad token | stop |
 | `413` | `payload_too_large` | over the group's frame/byte bound | split the batch; a single record over 8 MB cannot be sent |
 | `415` | `unsupported_media_type` | wrong `Content-Type`, or `Content-Encoding` not identity/gzip | correct the headers |
 | `500` | `internal` | server fault; nothing committed | retry with backoff |
+
+#### 4.8.1 Repairing a `bad_frame`
+
+`index` names the line, and one transaction means **nothing** in the batch landed
+(§8.1), so resending the batch without that one line is always correct. The
+contract's first answer is still "fix the frame": the client is the only author
+of a frame, so a line the server cannot parse is a client bug, and the message
+says which column and which value.
+
+The client cannot rewrite a row it read from the database, though, so what it
+does is bounded and honest:
+
+```
+kept = batch
+loop at most MAX_REPAIRS times:
+    POST kept
+    if not 400 bad_frame (or no `index`, or `index` outside kept): stop
+    name the refused line, remove it from kept, try again
+```
+
+- the line is **never marked sent**: the row stays dirty, so `remaining` counts it
+  and the next run offers it again — the one thing this channel must not do is
+  claim the server has a row it refused;
+- the refusal is reported with the server's own sentence, because the repair is a
+  corrected row or a fixed client, not a resend;
+- within one push a refused row is offered **once** (the rest of the batch is not
+  held up by it, and the loop cannot spin on it);
+- a batch that is mostly refused fails the group instead: `MAX_REPAIRS` refusals
+  mean the client does not understand the group's dictionary any more.
+
+The byte channels have the same shape for bytes no retry can fix: a `415`/`400
+empty_blob` on an upload forgets that `image_blob_version` and stops claiming those
+bytes, rather than re-sending a file the server will refuse on every cycle
+(§8.7.1).
 
 ---
 
@@ -2193,6 +2228,7 @@ PUT /v2/product/image/blob/{image_id}?version={image_updated_at}
  → 409 blob_conflict   different bytes own this (image_id, version); body adds the winner's sha256
  → 413 payload_too_large   over BLOB_MAX_BYTES (default 8 MB), detected while streaming
  → 415 unsupported_media_type   wrong Content-Type/Content-Encoding, or bytes that are not png/jpeg/webp
+                                (no retry can fix it: the client forgets that version, §4.8.1)
  → 400 bad_request (missing/malformed `version`) · empty_blob (zero-byte body)
 
 GET /v2/blob/{sha256}

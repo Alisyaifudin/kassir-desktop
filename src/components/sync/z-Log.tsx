@@ -11,7 +11,7 @@ import { groupLabel } from "./z-Progress";
  * falls back to the wire name: an entity this build does not know is still worth
  * printing.
  */
-const ENTITY_NOUN: Record<string, string> = {
+export const ENTITY_NOUN: Record<string, string> = {
   pocket: "kantong",
   money: "catatan kas",
   customer: "pelanggan",
@@ -32,6 +32,9 @@ const ENTITY_NOUN: Record<string, string> = {
   combo_listings: "komponen combo",
   combo_extras: "tambahan combo",
   record: "transaksi",
+  report_category: "kategori laporan",
+  report_period: "periode laporan",
+  report_line: "baris laporan",
 };
 
 function nounOf(entity: string): string {

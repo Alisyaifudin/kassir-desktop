@@ -221,6 +221,13 @@ pub struct SyncFailure {
     /// Only on a `410 too_old`: the lowest seq the group still serves (§15.1).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub floor: Option<i64>,
+    /// Only on a `400 bad_frame`: the 0-based line the server refused (§4.5).
+    ///
+    /// The message already names it ("frame 7: …"), but the field is what lets the
+    /// push drop exactly that line and send the rest instead of failing the group on
+    /// every run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub index: Option<u32>,
 }
 
 impl SyncFailure {
@@ -230,6 +237,7 @@ impl SyncFailure {
             code: "transport".to_string(),
             message,
             floor: None,
+            index: None,
         }
     }
 
@@ -239,6 +247,7 @@ impl SyncFailure {
             code: "internal".to_string(),
             message,
             floor: None,
+            index: None,
         }
     }
 
@@ -248,6 +257,7 @@ impl SyncFailure {
             code: "bad_request".to_string(),
             message: format!("Grup sinkronisasi tidak dikenal: {group}"),
             floor: None,
+            index: None,
         }
     }
 
@@ -257,6 +267,7 @@ impl SyncFailure {
             code: "bad_request".to_string(),
             message: message.to_string(),
             floor: None,
+            index: None,
         }
     }
 }
@@ -272,6 +283,9 @@ struct WireError {
     message: String,
     #[serde(default)]
     floor: Option<i64>,
+    /// `bad_frame` only: the 0-based line index, in the server's error `detail`.
+    #[serde(default)]
+    index: Option<u32>,
 }
 
 /// The ten groups the desktop speaks, exactly as the routes name them (§1.4).
@@ -519,6 +533,7 @@ pub(crate) async fn failure(resp: reqwest::Response) -> SyncFailure {
             code: envelope.error.code,
             message: envelope.error.message,
             floor: envelope.error.floor,
+            index: envelope.error.index,
         },
         Err(_) => SyncFailure {
             status,
@@ -529,6 +544,7 @@ pub(crate) async fn failure(resp: reqwest::Response) -> SyncFailure {
                 text
             },
             floor: None,
+            index: None,
         },
     }
 }

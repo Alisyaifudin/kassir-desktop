@@ -40,8 +40,8 @@ function useElapsed(state: SyncState): string {
  * What the pill opens into: the run, in full — one bar for the group being worked
  * on, and the detail log underneath.
  *
- * One bar rather than one per group: the run visits the nine groups in turn, and
- * eight bars meant eight rows of "Menunggu" above the single one that was moving.
+ * One bar rather than one per group: the run visits the ten groups in turn, and
+ * nine bars meant nine rows of "Menunggu" above the single one that was moving.
  * The groups that already had their turn are in the log, which is also what says
  * *what* moved rather than only how far.
  *

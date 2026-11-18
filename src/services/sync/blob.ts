@@ -376,11 +376,13 @@ function messageOf(error: unknown): string {
  * Uploads the images this device owes the server.
  *
  * Runs **after** the group's push, so every row it touches has an ack (§8.7.1
- * "rows, then bytes"). One image's refusal never stops the next one: the four
+ * "rows, then bytes"). One image's refusal never stops the next one: the five
  * cases are a missing local file (forget the version, fetch it later), a row the
  * server does not have or has deleted (leave it for the pull), a losing upload
- * (`409 blob_conflict` — adopt the server's copy) and a genuine failure (retry next
- * cycle).
+ * (`409 blob_conflict` — adopt the server's copy), bytes the server cannot accept
+ * at all (`415`/`400 empty_blob` — the declared mime and the file disagree, so the
+ * version is forgotten instead of re-sent every cycle) and a genuine failure (retry
+ * next cycle).
  *
  * Before any of that, the manifest is asked what the server already holds: bytes
  * it has are *adopted*, never re-sent (§ "What the server already holds is not
@@ -567,6 +569,24 @@ export function uploadImageBlobs(deps: ImageBlobDeps): Effect.Effect<UploadRepor
           changed += 1;
           tick(row.image_name, "skipped");
           log.info(`sync: gambar ${row.image_id} sudah ada versi lain di server — mengikuti server`);
+          continue;
+        }
+        if (code === "unsupported_media_type" || code === "empty_blob") {
+          // The row's `image_mime` and the file's real bytes disagree (the server
+          // sniffs), or the file is zero bytes. No retry can fix either: the same
+          // file would be refused on every cycle and the row would sit in the queue
+          // for good. The version is forgotten instead — the row becomes a fetch
+          // candidate, so the server's copy (if any) is adopted — and the reason is
+          // recorded, because the repair is a corrected row, not a resend.
+          statements.push(forgetFile(row.image_id, row.image_updated_at));
+          skipped += 1;
+          changed += 1;
+          tick(row.image_name, "skipped");
+          log.error(
+            new Error(
+              `sync: gambar ${row.image_id} (${row.image_mime}) tidak dapat diterima server: ${messageOf(outcome.left)}`,
+            ),
+          );
           continue;
         }
         if (code === "image_unknown" || code === "image_deleted") {

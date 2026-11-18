@@ -237,6 +237,19 @@ describe("uploadComboCoverBlobs", () => {
     expect(row.combo_cover_blob_sync_at).toBeNull();
   });
 
+  test("a cover the server cannot accept leaves the queue instead of being re-sent", async () => {
+    const h = harness({
+      put: () =>
+        Promise.reject(new TransportError(415, "unsupported_media_type", "bytes are image/png")),
+    });
+    seedCombo(h.db);
+    const report = await h.upload();
+
+    expect(report).toEqual({ uploaded: 0, adopted: 0, skipped: 1, failed: 0, bytes: 0 });
+    expect(comboRow(h.db).combo_cover_blob_version).toBeNull();
+    expect((await h.upload()).uploaded).toBe(0);
+  });
+
   test("a cover-less server row is skipped without changing the local row", async () => {
     const h = harness({
       put: () => Promise.reject(new TransportError(409, "combo_cover_missing", "no cover")),

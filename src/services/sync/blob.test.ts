@@ -241,6 +241,26 @@ describe("uploadImageBlobs", () => {
     expect(imageRow(h.db).image_blob_version).toBeNull();
   });
 
+  test("a file the server cannot accept leaves the queue instead of being re-sent", async () => {
+    // The row's declared mime and the file's real bytes disagree (the server
+    // sniffs). No retry can fix that: the same body would be refused on every
+    // cycle, so the version is forgotten — the row becomes a fetch candidate — and
+    // the local file stays on disk, which is what the gallery still draws.
+    const h = harness({
+      put: () =>
+        Promise.reject(
+          new TransportError(415, "unsupported_media_type", "bytes are image/jpeg"),
+        ),
+    });
+    seedImage(h.db);
+    const report = await h.upload();
+
+    expect(report).toEqual({ uploaded: 0, adopted: 0, skipped: 1, failed: 0, bytes: 0 });
+    expect(imageRow(h.db).image_blob_version).toBeNull();
+    // Nothing is owed afterwards, so the next cycle spends no request on it.
+    expect(await h.upload()).toEqual({ uploaded: 0, adopted: 0, skipped: 0, failed: 0, bytes: 0 });
+  });
+
   test("a row the server does not have, or has deleted, is left for the pull", async () => {
     const unknown = harness({
       put: () => Promise.reject(new TransportError(404, "image_unknown", "baris belum ada")),

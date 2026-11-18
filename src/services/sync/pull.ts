@@ -139,6 +139,7 @@ export function toSyncError(error: unknown): SyncError {
       code: error.code,
       status: error.status,
       floor: error.floor,
+      index: error.index,
     });
   }
   if (error instanceof Error) return new SyncError({ message: error.message });

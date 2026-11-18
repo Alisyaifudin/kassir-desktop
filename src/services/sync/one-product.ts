@@ -25,6 +25,7 @@ import { fetchImageBlobs, uploadImageBlobs } from "./blob";
 import { parseLine, parsePullFrame } from "./frames";
 import { mergePage, type MergeExecutor, type PullChange, type PullPage } from "./merge";
 import { pullLimit } from "./pull";
+import type { PushRejection } from "./push";
 import { push } from "./push";
 import { backoffMs, isRetryable } from "./retry";
 import type { LineStream } from "./stream";
@@ -59,6 +60,8 @@ export type OneProductReport = {
   pushed: number;
   /** Frames the server's copy won and this device took back. */
   stale: number;
+  /** Rows the server refused (`bad_frame`): owed, and named in the log. */
+  rejected: number;
   /** Rows merged from the server snapshot. */
   pulled: number;
   /** Image files this device uploaded. */
@@ -182,7 +185,13 @@ function pullPageWithRetry(
  */
 export function syncOneProduct(deps: OneProductDeps): Effect.Effect<OneProductReport, SyncError> {
   return Effect.gen(function* () {
-    const pushed: { pushed: number; stale: number } = yield* push({
+    // `rejected` is typed by `push` itself; the annotation only names what this
+    // file reads, so a new outcome field never has to be declared twice.
+    const pushed: {
+      pushed: number;
+      stale: number;
+      rejected: readonly PushRejection[];
+    } = yield* push({
       db: deps.db,
       transport: deps.transport,
       endpoint: deps.endpoint,
@@ -229,14 +238,22 @@ export function syncOneProduct(deps: OneProductDeps): Effect.Effect<OneProductRe
     const fetches = yield* fetchImageBlobs({ ...deps, productId: deps.productId });
     yield* deps.refresh();
 
+    for (const rejection of pushed.rejected) {
+      log.error(
+        new Error(
+          `sync: product ${deps.productId} — server menolak ${rejection.entity}: ${rejection.message}`,
+        ),
+      );
+    }
     log.info(
-      `sync: product ${deps.productId} — ${pushed.pushed} diunggah, ${pulled} diunduh, ${stale} stale, ${uploads.uploaded} gambar naik (${uploads.adopted} sudah ada), ${fetches.fetched + fetches.adopted} gambar turun`,
+      `sync: product ${deps.productId} — ${pushed.pushed} diunggah, ${pulled} diunduh, ${stale} stale, ${pushed.rejected.length} ditolak, ${uploads.uploaded} gambar naik (${uploads.adopted} sudah ada), ${fetches.fetched + fetches.adopted} gambar turun`,
     );
 
     return {
       productId: deps.productId,
       pushed: pushed.pushed,
       stale,
+      rejected: pushed.rejected.length,
       pulled,
       imagesUp: uploads.uploaded,
       imagesDown: fetches.fetched + fetches.adopted,

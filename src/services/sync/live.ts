@@ -10,7 +10,7 @@
  * ## Groups
  *
  * A group is a pair of endpoints plus its own tables and its own bookmark. The
- * nine groups are visited in `SYNC_GROUPS` order, one cycle at a time: a group
+ * ten groups are visited in `SYNC_GROUPS` order, one cycle at a time: a group
  * has exactly one bookmark, so two cycles over it would interleave pages and acks
  * over the same cursor (§9.11). A trigger that arrives while a run is going does
  * not start a second cycle — it sets a "run again" flag and the run loops once
@@ -1365,6 +1365,21 @@ export const SyncLive = Layer.effect(
           },
         });
         yield* refreshGroup(group);
+        // A line the server refused is a row it does not have, so it is named here
+        // rather than counted: the operator can only act on the server's sentence.
+        // The row stays dirty, so the next run offers it again — this is not a lost
+        // row, it is one nothing has been able to describe yet (§4.5).
+        if (pushed.rejected.length > 0) {
+          pushLog(
+            pushed.rejected.map((rejection) => ({
+              kind: "note" as const,
+              at: Date.now(),
+              group,
+              text: `Server menolak ${rejection.entity}${rejection.label === null ? "" : ` ${rejection.label}`} — ${rejection.message}`,
+              level: "error" as const,
+            })),
+          );
+        }
         // The acked rows are the row half of the push; the entries it created are
         // the half the closing pull must not re-download.
         moved.rowsUp = pushed.bytes;
@@ -1503,6 +1518,9 @@ export const SyncLive = Layer.effect(
           // Anything the push could not send is part of this group's outcome, not
           // a footnote: the screen must not say "Selesai" over owed rows.
           remaining: pushed.remaining,
+          // Rows the server refused outright: owed, and reported apart from
+          // `remaining` so a run that could not describe a row says why.
+          rejected: pushed.rejected.length,
           stale: stale + pushed.stale,
           pending: yield* pendingCount(group),
           orphans: yield* orphanCount(group),
@@ -1615,6 +1633,7 @@ export const SyncLive = Layer.effect(
           // to be finished while a catalogue is half-uploaded is worse than a
           // slower run.
           if (report.remaining > 0) parts.push(`${report.remaining} belum terkirim`);
+          if (report.rejected > 0) parts.push(`${report.rejected} ditolak server`);
           publishGroupNow(group, {
             phase: "done",
             progress: 1,
@@ -1648,18 +1667,29 @@ export const SyncLive = Layer.effect(
             pulled: sum.pulled + report.pulled,
             pushed: sum.pushed + report.pushed,
             stale: sum.stale + report.stale,
+            rejected: sum.rejected + report.rejected,
             pending: sum.pending + report.pending,
             orphans: sum.orphans + report.orphans,
             remaining: sum.remaining + report.remaining,
             imagesOwed: sum.imagesOwed + report.imagesOwed,
           }),
-          { pulled: 0, pushed: 0, stale: 0, pending: 0, orphans: 0, remaining: 0, imagesOwed: 0 },
+          {
+            pulled: 0,
+            pushed: 0,
+            stale: 0,
+            rejected: 0,
+            pending: 0,
+            orphans: 0,
+            remaining: 0,
+            imagesOwed: 0,
+          },
         );
         const report: SyncReport = { groups: complete, ...totals };
         // A run with rows still owed is not "selesai" in the one sense an operator
         // cares about; say it in the same sentence as the totals.
         const owedParts: string[] = [];
         if (totals.remaining > 0) owedParts.push(`${totals.remaining} baris belum terkirim`);
+        if (totals.rejected > 0) owedParts.push(`${totals.rejected} ditolak server`);
         if (totals.imagesOwed > 0) owedParts.push(`${totals.imagesOwed} gambar belum terkirim`);
         const owed = owedParts.length > 0 ? ` — ${owedParts.join(", ")}` : "";
         publishNow(

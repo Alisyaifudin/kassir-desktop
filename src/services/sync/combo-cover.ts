@@ -362,6 +362,21 @@ export function uploadComboCoverBlobs(deps: ComboCoverDeps): Effect.Effect<Uploa
           );
           continue;
         }
+        if (code === "unsupported_media_type" || code === "empty_blob") {
+          // Same rule as the gallery: a cover whose declared mime disagrees with its
+          // bytes can never be accepted, so the version is forgotten rather than
+          // re-sent every cycle, and the reason is recorded.
+          statements.push(forgetFile(row.combo_id, row.combo_updated_at));
+          skipped += 1;
+          changed += 1;
+          tick(row.combo_cover_name, "skipped");
+          log.error(
+            new Error(
+              `sync: sampul combo ${row.combo_id} (${row.combo_cover_mime}) tidak dapat diterima server: ${messageOf(outcome.left)}`,
+            ),
+          );
+          continue;
+        }
         if (
           code === "combo_unknown" ||
           code === "combo_deleted" ||

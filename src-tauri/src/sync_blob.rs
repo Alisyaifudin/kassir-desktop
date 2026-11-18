@@ -379,6 +379,7 @@ pub async fn sync_blob_put(
                 BLOB_MAX_BYTES / (1024 * 1024)
             ),
             floor: None,
+            index: None,
         });
     }
 
@@ -645,6 +646,7 @@ pub async fn sync_combo_cover_put(
                 BLOB_MAX_BYTES / (1024 * 1024)
             ),
             floor: None,
+            index: None,
         });
     }
 
@@ -728,6 +730,7 @@ async fn receive(
                 code: "payload_too_large".to_string(),
                 message: "Gambar dari server melebihi batas ukuran".to_string(),
                 floor: None,
+                index: None,
             });
         }
         hasher.update(&bytes);
@@ -845,6 +848,7 @@ fn bad_request(message: &str) -> SyncFailure {
         code: "bad_request".to_string(),
         message: message.to_string(),
         floor: None,
+        index: None,
     }
 }
 
@@ -854,6 +858,7 @@ fn unsupported(message: &str) -> SyncFailure {
         code: "unsupported_media_type".to_string(),
         message: message.to_string(),
         floor: None,
+        index: None,
     }
 }
 
@@ -865,6 +870,7 @@ fn local_missing(name: &str) -> SyncFailure {
         code: "local_missing".to_string(),
         message: format!("Gambar {name} tidak ada di perangkat ini"),
         floor: None,
+        index: None,
     }
 }
 

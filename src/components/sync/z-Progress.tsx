@@ -155,7 +155,7 @@ const WORKING: ReadonlySet<string> = new Set(["pull", "merge", "push", "settle"]
  *
  * Two claims, in this order: a run works one group at a time, so "working" names
  * exactly one. With nothing working, a failure is still the thing a reader needs
- * to see; a *finished* run shows no bar at all, because nine groups have already
+ * to see; a *finished* run shows no bar at all, because ten groups have already
  * gone by and any one of them would be a misleading pick. Its numbers are in the
  * summary line and its detail in the log.
  */

@@ -79,6 +79,18 @@ const PASS_LIMIT = 1000;
 /** Attempts at one batch before the cycle gives up; the next run retries it. */
 const MAX_ATTEMPTS = 5;
 
+/**
+ * Lines one batch may have refused before the push stops repairing it.
+ *
+ * A `400 bad_frame` names one line (§4.5), and the contract's answer is "fix that
+ * line and resend". The client cannot rewrite a row it read from the database, so
+ * it does the next best thing: drop that line, send the rest, and leave the row
+ * owed — which is what the screen already has a word for (`remaining`). The bound
+ * keeps a batch of a thousand rows from becoming a thousand requests, and a batch
+ * that is *mostly* refused is a client bug worth failing loudly.
+ */
+const MAX_REPAIRS = 5;
+
 /** One encoded frame, ready to send and to match an ack against. */
 export type Frame = {
   entity: string;
@@ -150,6 +162,23 @@ export type PushLogFrame = {
   ack: "applied" | "noop" | "stale";
 };
 
+/**
+ * One line the server refused with `400 bad_frame`, and would refuse again.
+ *
+ * Named rather than counted: the row is still owed (it stays dirty, so `remaining`
+ * counts it and the next run sends it again), and the operator needs the server's
+ * sentence to know which row and which column to fix.
+ */
+export type PushRejection = {
+  entity: string;
+  /** The row's id: what a later pass in this same call must not offer again. */
+  id: string;
+  /** The row's own name, or `null` when it has none (`label.ts`). */
+  label: string | null;
+  /** The server's message, which names the column, the value and the line. */
+  message: string;
+};
+
 export type PushOutcome = {
   /** Frames the server acknowledged, whatever the outcome. */
   pushed: number;
@@ -176,11 +205,19 @@ export type PushOutcome = {
    */
   appliedJournal: readonly string[];
   /**
+   * Lines the server refused, one entry each, so the log can name them.
+   *
+   * These rows are *not* marked sent: a rejected frame is a row the server does not
+   * have, and claiming otherwise is the one lie this channel must never tell.
+   */
+  rejected: readonly PushRejection[];
+  /**
    * Rows/records still owed after this push.
    *
    * Non-zero only when the loop stopped before the unsync set drained — the
-   * runaway guard, or a server that acked fewer frames than it was sent. It is
-   * reported so a run that leaves work behind cannot call itself finished.
+   * runaway guard, a refused line, or a server that acked fewer frames than it was
+   * sent. It is reported so a run that leaves work behind cannot call itself
+   * finished.
    */
   remaining: number;
 };
@@ -451,6 +488,87 @@ function postWithRetry(deps: PushDeps, frames: readonly Frame[]): Effect.Effect<
 }
 
 /**
+ * Posts one batch, and when the server refuses a single line, drops that line and
+ * sends the rest.
+ *
+ * `400 bad_frame` carries the 0-based line the server could not accept, and one
+ * transaction means *nothing* in that batch landed (§8.1) — so resending the batch
+ * minus that one line is always correct, and the refused row stays dirty for the
+ * next run. Without this, one unrepresentable row (an empty `listing_code`, a null
+ * the dictionary does not allow) fails the group's whole push on every cycle, and
+ * the catalogue behind it never reaches the server.
+ *
+ * `index` is a position in the *body that was sent*, not in `frames`: each repair
+ * removes one line, so the numbers shift. `kept` carries the original positions and
+ * is what the caller maps back through.
+ */
+function postRepairing(
+  deps: PushDeps,
+  frames: readonly Frame[],
+  labels: readonly (string | null)[],
+): Effect.Effect<
+  {
+    acks: Acks;
+    frames: Frame[];
+    labels: (string | null)[];
+    rejected: PushRejection[];
+  },
+  SyncError
+> {
+  const attempt = (
+    kept: readonly number[],
+    rejected: PushRejection[],
+  ): Effect.Effect<
+    { acks: Acks; kept: readonly number[]; rejected: PushRejection[] },
+    SyncError
+  > =>
+    postWithRetry(
+      deps,
+      kept.map((index) => frames[index]!),
+    ).pipe(
+      Effect.map((acks) => ({ acks, kept, rejected })),
+      Effect.catchAll((error) => {
+        const refusal = error.index;
+        // Only a `bad_frame` names a line, and only a position inside the body
+        // identifies one. Everything else is the group's failure, not a row's.
+        if (error.code !== "bad_frame" || refusal === undefined) return Effect.fail(error);
+        if (refusal < 0 || refusal >= kept.length) return Effect.fail(error);
+        if (rejected.length >= MAX_REPAIRS) return Effect.fail(error);
+
+        const position = kept[refusal]!;
+        const frame = frames[position]!;
+        log.info(
+          `sync: server menolak baris ${refusal} (${frame.entity} ${frame.id}) — dilewati: ${error.message}`,
+        );
+        return attempt(
+          [...kept.slice(0, refusal), ...kept.slice(refusal + 1)],
+          [
+            ...rejected,
+            {
+              entity: frame.entity,
+              id: frame.id,
+              label: labels[position] ?? null,
+              message: error.message,
+            },
+          ],
+        );
+      }),
+    );
+
+  return attempt(
+    frames.map((_, index) => index),
+    [],
+  ).pipe(
+    Effect.map((outcome) => ({
+      acks: outcome.acks,
+      frames: outcome.kept.map((index) => frames[index]!),
+      labels: outcome.kept.map((index) => labels[index] ?? null),
+      rejected: outcome.rejected,
+    })),
+  );
+}
+
+/**
  * The products these frames' journal entries belong to, when the server accepted
  * them.
  *
@@ -534,22 +652,53 @@ export function push(deps: PushDeps): Effect.Effect<PushOutcome, SyncError> {
     deps.onProgress?.({ entity: null, done: 0, total: expected, bytes: sent });
 
     const maxPasses = deps.maxPasses ?? PASS_LIMIT;
+    /** Lines the server refused, for the log and the group's summary. */
+    const rejected: PushRejection[] = [];
+    /**
+     * Refused rows, by `entity` + id, for the rest of this call.
+     *
+     * A refused row stays dirty (the server really does not have it), so the next
+     * pass would read it again and learn the same thing with another request. This
+     * set is what makes the repair bounded: within one push a row is offered once.
+     */
+    const refused = new Set<string>();
     /** True when a read found nothing left — the only clean way out of the loop. */
     let drained = false;
     for (let pass = 0; pass < maxPasses; pass++) {
       const batch = yield* readBatch(deps.db, deps.group, deps.productId);
-      const frames = batch.frames;
-      if (frames.length === 0) {
+      if (batch.frames.length === 0) {
         drained = true;
         break;
       }
 
+      // Everything this pass can still offer. A row this call already knows the
+      // server refuses is left for the next run, not asked about again.
+      const offered: number[] = [];
+      for (let index = 0; index < batch.frames.length; index += 1) {
+        const frame = batch.frames[index]!;
+        if (!refused.has(`${frame.entity}\u0000${frame.id}`)) offered.push(index);
+      }
+      if (offered.length === 0) break;
+
       deps.onProgress?.({ entity: null, done: pushed, total: Math.max(expected, pushed), bytes: sent });
-      const acks = yield* postWithRetry(deps, frames);
+      const post = yield* postRepairing(
+        deps,
+        offered.map((index) => batch.frames[index]!),
+        offered.map((index) => batch.labels[index] ?? null),
+      );
+      for (const rejection of post.rejected) {
+        refused.add(`${rejection.entity}\u0000${rejection.id}`);
+        rejected.push(rejection);
+      }
       // Counted once the ack lands: a retried batch did go out twice, but the
       // wire counter exists to show the work, not to bill it.
       sent += batch.bytes;
-      if (acks.acks.length === 0 && frames.length > 0) {
+      if (post.frames.length === 0) {
+        // Every line in this batch was refused. Nothing was accepted and nothing
+        // is claimed sent; the rows stay dirty, which is what `remaining` counts.
+        break;
+      }
+      if (post.acks.acks.length === 0) {
         // A batch with no ack would be re-sent forever; the batch was accepted
         // by nobody, so surface it rather than spinning.
         return yield* Effect.fail(
@@ -560,7 +709,7 @@ export function push(deps: PushDeps): Effect.Effect<PushOutcome, SyncError> {
         );
       }
 
-      const applied = yield* applyAcks(deps, frames, acks.acks);
+      const applied = yield* applyAcks(deps, post.frames, post.acks.acks);
       pushed += applied.pushed;
       stale += applied.stale;
       written.push(...applied.written);
@@ -569,10 +718,10 @@ export function push(deps: PushDeps): Effect.Effect<PushOutcome, SyncError> {
       // a batch that failed above has no decision to report.
       if (deps.onFrames !== undefined) {
         const lines: PushLogFrame[] = [];
-        for (const ack of acks.acks) {
-          const frame = frames[ack.i];
+        for (const ack of post.acks.acks) {
+          const frame = post.frames[ack.i];
           if (frame === undefined) continue;
-          lines.push({ entity: frame.entity, label: batch.labels[ack.i] ?? null, ack: ack.s });
+          lines.push({ entity: frame.entity, label: post.labels[ack.i] ?? null, ack: ack.s });
         }
         if (lines.length > 0) deps.onFrames(lines);
       }
@@ -581,7 +730,7 @@ export function push(deps: PushDeps): Effect.Effect<PushOutcome, SyncError> {
       // A local write during the push leaves more rows unsynced; loop again. If
       // the batch changed nothing at all, another pass would spin, so the next
       // iteration reads the batch and breaks on empty.
-      if (acks.acks.length < frames.length) break;
+      if (post.acks.acks.length < post.frames.length) break;
     }
 
     // Whatever is left is counted and returned, never quietly dropped: a group
@@ -590,6 +739,14 @@ export function push(deps: PushDeps): Effect.Effect<PushOutcome, SyncError> {
       ? 0
       : yield* countUnsynced(deps.db, deps.group, deps.productId);
 
-    return { pushed, stale, bytes: sent, written, appliedJournal: [...appliedJournal], remaining };
+    return {
+      pushed,
+      stale,
+      bytes: sent,
+      written,
+      appliedJournal: [...appliedJournal],
+      rejected,
+      remaining,
+    };
   });
 }

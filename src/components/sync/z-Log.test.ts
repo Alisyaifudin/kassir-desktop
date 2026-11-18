@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import type { SyncLogEntry } from "~/services/sync";
-import { clockOf, rowsOf, textOf } from "./z-Log";
+import { SYNC_GROUPS, type SyncLogEntry } from "~/services/sync";
+import { GROUPS } from "~/services/sync/schema";
+import { ENTITY_NOUN, clockOf, rowsOf, textOf } from "./z-Log";
 
 /**
  * The sentences the log writes.
@@ -165,5 +166,27 @@ describe("clockOf", () => {
   test("prints a wall clock, zero-padded", () => {
     const at = new Date(2024, 2, 9, 7, 4, 3).getTime();
     expect(clockOf(at)).toBe("07:04:03");
+  });
+});
+
+/**
+ * Every entity the protocol can name has a noun.
+ *
+ * The `report` group shipped without one, so its rows printed as `report_line`
+ * among a log that says "produk" and "paket combo" — silent, because the fallback
+ * is the wire name and the wire name is a string. This is the list that makes the
+ * omission loud: a group added to the schema without screen copy fails here.
+ */
+describe("the log's nouns", () => {
+  test("cover every entity the schema can log", () => {
+    // Header entities only: a child set travels inside its aggregate's frame, so
+    // the line names `combo` or `record`, never `combo_listings`.
+    const missing: string[] = [];
+    for (const group of SYNC_GROUPS) {
+      for (const def of GROUPS[group].entities) {
+        if (ENTITY_NOUN[def.entity] === undefined) missing.push(def.entity);
+      }
+    }
+    expect(missing).toEqual([]);
   });
 });
