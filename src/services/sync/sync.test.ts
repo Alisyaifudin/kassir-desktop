@@ -1330,6 +1330,69 @@ describe("sync cycle", () => {
     expect(pocket.pocket_sync_at).toBe(1);
   });
 
+  test("Sinkronisasi Ulang re-claims both byte channels, covers included", async () => {
+    // The reset is the operator's repair path, and a device it was needed on has no
+    // reason to still trust that the server holds its covers either. Without the
+    // combo half, a cover stayed "sent" while the server had nothing — a placeholder
+    // no button could fix.
+    const device = setup();
+    insertRow(
+      device.db,
+      "product",
+      wireRow("product", {
+        product_id: "pr_01",
+        product_name: "Kopi",
+        product_note: "",
+        product_flag: 0,
+        product_updated_at: 1_000,
+        product_deleted_at: null,
+      }) as Record<string, unknown>,
+    );
+    insertRow(
+      device.db,
+      "image",
+      wireRow("image", {
+        image_id: "im_01",
+        image_order: 0,
+        image_name: "im_01.png",
+        image_mime: "image/png",
+        product_id: "pr_01",
+        image_updated_at: 1_000,
+        image_deleted_at: null,
+      }) as Record<string, unknown>,
+    );
+    insertRow(device.db, "combo", comboHeader("cb_01", 1_000) as Record<string, unknown>);
+    device.db
+      .query(
+        `UPDATE images SET image_sync_at = 1, image_blob_version = 1000,
+            image_blob_sha256 = 'gallery-local', image_blob_sync_at = 9`,
+      )
+      .run();
+    device.db
+      .query(
+        `UPDATE combos SET combo_sync_at = 1, combo_cover_name = 'cb_01.png',
+            combo_cover_mime = 'image/png', combo_cover_blob_version = 1000,
+            combo_cover_blob_sha256 = 'cover-local', combo_cover_blob_sync_at = 8`,
+      )
+      .run();
+
+    await runSync(device.layer, "reset");
+
+    // The digest is the fake server's own, which only a fresh `PUT` writes: both
+    // channels were cleared and claimed again.
+    const image = device.db
+      .query("SELECT image_blob_sha256, image_blob_sync_at FROM images")
+      .get() as { image_blob_sha256: string; image_blob_sync_at: number | null };
+    expect(image.image_blob_sha256).toBe(shaOf("im_01", 1_000));
+    expect(image.image_blob_sync_at).not.toBeNull();
+
+    const combo = device.db
+      .query("SELECT combo_cover_blob_sha256, combo_cover_blob_sync_at FROM combos")
+      .get() as { combo_cover_blob_sha256: string; combo_cover_blob_sync_at: number | null };
+    expect(combo.combo_cover_blob_sha256).toBe(shaOf("cb_01", 1_000));
+    expect(combo.combo_cover_blob_sync_at).not.toBeNull();
+  });
+
   test("a money row whose pocket is unknown is parked, then written once it arrives", async () => {
     const device = setup();
     const money = wireRow("money", {

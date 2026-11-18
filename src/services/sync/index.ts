@@ -197,6 +197,15 @@ export type GroupReport = {
    */
   imagesDown: number;
   /**
+   * Image files the server already held, so this run only re-claimed them.
+   *
+   * Separate from `imagesUp` because nothing crossed the wire: a `Sinkronisasi
+   * Ulang` that re-claims a gallery verifies it against the manifest and moves no
+   * bytes, and a report that counted those as uploads would describe a run that
+   * re-sent a catalogue the server never lost (§8.7.1).
+   */
+  imagesAdopted: number;
+  /**
    * Image files still owed to the server when the cycle ended.
    *
    * Normally `0`: the upload drains until nothing is owed. Non-zero only when the

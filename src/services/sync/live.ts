@@ -40,6 +40,7 @@
 import { Effect, Fiber, Layer, Ref, Stream, SubscriptionRef } from "effect";
 import { log } from "~/lib/log";
 import { DatabaseService } from "../db";
+import type { Statement } from "../db";
 import { CategoryService } from "../category";
 import { ComboService } from "../combo";
 import { CustomerService } from "../customer";
@@ -91,7 +92,12 @@ import { syncOneProduct } from "./one-product";
 import { pullPageWithRetry, toSyncError } from "./pull";
 import { countUnsynced, push } from "./push";
 import { GROUPS, type WireRow } from "./schema";
-import { bookmarkStatement, forgetUploadedBlobsStatement, markAllUnsyncedStatements } from "./sql";
+import {
+  bookmarkStatement,
+  forgetUploadedBlobsStatement,
+  forgetUploadedComboCoversStatement,
+  markAllUnsyncedStatements,
+} from "./sql";
 import { SyncTransportService, type Endpoint } from "./transport";
 import { SyncTriggerService } from "./trigger";
 
@@ -771,6 +777,21 @@ export const SyncLive = Layer.effect(
           }).pipe(Effect.asVoid);
 
     /**
+     * The byte-channel claims a re-seed forgets, for the group that owns them.
+     *
+     * Both channels move files (the gallery's pictures and the combo covers), and a
+     * re-seed re-claims both or neither: a device whose rows are being re-seeded has
+     * no reason to still trust that the server holds its files (§8.7.1). The
+     * re-claim is verified against the manifest, so a library the server never lost
+     * costs one request and no bodies.
+     */
+    function forgetByteClaims(group: SyncGroup): Statement[] {
+      if (group === "product") return [forgetUploadedBlobsStatement()];
+      if (group === "combo") return [forgetUploadedComboCoversStatement()];
+      return [];
+    }
+
+    /**
      * `Sinkronisasi Ulang`: every bookmark to zero and every row queued for push.
      *
      * This is the contract's seeding procedure (§13.4) and the recovery from a
@@ -782,10 +803,10 @@ export const SyncLive = Layer.effect(
       return Effect.gen(function* () {
         const statements = SYNC_GROUPS.flatMap((group) => [
           ...markAllUnsyncedStatements(group),
-          // A re-seed of `product` re-claims its image bytes too: the operator who
-          // presses Sinkronisasi Ulang is saying the server's copy is not to be
-          // trusted, and that includes the objects behind the rows (§8.7.1).
-          ...(group === "product" ? [forgetUploadedBlobsStatement()] : []),
+          // The operator who presses Sinkronisasi Ulang is saying the server's copy
+          // is not to be trusted, and that includes the objects behind the rows
+          // (§8.7.1).
+          ...forgetByteClaims(group),
           bookmarkStatement(group, 0),
         ]);
         // The same real transaction the merge uses: marking rows dirty and moving
@@ -839,7 +860,9 @@ export const SyncLive = Layer.effect(
           "product stocks",
         );
         yield* Effect.forEach(SYNC_GROUPS, (group) => refreshGroup(group), { discard: true });
-        log.info("sync: reset — every bookmark cleared, every synced row queued for push");
+        log.info(
+          "sync: reset — every bookmark cleared, every synced row queued for push, file claims re-verified",
+        );
       });
     }
 
@@ -860,8 +883,8 @@ export const SyncLive = Layer.effect(
           [
             ...markAllUnsyncedStatements(group),
             // A server that refused the bookmark may have lost its object store
-            // with the log, so the picture claims go back on the queue (§8.7.1).
-            ...(group === "product" ? [forgetUploadedBlobsStatement()] : []),
+            // with the log, so this group's file claims go back on the queue (§8.7.1).
+            ...forgetByteClaims(group),
             bookmarkStatement(group, target),
           ],
           `${group} re-seed`,
@@ -965,6 +988,7 @@ export const SyncLive = Layer.effect(
         // Image bytes are their own channel (§8.7.1): no `seq`, no log entry, no
         // bookmark. Only the product group moves them, and both passes are bounded.
         let imagesUp = 0;
+        let imagesAdopted = 0;
         let imagesDown = 0;
         // Two groups move bytes: the product gallery (`image` rows) and the combo
         // group's cover (`combos.combo_cover_name`). Both use the same
@@ -1399,7 +1423,34 @@ export const SyncLive = Layer.effect(
             ? uploadImageBlobs({ db, transport, endpoint, onProgress })
             : uploadComboCoverBlobs({ db, transport, endpoint, onProgress });
           imagesUp += uploads.uploaded;
+          imagesAdopted += uploads.adopted;
           moved.imagesUp += passBytes;
+          // Files the server already held: nothing crossed the wire, and the screen
+          // must not let that read as a run that re-uploaded the whole gallery.
+          if (uploads.adopted > 0) {
+            // They also count as resolved work for the bar. The plan was sized to the
+            // whole backlog, and a run that adopts every file would otherwise stop
+            // part-way along the push band and jump to 100% at the end.
+            publishGroup(group, {
+              phase: "push",
+              progress: staged(
+                "push",
+                pushedRows * PLAN_UNITS.row +
+                  (imagesUp + uploads.adopted) * PLAN_UNITS.image,
+              ),
+              message: "Mengunggah perubahan…",
+              transfer: transfer(),
+            });
+            pushLog([
+              {
+                kind: "note",
+                at: Date.now(),
+                group,
+                text: `${uploads.adopted} ${movesCovers ? "sampul combo" : "gambar"} sudah ada di server, tidak dikirim ulang`,
+                level: "info",
+              },
+            ]);
+          }
         }
 
         // §9.2 "pull → push → pull": the final pull picks up whatever another
@@ -1456,6 +1507,7 @@ export const SyncLive = Layer.effect(
           pending: yield* pendingCount(group),
           orphans: yield* orphanCount(group),
           imagesUp,
+          imagesAdopted,
           imagesDown,
           imagesOwed,
         };
@@ -1554,6 +1606,8 @@ export const SyncLive = Layer.effect(
           // about pictures it does not have.
           const parts = [`${report.pulled} diunduh`, `${report.pushed} diunggah`];
           if (report.imagesUp > 0) parts.push(`${report.imagesUp} gambar diunggah`);
+          if (report.imagesAdopted > 0)
+            parts.push(`${report.imagesAdopted} gambar sudah ada di server`);
           if (report.imagesDown > 0) parts.push(`${report.imagesDown} gambar diunduh`);
           if (report.imagesOwed > 0) parts.push(`${report.imagesOwed} gambar belum terkirim`);
           // A group that still owes rows says so here. It is not an error — the

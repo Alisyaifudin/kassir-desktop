@@ -190,6 +190,39 @@ describe("uploadComboCoverBlobs", () => {
     expect(h.calls.put).toEqual([]);
   });
 
+  test("a re-claim adopts a cover the server already holds", async () => {
+    // What `Sinkronisasi Ulang` does: the marker goes, version and digest stay.
+    // The manifest answers for the cover, so no body is spent re-sending it.
+    const h = harness({
+      manifest: () =>
+        Promise.resolve({
+          blobs: [
+            { comboId: "combo_1", version: 1000, sha256: sha("combo_1"), byteSize: 128, mime: "image/png" },
+          ],
+          more: false,
+          next: null,
+        }),
+    });
+    seedCombo(h.db, { blobSha: sha("combo_1"), blobSynced: true });
+    h.db.query("UPDATE combos SET combo_cover_blob_sync_at = NULL").run();
+
+    const report = await h.upload();
+    expect(report).toEqual({ uploaded: 0, adopted: 1, skipped: 0, failed: 0, bytes: 0 });
+    expect(h.calls.put).toEqual([]);
+    expect(h.calls.manifest).toEqual([null]);
+    expect(comboRow(h.db).combo_cover_blob_sync_at).not.toBeNull();
+  });
+
+  test("a re-claim still uploads a cover the server does not have", async () => {
+    const h = harness();
+    seedCombo(h.db, { blobSha: sha("combo_1"), blobSynced: true });
+    h.db.query("UPDATE combos SET combo_cover_blob_sync_at = NULL").run();
+
+    const report = await h.upload();
+    expect(report).toEqual({ uploaded: 1, adopted: 0, skipped: 0, failed: 0, bytes: 128 });
+    expect(h.calls.put).toHaveLength(1);
+  });
+
   test("local_missing forgets the version so the next pass fetches it", async () => {
     const h = harness({
       put: () => Promise.reject(new TransportError(0, "local_missing", "no file")),

@@ -181,7 +181,7 @@ describe("uploadImageBlobs", () => {
     seedImage(h.db);
     const report = await h.upload();
 
-    expect(report).toEqual({ uploaded: 1, skipped: 0, failed: 0, bytes: 128 });
+    expect(report).toEqual({ uploaded: 1, adopted: 0, skipped: 0, failed: 0, bytes: 128 });
     expect(h.calls.put).toEqual(["img_1"]);
     const row = imageRow(h.db);
     expect(row.image_blob_sha256).toBe(sha("img_1"));
@@ -224,7 +224,7 @@ describe("uploadImageBlobs", () => {
     seedImage(h.db);
     const report = await h.upload();
 
-    expect(report).toEqual({ uploaded: 0, skipped: 1, failed: 0, bytes: 0 });
+    expect(report).toEqual({ uploaded: 0, adopted: 0, skipped: 1, failed: 0, bytes: 0 });
     const row = imageRow(h.db);
     expect(row.image_blob_version).toBeNull();
     expect(row.image_blob_sha256).toBeNull();
@@ -237,7 +237,7 @@ describe("uploadImageBlobs", () => {
     seedImage(h.db);
     const report = await h.upload();
 
-    expect(report).toEqual({ uploaded: 0, skipped: 1, failed: 0, bytes: 0 });
+    expect(report).toEqual({ uploaded: 0, adopted: 0, skipped: 1, failed: 0, bytes: 0 });
     expect(imageRow(h.db).image_blob_version).toBeNull();
   });
 
@@ -261,7 +261,7 @@ describe("uploadImageBlobs", () => {
     seedImage(h.db);
     const report = await h.upload();
 
-    expect(report).toEqual({ uploaded: 0, skipped: 0, failed: 1, bytes: 0 });
+    expect(report).toEqual({ uploaded: 0, adopted: 0, skipped: 0, failed: 1, bytes: 0 });
     expect(imageRow(h.db).image_blob_version).toBe(1000);
   });
 
@@ -294,24 +294,115 @@ describe("uploadImageBlobs", () => {
     expect(row.image_blob_sync_at).toBeNull();
   });
 
-  test("a re-seed re-claims bytes the server may have lost", async () => {
+  test("a re-seed adopts the bytes the server already holds, instead of sending them", async () => {
     // What `Sinkronisasi Ulang` and a refused bookmark both do
     // (`forgetUploadedBlobsStatement`): the marker goes, the version and digest
-    // stay, so the file is uploaded again for the clock it belongs to.
+    // stay. The server never lost the picture, so the manifest answers for it and
+    // nothing crosses the wire — one request instead of a whole gallery.
+    const h = harness({
+      manifest: () =>
+        Promise.resolve({
+          blobs: [
+            { imageId: "img_1", version: 1000, sha256: sha("img_1"), byteSize: 128, mime: "image/png" },
+          ],
+          more: false,
+          next: null,
+        }),
+    });
+    seedImage(h.db, { blobSha: sha("img_1"), blobSynced: true });
+    h.db.query("UPDATE images SET image_blob_sync_at = NULL").run();
+
+    const report = await h.upload();
+    expect(report).toEqual({ uploaded: 0, adopted: 1, skipped: 0, failed: 0, bytes: 0 });
+    expect(h.calls.put).toEqual([]);
+    // One manifest read for the whole drain, not one per file.
+    expect(h.calls.manifest).toEqual([null]);
+    // The claim is back in place, so the file is never re-claimed again either.
+    const row = imageRow(h.db);
+    expect(row.image_blob_sha256).toBe(sha("img_1"));
+    expect(row.image_blob_sync_at).not.toBeNull();
+    expect(await h.upload()).toEqual({ uploaded: 0, adopted: 0, skipped: 0, failed: 0, bytes: 0 });
+  });
+
+  test("a re-seed still uploads a file the server does not have", async () => {
+    // The manifest is empty: the server really did lose the object, which is the
+    // case the re-claim exists for. The bytes go.
     const h = harness();
     seedImage(h.db, { blobSha: sha("img_1"), blobSynced: true });
     h.db.query("UPDATE images SET image_blob_sync_at = NULL").run();
 
     const report = await h.upload();
+    expect(report).toEqual({ uploaded: 1, adopted: 0, skipped: 0, failed: 0, bytes: 128 });
+    expect(h.calls.put).toEqual(["img_1"]);
+    expect(h.calls.manifest).toEqual([null]);
+  });
+
+  test("a manifest entry for another version does not stand in for the upload", async () => {
+    // The server serves bytes for a clock this row has not merged: they are not
+    // this picture, so the file is still owed.
+    const h = harness({
+      manifest: () =>
+        Promise.resolve({
+          blobs: [
+            { imageId: "img_1", version: 900, sha256: sha("older"), byteSize: 1, mime: "image/png" },
+          ],
+          more: false,
+          next: null,
+        }),
+    });
+    seedImage(h.db, { blobSha: sha("local") });
+
+    const report = await h.upload();
     expect(report.uploaded).toBe(1);
     expect(h.calls.put).toEqual(["img_1"]);
-    expect(imageRow(h.db).image_blob_sync_at).not.toBeNull();
+  });
+
+  test("a version the server already filled with other bytes is never uploaded", async () => {
+    // The `PUT` could only answer `409 blob_conflict`; the stored copy wins either
+    // way, so the version is forgotten now and the fetch pass downloads the winner.
+    const h = harness({
+      manifest: () =>
+        Promise.resolve({
+          blobs: [
+            { imageId: "img_1", version: 1000, sha256: sha("theirs"), byteSize: 128, mime: "image/png" },
+          ],
+          more: false,
+          next: null,
+        }),
+    });
+    seedImage(h.db, { blobSha: sha("ours") });
+
+    const report = await h.upload();
+    expect(report).toEqual({ uploaded: 0, adopted: 0, skipped: 1, failed: 0, bytes: 0 });
+    expect(h.calls.put).toEqual([]);
+    expect(imageRow(h.db).image_blob_version).toBeNull();
+    expect(imageRow(h.db).image_blob_sha256).toBeNull();
+  });
+
+  test("a catalogue with no digest anywhere pays no manifest request", async () => {
+    const h = harness();
+    seedImage(h.db);
+    await h.upload();
+
+    expect(h.calls.manifest).toEqual([]);
+    expect(h.calls.put).toEqual(["img_1"]);
+  });
+
+  test("a manifest that cannot be read falls back to uploading", async () => {
+    const h = harness({
+      manifest: () => Promise.reject(new TransportError(0, "transport", "jaringan")),
+    });
+    seedImage(h.db, { blobSha: sha("img_1") });
+
+    const report = await h.upload();
+    expect(report.uploaded).toBe(1);
+    expect(h.calls.put).toEqual(["img_1"]);
   });
 
   test("a deleted image is neither uploaded nor fetched", async () => {
     const h = harness();
     seedImage(h.db, { deleted: true });
-    expect(await h.upload()).toEqual({ uploaded: 0, skipped: 0, failed: 0, bytes: 0 });
+    expect(await h.upload()).toEqual({ uploaded: 0, adopted: 0, skipped: 0, failed: 0, bytes: 0 });
     expect(await h.fetch()).toEqual({ fetched: 0, adopted: 0, missing: 0, bytes: 0 });
     expect(h.calls.put).toEqual([]);
     expect(h.calls.manifest).toEqual([]);
@@ -542,7 +633,7 @@ describe("draining the backlog", () => {
     expect(report.uploaded).toBe(45);
     expect(h.calls.put).toHaveLength(45);
     // Drained: the next call has nothing to select, and nothing is sent twice.
-    expect(await h.upload()).toEqual({ uploaded: 0, skipped: 0, failed: 0, bytes: 0 });
+    expect(await h.upload()).toEqual({ uploaded: 0, adopted: 0, skipped: 0, failed: 0, bytes: 0 });
   });
 
   test("one fetch call downloads every missing file", async () => {
@@ -589,6 +680,6 @@ describe("draining the backlog", () => {
     seedImage(h.db);
     // One pass, one skip: the row cannot change this cycle, so the loop stops
     // rather than selecting it a hundred times.
-    expect(await h.upload()).toEqual({ uploaded: 0, skipped: 1, failed: 0, bytes: 0 });
+    expect(await h.upload()).toEqual({ uploaded: 0, adopted: 0, skipped: 1, failed: 0, bytes: 0 });
   });
 });

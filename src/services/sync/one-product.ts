@@ -230,7 +230,7 @@ export function syncOneProduct(deps: OneProductDeps): Effect.Effect<OneProductRe
     yield* deps.refresh();
 
     log.info(
-      `sync: product ${deps.productId} — ${pushed.pushed} diunggah, ${pulled} diunduh, ${stale} stale, ${uploads.uploaded} gambar naik, ${fetches.fetched + fetches.adopted} gambar turun`,
+      `sync: product ${deps.productId} — ${pushed.pushed} diunggah, ${pulled} diunduh, ${stale} stale, ${uploads.uploaded} gambar naik (${uploads.adopted} sudah ada), ${fetches.fetched + fetches.adopted} gambar turun`,
     );
 
     return {

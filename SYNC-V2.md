@@ -2250,7 +2250,14 @@ by `image_id`; the server is never keyed by `image_name`.
 1. **rows, then bytes.** Push the `image` row; only when its ack is
    `applied`/`noop` (and its version is the current one) upload the file.
    Uploading for a version that came back `stale` uploads bytes nobody will ever
-   serve.
+   serve. Before spending a body, the manifest may be asked what the server
+   already holds: an entry naming the row's own version with the digest the row
+   recorded means these bytes are already stored, so only the bookkeeping moves.
+   A re-claim of a whole catalogue (Sinkronisasi Ulang, a re-seed, a reorder)
+   therefore costs one manifest request, not a gallery of uploads; if the server
+   names *different* bytes for that version, the version is cleared and fetched
+   instead of uploaded, which is the same outcome as the `409` below without the
+   body.
 2. **bytes after the page.** After the pull page commits, for each row that
    needs a fetch: call the manifest **once**, then `GET` each missing hash.
    Verify `sha256` and `byte_size`, write `*.part`, `rename()` into place, then
@@ -3043,6 +3050,12 @@ Rules that go with it:
   loop. Everything else — keep the rows, mark them dirty, pull then push — is
   identical, and the rows the server still holds above the floor arrive from
   the pull.
+- **The byte channels are re-claimed too.** A reset clears the markers that say
+  the server holds this device's files — `image_blob_sync_at` for the gallery and
+  `combo_cover_blob_sync_at` for combo covers — because a device whose rows had to
+  be re-seeded has no reason to still trust its objects. The re-claim is verified,
+  not blind: the upload pass asks the manifest first, so a file the server still
+  holds costs one request and no bytes (§8.7.1).
 - **A reset is not a shop switch.** A device moved to a different shop (base URL
   changed) must have its local database wiped explicitly by an operator (§14.6):
   re-seeding would otherwise upload one shop's data into another, and no pull
@@ -3156,7 +3169,7 @@ Otomatis, stored as one `sync.auto` object in `store.json`):
 | app start | the master switch, armed once from `main.tsx` | forks a cycle; boot never waits for it |
 | timer | `everyMinutes` ∈ {1, 2, 5, 10} | measured from the **end** of the previous cycle; a tick that lands while any run is in flight is skipped, not queued |
 | local edit | `editGroups` (any subset of the ten groups) | each domain service announces a commit on a `PubSub` (`SyncTrigger`); the scheduler debounces 1.5 s of quiet, then starts one cycle |
-| manual button | Sinkronisasi / Sinkronisasi Ulang | never automatic: `reset` re-uploads the whole local dataset |
+| manual button | Sinkronisasi / Sinkronisasi Ulang | never automatic: `reset` re-queues the whole local dataset and re-claims its bytes, so only what the server does not hold is actually sent (§8.7.1) |
 
 A device with no token configured is skipped in silence rather than failing at
 every interval, and a local edit starts a full cycle over all ten groups — the

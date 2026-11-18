@@ -44,6 +44,23 @@
  *   names a different `version` than the local row describes bytes for a row this
  *   device has not merged yet, so it is skipped rather than downloaded.
  *
+ * ## What the server already holds is not sent again
+ *
+ * The upload predicate answers "does the server owe this file?" from local state
+ * alone, and a re-claim of a whole catalogue (`Sinkronisasi Ulang`, a refused
+ * bookmark, a reorder) puts every row back in it while the server has not lost a
+ * single byte. So the pass **asks the manifest before it spends a body**: equal
+ * `version` and equal `sha256` means the server is holding exactly these bytes for
+ * exactly this row, and only the local bookkeeping is written — a reset that would
+ * have re-uploaded a shop's gallery costs one manifest request instead. This is the
+ * same evidence the fetch pass already trusts in the other direction, and it is
+ * what makes "send it again" an honest answer rather than a default.
+ *
+ * The manifest is read at most once per call and only when a candidate row carries
+ * a digest at all, so a catalogue that has never been through this channel pays
+ * nothing. A manifest that cannot be read is not a byte-channel failure: the
+ * uploads it would have saved go ahead unverified, which is the old behaviour.
+ *
  * ## Where the files live
  *
  * `AppData/images/{image_name}`, the key the rest of the app already reads by
@@ -153,8 +170,16 @@ export type BlobOutcome = "ok" | "skipped" | "failed";
 
 /** What one upload pass did. */
 export type UploadReport = {
-  /** Files the server now has. */
+  /** Files whose bytes crossed the wire in this pass. */
   uploaded: number;
+  /**
+   * Files the server already held byte-for-byte: only the bookkeeping moved.
+   *
+   * Counted apart from `uploaded` on purpose. A reset that re-claims a gallery
+   * moves no bytes, and a report that called those "unggah" would describe work
+   * the device did not do (`fetchImageBlobs` counts its `adopted` the same way).
+   */
+  adopted: number;
   /** Rows deliberately left alone: the server's row is gone or its bytes lost LWW. */
   skipped: number;
   /** Rows that failed and will be retried on the next cycle. */
@@ -181,7 +206,12 @@ type UploadRow = {
   image_name: string;
   image_mime: string;
   image_updated_at: number;
+  /** The digest the server reported for these bytes; `null` until it has answered. */
+  image_blob_sha256: string | null;
 };
+
+/** A manifest entry: the bytes the server serves for one `image_id`. */
+type ManifestEntry = { version: number; sha256: string; byteSize: number };
 
 /** An image row whose local file is not the current version's bytes. */
 type FetchRow = {
@@ -225,7 +255,7 @@ const FETCH_WHERE = `image_deleted_at IS NULL
 
 /** The rows this device owes the server (§8.7.1 "needs upload"), newest clock first. */
 function uploadSql(productId: string | undefined): string {
-  return `SELECT image_id, image_name, image_mime, image_updated_at
+  return `SELECT image_id, image_name, image_mime, image_updated_at, image_blob_sha256
   FROM images
   WHERE ${UPLOAD_WHERE}
     ${productId === undefined ? "" : "AND product_id = $1"}
@@ -351,17 +381,52 @@ function messageOf(error: unknown): string {
  * server does not have or has deleted (leave it for the pull), a losing upload
  * (`409 blob_conflict` — adopt the server's copy) and a genuine failure (retry next
  * cycle).
+ *
+ * Before any of that, the manifest is asked what the server already holds: bytes
+ * it has are *adopted*, never re-sent (§ "What the server already holds is not
+ * sent again"). Without that, a re-claim — `Sinkronisasi Ulang`, a refused
+ * bookmark, a reorder — re-uploaded a whole gallery the server never lost.
  */
 export function uploadImageBlobs(deps: ImageBlobDeps): Effect.Effect<UploadReport> {
   return Effect.gen(function* () {
     // Cumulative across passes: the screen shows one byte counter for the whole
     // drain, and the report belongs to the call, not to its last pass.
     let uploaded = 0;
+    let adopted = 0;
     let skipped = 0;
     let failed = 0;
     let bytes = 0;
     /** Known byte total so far; `null` once any pass could not size a file. */
     let bytesTotal: number | null = 0;
+
+    /**
+     * What the server already serves, read at most once for the whole call.
+     *
+     * `null` means "unknown": either no row carried a digest (a catalogue this
+     * channel has never sent), or the request failed. Both cases fall back to the
+     * ordinary upload, which is correct and only costs the bytes a verified pass
+     * would have saved.
+     */
+    let manifest: Map<string, ManifestEntry> | null = null;
+    let manifestAsked = false;
+
+    /**
+     * What to do with one owed row, given the manifest.
+     *
+     * `adopt` — the server names these exact bytes for this exact version: nothing
+     * crosses the wire and the row gets the same bookkeeping an ack would write.
+     * `follow` — the server names *different* bytes for this version, so a `PUT`
+     * could only answer `409 blob_conflict`: the stored copy wins anyway, so the
+     * version is forgotten now and the fetch pass downloads the winner. Same
+     * outcome as the 409, one upload cheaper.
+     * `send` — the ordinary path.
+     */
+    const decide = (row: UploadRow): "adopt" | "follow" | "send" => {
+      if (manifest === null || row.image_blob_sha256 === null) return "send";
+      const entry = manifest.get(row.image_id);
+      if (entry === undefined || entry.version !== row.image_updated_at) return "send";
+      return entry.sha256 === row.image_blob_sha256 ? "adopt" : "follow";
+    };
 
     const maxPasses = deps.maxPasses ?? MAX_PASSES;
     for (let pass = 0; pass < maxPasses; pass += 1) {
@@ -372,21 +437,44 @@ export function uploadImageBlobs(deps: ImageBlobDeps): Effect.Effect<UploadRepor
       // An empty pass is the drain signal: nothing is owed, so the loop is done.
       if (rows.length === 0) break;
 
+      // One request, and only when it can change an answer: a row that has never
+      // been through this channel has no digest to compare against.
+      if (!manifestAsked && rows.some((row) => row.image_blob_sha256 !== null)) {
+        manifestAsked = true;
+        manifest = yield* readManifest(deps).pipe(
+          Effect.catchAllCause((cause) =>
+            Effect.sync(() => {
+              log.info(
+                `sync: manifest gambar tidak terbaca — unggahan diverifikasi tanpa server: ${String(cause)}`,
+              );
+              return null;
+            }),
+          ),
+        );
+      }
+
+      const decisions = rows.map(decide);
+
       // What *this pass* will put on the wire. The sizes are on disk, not in the
       // row, so they are read before the first upload rather than discovered from
       // each answer — a byte counter that only ever shows its own past is not a
       // bar. One missing file makes this pass `null`: a partial total under a byte
       // counter is worse than none, and that file is about to answer
-      // `local_missing` anyway.
+      // `local_missing` anyway. Adopted and followed rows move nothing, so their
+      // size is never counted — a total that includes them would leave a counter
+      // that never reaches its own end.
       let passTotal: number | null = 0;
-      for (const row of rows) {
-        const size = yield* image.size(row.image_name).pipe(
+      const planned = decisions.filter((decision) => decision === "send").length;
+      for (let index = 0; index < rows.length; index += 1) {
+        if (decisions[index] !== "send") continue;
+        const name = rows[index]!.image_name;
+        const size = yield* image.size(name).pipe(
           // A missing file is the expected `local_missing` case, but a failed
           // stat is indistinguishable from it here — recorded so a disk problem
           // does not hide behind "file not found".
           Effect.tapErrorTag("IOError", (error) =>
             Effect.sync(() =>
-              log.info(`sync: gagal membaca ukuran gambar ${row.image_name}: ${error.e.message}`),
+              log.info(`sync: gagal membaca ukuran gambar ${name}: ${error.e.message}`),
             ),
           ),
           Effect.orElseSucceed(() => null),
@@ -411,10 +499,36 @@ export function uploadImageBlobs(deps: ImageBlobDeps): Effect.Effect<UploadRepor
       let changed = 0;
       const tick = (name: string | null, outcome: BlobOutcome): void => {
         done += 1;
-        deps.onProgress?.({ done, total: rows.length, bytes, bytesTotal, name, outcome });
+        deps.onProgress?.({ done, total: planned, bytes, bytesTotal, name, outcome });
       };
 
-      for (const row of rows) {
+      for (let index = 0; index < rows.length; index += 1) {
+        const row = rows[index]!;
+        const decision = decisions[index]!;
+
+        if (decision === "adopt") {
+          // The server holds these bytes: the row gets the bookkeeping an ack would
+          // have written, and the file stays where it is. No tick — a file that did
+          // not move is not one of the ones the bar is counting, and a gallery of
+          // three hundred adopted pictures must not become three hundred log lines.
+          statements.push(
+            markStored(row.image_id, row.image_updated_at, row.image_blob_sha256!, Date.now()),
+          );
+          adopted += 1;
+          changed += 1;
+          continue;
+        }
+
+        if (decision === "follow") {
+          // The same sentence the `409 blob_conflict` below writes, reached without
+          // sending a body the server would answer with that conflict.
+          statements.push(forgetFile(row.image_id, row.image_updated_at));
+          skipped += 1;
+          changed += 1;
+          log.info(`sync: gambar ${row.image_id} sudah ada versi lain di server — mengikuti server`);
+          continue;
+        }
+
         const outcome = yield* Effect.tryPromise({
           try: () =>
             deps.transport.blobPut(deps.endpoint, {
@@ -480,14 +594,14 @@ export function uploadImageBlobs(deps: ImageBlobDeps): Effect.Effect<UploadRepor
       if (changed === 0) break;
     }
 
-    return { uploaded, skipped, failed, bytes };
+    return { uploaded, adopted, skipped, failed, bytes };
   }).pipe(
     // Bytes are a cache of the row: a failure here must never fail the group, or
     // one bad picture would block a catalogue that is already on disk.
     Effect.catchAllCause((cause) =>
       Effect.sync(() => {
         log.error(new Error(`sync: unggah gambar gagal: ${String(cause)}`));
-        return { uploaded: 0, skipped: 0, failed: 0, bytes: 0 };
+        return { uploaded: 0, adopted: 0, skipped: 0, failed: 0, bytes: 0 };
       }),
     ),
   );
@@ -499,11 +613,9 @@ export function uploadImageBlobs(deps: ImageBlobDeps): Effect.Effect<UploadRepor
  * `byteSize` is carried along because it is the only place a pull's byte total
  * exists before the first file arrives: the server states what each blob weighs.
  */
-function readManifest(
-  deps: ImageBlobDeps,
-): Effect.Effect<Map<string, { version: number; sha256: string; byteSize: number }>, unknown> {
+function readManifest(deps: ImageBlobDeps): Effect.Effect<Map<string, ManifestEntry>, unknown> {
   return Effect.gen(function* () {
-    const byId = new Map<string, { version: number; sha256: string; byteSize: number }>();
+    const byId = new Map<string, ManifestEntry>();
     let after: string | null = null;
     for (let page = 0; page < MANIFEST_PAGES; page += 1) {
       const body = yield* Effect.tryPromise({

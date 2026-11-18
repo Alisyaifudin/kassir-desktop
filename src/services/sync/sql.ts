@@ -591,8 +591,11 @@ export function markAllUnsyncedStatements(group: SyncGroup): Statement[] {
  * Part of both re-seeds: a `400`/`410` on the `product` group means the server's
  * copy of that group came from somewhere else, and a server that lost the log may
  * have lost the objects with it — the row's `image_blob_sync_at` would then be a
- * promise about bytes nobody has. Clearing it re-claims them, one small `PUT` per
- * image; content addressing makes a repeat upload a `200` and one object on disk.
+ * promise about bytes nobody has. Clearing it re-claims them.
+ *
+ * The re-claim is verified, not blind: the upload pass asks the manifest first, so
+ * a gallery the server still holds costs one request and no bodies
+ * (`src/services/sync/blob.ts`).
  *
  * Only the marker is cleared: `image_blob_version` and the digest still say which
  * bytes the local file holds, so rows whose clock moved on are fetched instead.
@@ -600,6 +603,20 @@ export function markAllUnsyncedStatements(group: SyncGroup): Statement[] {
 export function forgetUploadedBlobsStatement(): Statement {
   return {
     sql: "UPDATE images SET image_blob_sync_at = NULL WHERE image_deleted_at IS NULL",
+  };
+}
+
+/**
+ * Forgets that the server has this device's combo covers (the combo twin of the
+ * statement above).
+ *
+ * `Sinkronisasi Ulang` re-claims both byte channels or neither: a device that had
+ * to be re-seeded has no reason to still trust that the server holds its covers,
+ * and a re-claim now costs a manifest read rather than a `PUT` per cover.
+ */
+export function forgetUploadedComboCoversStatement(): Statement {
+  return {
+    sql: "UPDATE combos SET combo_cover_blob_sync_at = NULL WHERE combo_deleted_at IS NULL",
   };
 }
 

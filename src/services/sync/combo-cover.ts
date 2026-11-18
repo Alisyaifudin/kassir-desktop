@@ -26,6 +26,14 @@
  * an upload only for bytes this device produced at the current clock, and a
  * fetch only when the row's clock has moved past its file.
  *
+ * ## What the server already holds is not sent again
+ *
+ * Like `blob.ts`: a pass asks the manifest first, so a re-claim (`Sinkronisasi
+ * Ulang`, a refused bookmark) that puts every row back in the upload predicate is
+ * answered with bookkeeping instead of with a body the server already has. The
+ * manifest is read at most once per call, only when a candidate row carries a
+ * digest, and a failed read falls back to the ordinary upload.
+ *
  * ## Why the clock is the version
  *
  * A combo save replaces the aggregate and bumps `combo_updated_at` even when the
@@ -83,7 +91,12 @@ type UploadRow = {
   combo_cover_name: string;
   combo_cover_mime: string;
   combo_updated_at: number;
+  /** The digest the server reported for these bytes; `null` until it has answered. */
+  combo_cover_blob_sha256: string | null;
 };
+
+/** A manifest entry: the bytes the server serves for one `combo_id`. */
+type ManifestEntry = { version: number; sha256: string; byteSize: number };
 
 /** A combo cover whose local file is not the current version's bytes. */
 type FetchRow = {
@@ -113,7 +126,8 @@ const FETCH_WHERE = `combo_deleted_at IS NULL
     AND combo_cover_name IS NOT NULL
     AND combo_cover_blob_version IS NOT combo_updated_at`;
 
-const UPLOAD_SQL = `SELECT combo_id, combo_cover_name, combo_cover_mime, combo_updated_at
+const UPLOAD_SQL = `SELECT combo_id, combo_cover_name, combo_cover_mime, combo_updated_at,
+    combo_cover_blob_sha256
   FROM combos
   WHERE ${UPLOAD_WHERE}
   ORDER BY combo_updated_at, combo_id
@@ -200,31 +214,70 @@ function messageOf(error: unknown): string {
   return String(error);
 }
 
-/** Uploads the combo covers this device owes the server. */
+/**
+ * Uploads the combo covers this device owes the server.
+ *
+ * The manifest is asked what the server already holds before a body is spent, so a
+ * re-claim adopts rather than re-sends — the same rule as `uploadImageBlobs`.
+ */
 export function uploadComboCoverBlobs(deps: ComboCoverDeps): Effect.Effect<UploadReport> {
   return Effect.gen(function* () {
     let uploaded = 0;
+    let adopted = 0;
     let skipped = 0;
     let failed = 0;
     let bytes = 0;
     let bytesTotal: number | null = 0;
+
+    /** What the server already serves, read at most once for the whole call. */
+    let manifest: Map<string, ManifestEntry> | null = null;
+    let manifestAsked = false;
+
+    /** Adopt what the server holds, follow it when it holds other bytes, or send. */
+    const decide = (row: UploadRow): "adopt" | "follow" | "send" => {
+      if (manifest === null || row.combo_cover_blob_sha256 === null) return "send";
+      const entry = manifest.get(row.combo_id);
+      if (entry === undefined || entry.version !== row.combo_updated_at) return "send";
+      return entry.sha256 === row.combo_cover_blob_sha256 ? "adopt" : "follow";
+    };
 
     const maxPasses = deps.maxPasses ?? MAX_PASSES;
     for (let pass = 0; pass < maxPasses; pass += 1) {
       const rows = yield* deps.db.selectMany<UploadRow>(UPLOAD_SQL);
       if (rows.length === 0) break;
 
+      // Only a row that has been through this channel carries a digest, so a shop
+      // that has never sent a cover costs no manifest request.
+      if (!manifestAsked && rows.some((row) => row.combo_cover_blob_sha256 !== null)) {
+        manifestAsked = true;
+        manifest = yield* readManifest(deps).pipe(
+          Effect.catchAllCause((cause) =>
+            Effect.sync(() => {
+              log.info(
+                `sync: manifest sampul combo tidak terbaca — unggahan diverifikasi tanpa server: ${String(cause)}`,
+              );
+              return null;
+            }),
+          ),
+        );
+      }
+
+      const decisions = rows.map(decide);
+
       let passTotal: number | null = 0;
-      for (const row of rows) {
-        const size = yield* image.size(row.combo_cover_name).pipe(
+      const planned = decisions.filter((decision) => decision === "send").length;
+      for (let index = 0; index < rows.length; index += 1) {
+        // Adopted and followed rows move no bytes: counting their size would leave
+        // a byte counter that never reaches its own total.
+        if (decisions[index] !== "send") continue;
+        const name = rows[index]!.combo_cover_name;
+        const size = yield* image.size(name).pipe(
           // A missing file is the expected `local_missing` case, but a failed
           // stat is indistinguishable from it here — recorded so a disk problem
           // does not hide behind "file not found".
           Effect.tapErrorTag("IOError", (error) =>
             Effect.sync(() =>
-              log.info(
-                `sync: gagal membaca ukuran sampul ${row.combo_cover_name}: ${error.e.message}`,
-              ),
+              log.info(`sync: gagal membaca ukuran sampul ${name}: ${error.e.message}`),
             ),
           ),
           Effect.orElseSucceed(() => null),
@@ -242,10 +295,33 @@ export function uploadComboCoverBlobs(deps: ComboCoverDeps): Effect.Effect<Uploa
       let changed = 0;
       const tick = (name: string | null, outcome: BlobOutcome): void => {
         done += 1;
-        deps.onProgress?.({ done, total: rows.length, bytes, bytesTotal, name, outcome });
+        deps.onProgress?.({ done, total: planned, bytes, bytesTotal, name, outcome });
       };
 
-      for (const row of rows) {
+      for (let index = 0; index < rows.length; index += 1) {
+        const row = rows[index]!;
+        const decision = decisions[index]!;
+
+        if (decision === "adopt") {
+          // The server holds these bytes: bookkeeping only, no body, no tick.
+          statements.push(
+            markStored(row.combo_id, row.combo_updated_at, row.combo_cover_blob_sha256!, Date.now()),
+          );
+          adopted += 1;
+          changed += 1;
+          continue;
+        }
+
+        if (decision === "follow") {
+          statements.push(forgetFile(row.combo_id, row.combo_updated_at));
+          skipped += 1;
+          changed += 1;
+          log.info(
+            `sync: sampul combo ${row.combo_id} sudah ada versi lain di server — mengikuti server`,
+          );
+          continue;
+        }
+
         const outcome = yield* Effect.tryPromise({
           try: () =>
             deps.transport.comboCoverPut(deps.endpoint, {
@@ -311,23 +387,21 @@ export function uploadComboCoverBlobs(deps: ComboCoverDeps): Effect.Effect<Uploa
       if (changed === 0) break;
     }
 
-    return { uploaded, skipped, failed, bytes };
+    return { uploaded, adopted, skipped, failed, bytes };
   }).pipe(
     Effect.catchAllCause((cause) =>
       Effect.sync(() => {
         log.error(new Error(`sync: unggah sampul combo gagal: ${String(cause)}`));
-        return { uploaded: 0, skipped: 0, failed: 0, bytes: 0 };
+        return { uploaded: 0, adopted: 0, skipped: 0, failed: 0, bytes: 0 };
       }),
     ),
   );
 }
 
 /** Reads the whole cover manifest (two pages at most) into a `combo_id` lookup. */
-function readManifest(
-  deps: ComboCoverDeps,
-): Effect.Effect<Map<string, { version: number; sha256: string; byteSize: number }>, unknown> {
+function readManifest(deps: ComboCoverDeps): Effect.Effect<Map<string, ManifestEntry>, unknown> {
   return Effect.gen(function* () {
-    const byId = new Map<string, { version: number; sha256: string; byteSize: number }>();
+    const byId = new Map<string, ManifestEntry>();
     let after: string | null = null;
     for (let page = 0; page < MANIFEST_PAGES; page += 1) {
       const body = yield* Effect.tryPromise({
