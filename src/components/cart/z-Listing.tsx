@@ -861,7 +861,40 @@ export function Listing({
   }
 
   /**
+   * Whether the exact text names more than one product.
+   *
+   * Two products that answer to the same identifier make Enter a coin toss. The
+   * case this exists for is the lazy barcode: the producer prints one code for
+   * two different goods, so the second one carries it as an alternative name —
+   * and the first may still hold it as its own code, which is why the code is
+   * checked here as well. Taking the first result then puts the wrong goods in
+   * the cart half the time, and nothing on the screen says which one the operator
+   * meant.
+   *
+   * Two listings of the *same* product are not this case: they are one product in
+   * two units, and the first is the answer Enter has always given.
+   */
+  function namesSeveralProducts(hits: SearchHit[], query: string): boolean {
+    const text = norm(query);
+    if (text === "") return false;
+    const products = new Set<string>();
+    for (const hit of hits) {
+      if (hit.kind !== "listing") continue;
+      const { productId, code, altNames } = hit.listing;
+      const exact =
+        (code !== null && norm(code) === text) ||
+        altNames.some((altName) => norm(altName) === text);
+      if (!exact) continue;
+      products.add(productId);
+      if (products.size > 1) return true;
+    }
+    return false;
+  }
+
+  /**
    * Enter in the search field takes the exact code match, else the first result.
+   * The one text it refuses to take is an exact identifier that two products
+   * share — see `namesSeveralProducts`: that list stays up and the operator picks.
    *
    * Picking happens on the next render, not here: the results on screen belong to
    * the previous query until the search for this text lands, and picking from the
@@ -882,6 +915,14 @@ export function Listing({
     if (armed === null || answeredFor.current !== armed) return;
     if (results.type !== "success") return;
     setArmed(null);
+    // A text two products answer to is a choice, not a match: keep the list on
+    // screen, keep the text in the bar, and hand the cursor to the list so the
+    // pick can be made with the arrows (Escape returns to the bar).
+    if (namesSeveralProducts(results.data, armed)) {
+      if (resultsRef.current !== null) resultsRef.current.focus();
+      else wantListFocus.current = true;
+      return;
+    }
     const pick = bestResult(results.data, armed);
     if (pick?.kind === "listing") addListing(pick.listing);
     else if (pick?.kind === "combo") pickCombo(pick.combo);
