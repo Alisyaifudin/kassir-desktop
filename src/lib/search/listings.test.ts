@@ -7,10 +7,12 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import {
   buildListingIndex,
   getListingIndex,
+  LISTING_FIELD,
   resetListingIndex,
   searchListings,
   type SearchableListing,
 } from "./listings";
+import { TEXT } from "./quality";
 
 function listing(
   name: string,
@@ -89,6 +91,29 @@ describe("listing ladder", () => {
     const listings = [listing("Nasi Goreng", { id: "n" })];
     expect(rank(listings, "na")).toEqual(["n"]);
     expect(rank(listings, "as")).toEqual([]);
+  });
+
+  test("a query word is found inside a name word", () => {
+    // The reported case: `goute brow` on a product called "Goute Eyebrow 01".
+    // `brow` is the tail of `eyebrow`, so the phrase and token-prefix tiers both
+    // missed it and the listing did not appear at all.
+    const listings = [listing("01", { id: "goute", product: "Goute Eyebrow 01" })];
+    expect(rank(listings, "goute brow")).toEqual(["goute"]);
+    expect(rank(listings, "brow")).toEqual(["goute"]);
+  });
+
+  test("the inner tier cannot jump the field weights", () => {
+    // The whole point of capping the band at `TEXT.inner` (see `quality.ts`): an
+    // inner match on a listing name must not outrank a token-prefix match on a
+    // product name, which carries the *lower* field weight.
+    expect(TEXT.inner * LISTING_FIELD.listing).toBeLessThan(
+      TEXT.tokenPrefix * LISTING_FIELD.product,
+    );
+  });
+
+  test("the inner tier does not surface two-letter debris", () => {
+    const listings = [listing("Goute Eyebrow 01", { id: "g" })];
+    expect(rank(listings, "goute br")).toEqual([]);
   });
 });
 

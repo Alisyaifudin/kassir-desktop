@@ -24,7 +24,9 @@
  *    equals `ha` at index 0 ("Hanasui").
  *
  * Six tier constants × four field weights = at most 24 distinct scores in a whole
- * catalogue, so all three collapses are exact ties resolved by array order.
+ * catalogue, so all three collapses are exact ties resolved by array order. (The
+ * inner tier added later scores by coverage instead of a constant, so it is the
+ * one tier whose matches are not tied; nothing above depends on it.)
  *
  * ## Why tie-breaks and not a bonus
  *

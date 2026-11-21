@@ -28,7 +28,8 @@ describe("the ladder", () => {
     expect(TEXT.exact).toBeGreaterThan(TEXT.tokenSet);
     expect(TEXT.tokenSet).toBeGreaterThan(TEXT.prefix);
     expect(TEXT.prefix).toBeGreaterThan(TEXT.tokenPrefix);
-    expect(TEXT.tokenPrefix).toBeGreaterThan(TEXT.subsequence);
+    expect(TEXT.tokenPrefix).toBeGreaterThan(TEXT.inner);
+    expect(TEXT.inner).toBeGreaterThan(TEXT.subsequence);
     expect(TEXT.subsequence).toBeGreaterThan(TEXT.typo);
     expect(TEXT.typo).toBeGreaterThan(0);
   });
@@ -51,6 +52,29 @@ describe("gradeText", () => {
 
   test("each query word prefixing a distinct field word is the token-prefix tier", () => {
     expect(grade("Nasi Goreng", "nas gor")).toBe(TEXT.tokenPrefix);
+  });
+
+  test("a token may match a word from the inside", () => {
+    // The reported case: `brow` is the tail of `eyebrow`. Neither the phrase test
+    // nor the token-prefix test can see it, so before the inner tier this query
+    // returned nothing at all.
+    const quality = grade("Goute Eyebrow 01", "goute brow");
+    expect(quality).toBeGreaterThan(0);
+    expect(quality).toBeLessThan(TEXT.tokenPrefix);
+    expect(quality).toBeGreaterThan(TEXT.subsequence);
+    // A word that begins the token is the stronger signal, so one clean token
+    // cannot drag the score toward the floor.
+    expect(grade("Goute Eyebrow 01", "goute eyebrow")).toBe(TEXT.tokenSet);
+    expect(grade("Goute Eyebrow 01", "gout brow")).toBe(grade("Goute Eyebrow 01", "goute brow"));
+  });
+
+  test("the inner tier is not a home for every fragment", () => {
+    // A two-letter token never matches from the inside: `an` is in half the shelf.
+    expect(grade("Goute Eyebrow 01", "goute br")).toBe(0);
+    // Each token needs its own word: `brow` cannot stand in twice.
+    expect(grade("Goute Eyebrow 01", "brow brow")).toBe(0);
+    // And an inner token still has to be somewhere in the field.
+    expect(grade("Goute Eyebrow 01", "goute brow xyz")).toBe(0);
   });
 
   test("letters in order with gaps are the subsequence tier", () => {

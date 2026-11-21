@@ -108,10 +108,13 @@ export function toHit(id: string, best: number, query: Query): Hit | null {
 /**
  * One entry's winning field: its score plus the signals that break its ties.
  *
- * The shipped ladder has only six tier constants across four field weights, so at
+ * The shipped ladder has six tier *constants* across four field weights, so at
  * most 24 distinct scores exist in a whole catalogue and every same-tier match is
  * *exactly* tied — `Aqua 600ml` (320 sold) and `Aqua Galon` (35 sold) are
- * indistinguishable to `score` alone. The two signals here are what separate them.
+ * indistinguishable to `score` alone. (The seventh tier, `TEXT.inner`, scores by
+ * coverage rather than a constant, so its matches are not tied; the constants are
+ * what make the tie-breaks necessary.) The two signals here are what separate
+ * them.
  */
 export type Ranked = {
   id: string;

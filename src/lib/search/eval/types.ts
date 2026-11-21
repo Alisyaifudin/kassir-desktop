@@ -31,6 +31,7 @@ export type QueryTag =
   | "transposition"
   | "swap"
   | "abbrev"
+  | "inner"
   | "synonym"
   | "confusable";
 

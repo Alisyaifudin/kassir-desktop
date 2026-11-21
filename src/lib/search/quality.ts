@@ -6,6 +6,11 @@
  * Tiers are ordered by value, highest first. The ladder deliberately puts a
  * complete token-set (`goreng nasi`) above a single prefix fragment (`nas`),
  * and a typo last — matching the product-search ladder agreed with the user.
+ *
+ * Between `tokenPrefix` and `subsequence` sits the *inner* band
+ * (`INNER_FLOOR..TEXT.inner`, see below): a token matched from inside a field
+ * word (`brow` → `eyebrow`). It is the one tier scored by coverage instead of a
+ * constant, so two inner matches are not automatically tied.
  */
 
 export const TEXT = {
@@ -17,6 +22,13 @@ export const TEXT = {
   prefix: 0.8,
   /** Every query word prefixes a distinct word of the field, in any order. */
   tokenPrefix: 0.68,
+  /**
+   * The *ceiling* of the inner band: every query word matches a distinct word of
+   * the field, at least one of them from the inside (`goute brow` →
+   * "Goute Eyebrow 01"). Scores by coverage in `[INNER_FLOOR, inner]`, so this
+   * constant is the best case, not the value.
+   */
+  inner: 0.6,
   /** All characters appear in order, with gaps (`nsg`). */
   subsequence: 0.28,
   /** Every query word is within the edit budget of a field word. */
@@ -25,6 +37,24 @@ export const TEXT = {
 
 /** Which optional tiers the query is long enough to allow. */
 export type TextOptions = { tokenPrefix: boolean; weak: boolean };
+
+/**
+ * The floor of the inner band; `TEXT.inner` is its ceiling.
+ *
+ * The ceiling is deliberately below `TEXT.tokenPrefix` *after* the field weights
+ * (0.88–0.92: product, alias, listing name) are applied: `0.6 × 0.92 = 0.552`
+ * still loses to `0.68 × 0.88 = 0.598`, so an inner match on a *listing* name can
+ * never outrank a prefix match on the *product* name. Without the cap the old top
+ * of the band (`0.65`) landed within a rounding error of that boundary and the
+ * tier order became a coin flip.
+ */
+const INNER_FLOOR = 0.35;
+
+/**
+ * Below this a token means nothing from the inside: `an` occurs in half the
+ * catalogue, so a two-letter fragment may only match at a word boundary.
+ */
+const INNER_MIN_TOKEN = 3;
 
 /** Highest-quality text tier a normalised field earns for a normalised query. */
 export function gradeText(
@@ -42,6 +72,12 @@ export function gradeText(
     return TEXT.tokenPrefix;
   }
   if (options.weak) {
+    // Multi-word first: a token may sit *inside* a field word while the rest of
+    // the query still matches — `goute brow` against "Goute Eyebrow 01". Reaching
+    // `brow` only through `innerQuality` below is impossible, because that test
+    // needs the typed text to be contiguous in the field.
+    const tokens = everyTokenInnerQuality(fieldWords, queryWords);
+    if (tokens > 0) return tokens;
     const inner = innerQuality(field, query);
     if (inner > 0) return inner;
     // A subsequence only makes sense for one short token: `nsg` inside
@@ -85,20 +121,31 @@ export function gradeCode(code: string, query: string): number {
  * `startsWith` rather than `===` so a typed fragment counts at the word it begins:
  * `ha` is a position-0 hit on `Hanasui` and a position-2 hit on `2IN1 Volume
  * HairPin`.
+ *
+ * A token that matches no word at its start falls back to the first word it
+ * appears *inside*, so the inner tier's `brow` → `eyebrow` still has a position to
+ * report. The fallback is per token and only used when no word begins the token,
+ * so it can never pull a boundary hit below an interior one.
  */
 export function matchPosition(fieldWords: string[], queryWords: string[]): number {
   let earliest = Number.POSITIVE_INFINITY;
   for (const queryWord of queryWords) {
     if (queryWord === "") continue;
-    for (let index = 0; index < fieldWords.length; index++) {
-      const word = fieldWords[index];
-      if (word === queryWord || word.startsWith(queryWord)) {
-        if (index < earliest) earliest = index;
-        break;
-      }
-    }
+    const at = wordPosition(fieldWords, queryWord);
+    if (at < earliest) earliest = at;
   }
   return earliest;
+}
+
+/** The first word that begins `queryWord`, else the first one that contains it. */
+function wordPosition(fieldWords: string[], queryWord: string): number {
+  let inside = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < fieldWords.length; index++) {
+    const word = fieldWords[index];
+    if (word === queryWord || word.startsWith(queryWord)) return index;
+    if (inside === Number.POSITIVE_INFINITY && word.includes(queryWord)) inside = index;
+  }
+  return inside;
 }
 
 /** True when `query` occurs at index 0 or right after a space. */
@@ -130,6 +177,11 @@ function everyTokenPrefixesWord(fieldWords: string[], queryWords: string[]): boo
   return true;
 }
 
+/** Quality for an in-word match, given the fraction of the word it covers. */
+function innerScore(coverage: number): number {
+  return Math.min(TEXT.inner, INNER_FLOOR + 0.3 * coverage);
+}
+
 /** Quality for a match inside a word, proportional to how much it covers. */
 function innerQuality(field: string, query: string): number {
   const index = field.indexOf(query);
@@ -140,7 +192,46 @@ function innerQuality(field: string, query: string): number {
   while (end < field.length && field[end] !== " ") end++;
   const word = field.slice(start, end);
   if (word === query) return 0;
-  return Math.min(0.65, 0.35 + 0.3 * (query.length / word.length));
+  return innerScore(query.length / word.length);
+}
+
+/**
+ * Every query word matched by a *distinct* field word, from the inside
+ * (`brow` inside `eyebrow`) or at its start — the multi-word counterpart of
+ * `innerQuality`, which only sees a contiguous phrase.
+ *
+ * The worst token decides, the same rule `typoQualityFor` uses, so a word typed
+ * cleanly cannot carry one that merely grazes a long word. Coverage is the share
+ * of the field word the query spans, and a word that *starts* with the query
+ * counts as full coverage: a prefix hit is the stronger signal, never the weaker
+ * one. Assignment is greedy, mirroring `everyTokenPrefixesWord`.
+ */
+function everyTokenInnerQuality(fieldWords: string[], queryWords: string[]): number {
+  const used = new Set<number>();
+  let worst = 1;
+
+  for (const query of queryWords) {
+    if (query.length < INNER_MIN_TOKEN) return 0;
+    let at = -1;
+    let coverage = 0;
+    for (let index = 0; index < fieldWords.length; index++) {
+      if (used.has(index)) continue;
+      const word = fieldWords[index];
+      if (word.length < query.length) continue;
+      const found = word.indexOf(query);
+      if (found === -1) continue;
+      const span = found === 0 ? 1 : query.length / word.length;
+      if (span > coverage) {
+        coverage = span;
+        at = index;
+      }
+    }
+    if (at === -1) return 0;
+    used.add(at);
+    if (coverage < worst) worst = coverage;
+  }
+
+  return innerScore(worst);
 }
 
 /**

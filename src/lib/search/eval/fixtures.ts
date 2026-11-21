@@ -52,6 +52,13 @@ export const catalogue: CatalogueItem[] = [
   item("2in1-hairpin", "2IN1 Volume HairPin", "8940000000003", "2IN1", 200),
   item("hanasui-lipcream", "Hanasui Lip Cream", "8940000000004", "Hanasui", 60),
 
+  // ── The reported inner-word miss ──────────────────────────────────────────
+  // Typing `goute brow` returned *nothing*, though the product is called "Goute
+  // Eyebrow 01". `brow` is the tail of `eyebrow`, so the phrase tier (the typed
+  // text is not contiguous) and the token-prefix tier (a prefix test, not a
+  // containment one) both missed it. A recall failure, not an order one.
+  item("goute-eyebrow", "Goute Eyebrow 01", "8942000000001", "Goute", 24),
+
   // ── Mie instan ────────────────────────────────────────────────────────────
   // "indomie goreng" is an exact name, so the plain one must beat Jumbo. Jumbo
   // sits first in the array on purpose: it makes the `swap` case below a real
@@ -152,6 +159,12 @@ export const queries: QueryCase[] = [
     relevant: ["hanasui-lipcream", "2in1-hairpin"],
     best: ["hanasui-lipcream"],
     note: "reported: 'Hanasui' buried by `ha` matching inside 'hairpin'",
+  },
+  {
+    query: "goute brow",
+    tags: ["inner"],
+    relevant: ["goute-eyebrow"],
+    note: "reported: `brow` is the tail of `eyebrow`; nothing matched at all",
   },
 
   // ── exact ─────────────────────────────────────────────────────────────────

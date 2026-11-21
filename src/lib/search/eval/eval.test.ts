@@ -83,6 +83,15 @@ describe("the reported failures reproduce on the pre-fix ordering", () => {
   });
 });
 
+describe("the reported inner-word miss", () => {
+  test("`goute brow` reaches the product called \"Goute Eyebrow 01\"", () => {
+    // This one is a *recall* failure, so no ranker could have rescued it: the
+    // listing never matched. The fix is the inner tier in `quality.ts`, and this
+    // pins that the shipped path still finds it.
+    expect(top("goute brow", shipped)).toBe("goute-eyebrow");
+  });
+});
+
 describe("the wired ranker is the prototype that was measured", () => {
   test("searchListings matches the position+tightness candidate exactly", () => {
     const divergences: string[] = [];
