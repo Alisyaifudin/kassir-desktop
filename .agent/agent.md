@@ -373,6 +373,33 @@ Logs to both `console` and Tauri's log plugin.
 
 ---
 
+## 🔖 Commits & Version Bumps
+
+Whenever the user asks for a `git commit`, **bump the version first**, and let the
+bump ride in that same commit as the change. The patch number moves on every commit
+(`8.18.14` → `8.18.15`) and the version string must be **identical in all four
+references**:
+
+| reference | where |
+| --- | --- |
+| `package.json` | `"version"` |
+| `src/lib/constants.ts` | `export const version = "…"` (printed by Login and Setting) |
+| `src-tauri/tauri.conf.json` | `"version"` — what the installer and the updater report |
+| `src-tauri/Cargo.toml` | `[package] version` — the crate's own version |
+
+Two more files follow the bump and are easy to leave behind:
+
+- `src-tauri/Cargo.lock` — the `kassir` package entry carries its own copy; a stale
+  one breaks a `--locked` build.
+- `specification.xml` — `<version>` plus the `version` / `package.version` build
+  entries.
+
+What must not happen is the four references disagreeing: the About panel, the
+installer and the crate would then all name different versions. Grep the old number
+across those six files before committing — it should come back empty.
+
+---
+
 ## 🚀 Engineering Principles
 
 1. **Effect-ts First** — All async/failable logic uses `Effect`. Never raw `try/catch`.
