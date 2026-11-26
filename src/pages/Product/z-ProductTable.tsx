@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { Link } from "~/services/route/react";
 import { SquareArrowOutUpRight } from "lucide-react";
 import {
@@ -20,12 +21,21 @@ import {
   UnpublishedBadge,
 } from "./z-ProductBits";
 
-export function ProductTable({ items, start }: { items: Product[]; start: number }) {
+export function ProductTable({
+  items,
+  start,
+  scrollRef,
+}: {
+  items: Product[];
+  start: number;
+  /** The scroll box, so the page can put it back where it was left. */
+  scrollRef?: Ref<HTMLDivElement>;
+}) {
   return (
     // The scroll box, not the table, is what the padding lands on: the add
     // button floats 64–112 px above the foot of the page, so without this the
     // last row's open-link sat underneath it at the very bottom of the list.
-    <Table className="text-base" parentClass="pb-16">
+    <Table className="text-base" parentClass="pb-16" parentRef={scrollRef}>
       <TableHeader>
         <TableRow>
           <TableHead className="w-10">#</TableHead>
@@ -52,6 +62,10 @@ function ProductRow({ product, index }: { product: Product; index: number }) {
   const published = isPublished(product);
   return (
     <TableRow
+      // Which product this row is, for the list's remembered position: the table
+      // and the grid mark their items the same way, so a toggle between the two
+      // can carry the same product over.
+      data-product-id={product.id}
       className={cn(
         isLoss(product) && "bg-destructive/5",
         !published && "bg-muted/60 hover:bg-muted/60",

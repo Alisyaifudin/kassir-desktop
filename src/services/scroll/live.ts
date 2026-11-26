@@ -1,16 +1,14 @@
 import { Effect, Layer, Ref } from "effect";
+import equal from "fast-deep-equal";
 import { ScrollError, ScrollService, type ScrollAnchor, type ScrollContainer } from ".";
 import { LocalStorageService } from "../local-storage";
 import { log } from "~/lib/log";
 
-/**
- * Every list whose place survives a restart. A screen opts in by naming itself
- * here; the type makes the list exhaustive, so a container cannot be added to
- * the union and forgotten at hydration.
- */
-const CONTAINERS: readonly ScrollContainer[] = ["records"];
-
-const EMPTY: ScrollAnchor = { day: null, values: {} };
+/** What a list reads before it has ever been scrolled. */
+const EMPTY: ScrollAnchor = {
+  records: { day: null, values: {} },
+  products: { key: "", view: "", id: null, top: 0 },
+};
 
 /**
  * One localStorage key per container rather than one shared document: a write
@@ -22,15 +20,20 @@ function keyOf(container: ScrollContainer): string {
 }
 
 /**
- * A stored anchor, or nothing. localStorage outlives app versions, so anything
- * the entry may hold — a number, an older shape, a slot whose value is not a
- * finite number — is dropped here instead of being trusted into an index later.
+ * A stored anchor, or nothing. localStorage outlives app versions, so anything an
+ * entry may hold — a number, a shape from an older build, a slot whose value is
+ * not a finite number — is dropped here instead of being trusted into an index or
+ * a scroll offset later.
  */
-function parseAnchor(value: unknown): ScrollAnchor {
-  if (typeof value !== "object" || value === null) return EMPTY;
+function parseRecords(value: unknown): ScrollAnchor["records"] {
+  if (typeof value !== "object" || value === null) return EMPTY.records;
   const stored = value as { day?: unknown; values?: unknown };
   const values: Record<string, number> = {};
-  if (typeof stored.values === "object" && stored.values !== null && !Array.isArray(stored.values)) {
+  if (
+    typeof stored.values === "object" &&
+    stored.values !== null &&
+    !Array.isArray(stored.values)
+  ) {
     for (const [slot, raw] of Object.entries(stored.values)) {
       if (typeof raw === "number" && Number.isFinite(raw)) values[slot] = raw;
     }
@@ -40,27 +43,39 @@ function parseAnchor(value: unknown): ScrollAnchor {
   return { day, values };
 }
 
-/** Same day and the same value in every slot — the store already says this. */
-function sameAnchor(a: ScrollAnchor, b: ScrollAnchor): boolean {
-  if (a.day !== b.day) return false;
-  const slots = Object.keys(a.values);
-  if (slots.length !== Object.keys(b.values).length) return false;
-  return slots.every((slot) => a.values[slot] === b.values[slot]);
+function parseProducts(value: unknown): ScrollAnchor["products"] {
+  if (typeof value !== "object" || value === null) return EMPTY.products;
+  const stored = value as Partial<Record<keyof ScrollAnchor["products"], unknown>>;
+  return {
+    key: typeof stored.key === "string" ? stored.key : "",
+    view: typeof stored.view === "string" ? stored.view : "",
+    id: typeof stored.id === "string" && stored.id !== "" ? stored.id : null,
+    // A negative or NaN offset would put the box above the first row; the rest is
+    // clamped by the browser anyway.
+    top: typeof stored.top === "number" && Number.isFinite(stored.top) && stored.top > 0
+      ? stored.top
+      : 0,
+  };
 }
+
+/**
+ * Each container's parser, keyed by the container. The type makes the map
+ * exhaustive, so a container cannot be added to the union and forgotten here.
+ */
+const PARSERS: { [C in ScrollContainer]: (value: unknown) => ScrollAnchor[C] } = {
+  records: parseRecords,
+  products: parseProducts,
+};
 
 export const ScrollLive = Layer.effect(
   ScrollService,
   Effect.gen(function* () {
     const storage = yield* LocalStorageService;
 
-    // Hydrated at build time, like `config` and `zoom`: the position is read
-    // during the list's first render (it decides where the list starts), and
-    // there is no await to spend on localStorage at that point.
-    const initial = new Map<ScrollContainer, ScrollAnchor>();
-    for (const container of CONTAINERS) {
-      const anchor = yield* storage.get<unknown>(keyOf(container)).pipe(
-        Effect.map(parseAnchor),
-        Effect.catchTag("NotFound", () => Effect.succeed(EMPTY)),
+    function readAnchor<C extends ScrollContainer>(container: C): Effect.Effect<ScrollAnchor[C]> {
+      return storage.get<unknown>(keyOf(container)).pipe(
+        Effect.map(PARSERS[container]),
+        Effect.catchTag("NotFound", () => Effect.succeed(EMPTY[container])),
         // A position that cannot be read is not a failure the operator has to
         // answer for: the list opens at the top, as it did before this existed.
         // The failure is recorded because a silent revert to the top is
@@ -68,24 +83,39 @@ export const ScrollLive = Layer.effect(
         Effect.catchTag("LocalStorageError", (error) =>
           Effect.sync(() =>
             log.error(`scroll: gagal membaca posisi ${container}: ${error.message}`),
-          ).pipe(Effect.as(EMPTY)),
+          ).pipe(Effect.as(EMPTY[container])),
         ),
       );
-      initial.set(container, anchor);
     }
+
+    // Hydrated at build time, like `config` and `zoom`: the position is read
+    // during the list's first render (it decides where the list starts), and
+    // there is no await to spend on localStorage at that point.
+    const initial: ScrollAnchor = {
+      records: yield* readAnchor("records"),
+      products: yield* readAnchor("products"),
+    };
 
     const ref = yield* Ref.make(initial);
 
+    /** The one place a key and a value of the same container are paired. */
+    function withAnchor<C extends ScrollContainer>(
+      state: ScrollAnchor,
+      container: C,
+      anchor: ScrollAnchor[C],
+    ): ScrollAnchor {
+      return { ...state, [container]: anchor };
+    }
+
     return {
-      get: (container) =>
-        Ref.get(ref).pipe(Effect.map((all) => all.get(container) ?? EMPTY)),
+      get: (container) => Ref.get(ref).pipe(Effect.map((all) => all[container])),
       set: (container, anchor) =>
         Effect.gen(function* () {
           const all = yield* Ref.get(ref);
-          // Flicking the wheel inside one tall record leaves the anchor on the
-          // row it started on. Writing that again would only wear the store, and
-          // it happens on every scroll the list settles from.
-          if (sameAnchor(all.get(container) ?? EMPTY, anchor)) return;
+          // Flicking the wheel inside one tall card or row leaves the anchor on
+          // the item it started on. Writing that again would only wear the store,
+          // and it happens on every scroll the list settles from.
+          if (equal(all[container], anchor)) return;
           // Disk first, memory second. Nobody subscribes to this value — the
           // position on screen *is* the DOM — so a refused write is allowed to
           // fail; what it must not do is leave the memory ahead of the disk,
@@ -93,7 +123,7 @@ export const ScrollLive = Layer.effect(
           yield* storage
             .set(keyOf(container), anchor)
             .pipe(Effect.mapError((error) => new ScrollError({ message: error.message })));
-          yield* Ref.update(ref, (state) => new Map(state).set(container, anchor));
+          yield* Ref.update(ref, (state) => withAnchor(state, container, anchor));
         }),
     };
   }),

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { Effect } from "effect";
 import { log } from "~/lib/log";
 import { service } from "~/services";
-import type { ScrollContainer } from "~/services/scroll";
 import { nearestRow, type AnchorRow } from "./anchor";
 
 /** How long the list has to stand still before its place is written. */
@@ -63,7 +62,8 @@ export function useScrollAnchor({
   scrollRef,
   virtualizer,
 }: {
-  container: ScrollContainer;
+  /** The storage key; a second day-scoped list would need its own entry (and its own shape). */
+  container: "records";
   /** Which of the list's orders this position belongs to (`time:desc`, …). */
   slot: string;
   /** Local midnight of the day the list shows. */

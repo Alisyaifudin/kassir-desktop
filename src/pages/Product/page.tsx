@@ -10,7 +10,8 @@ import type { Category } from "~/services/category";
 import { pageData } from "./data";
 import { filterProducts } from "./use-filtered";
 import type { ListState, ListStatePatch } from "./use-list-state";
-import { useListState } from "./use-list-state";
+import { resultKey, useListState } from "./use-list-state";
+import { useScrollAnchor } from "./use-scroll-anchor";
 import { Empty } from "./z-Empty";
 import { ProductErrorBoundary, ProductErrorFallback } from "./z-Error";
 import { Loading } from "./z-Loading";
@@ -117,6 +118,14 @@ function Rows({
   const totalPage = Math.max(1, Math.ceil(filtered.length / state.size));
   const page = Math.min(state.page, totalPage);
   const start = (page - 1) * state.size;
+  // What this page holds, and where the list was on it. The anchor is keyed on the
+  // result set — filters, sort, page, size — and deliberately not on the view: a
+  // toggle from grid to table has to keep the same product on top.
+  const items = useMemo(
+    () => filtered.slice(start, start + state.size),
+    [filtered, start, state.size],
+  );
+  const scrollRef = useScrollAnchor({ listKey: resultKey(state, page), view: state.view });
 
   if (filtered.length === 0) {
     return (
@@ -130,8 +139,8 @@ function Rows({
   }
 
   return state.view === "table" ? (
-    <ProductTable items={filtered.slice(start, start + state.size)} start={start} />
+    <ProductTable items={items} start={start} scrollRef={scrollRef} />
   ) : (
-    <ProductGrid items={filtered.slice(start, start + state.size)} />
+    <ProductGrid items={items} scrollRef={scrollRef} />
   );
 }

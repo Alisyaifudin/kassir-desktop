@@ -61,6 +61,29 @@ function storedView(): ViewMode {
   );
 }
 
+/**
+ * What identifies the rows a stored scroll position belongs to: everything the URL
+ * says about *which* products are listed and how many of them, and nothing about how
+ * they are drawn.
+ *
+ * The view is deliberately absent — a toggle from grid to table has to keep the same
+ * product on top, so the two views have to read the same position.
+ */
+export function resultKey(state: ListState, page: number): string {
+  return [
+    state.q,
+    state.kinds.join(","),
+    state.categories.join(","),
+    state.stock,
+    state.margin,
+    state.publish,
+    state.sort,
+    state.dir,
+    page,
+    state.size,
+  ].join("|");
+}
+
 export function useListState() {
   const [params, setParams] = useSearchParams();
 

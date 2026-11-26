@@ -4,23 +4,26 @@ import { Effect } from "effect";
 import type { ScrollAnchor } from "~/services/scroll";
 import type { AnchorRow } from "./anchor";
 
+/** The records arm of the store: the day, and one sort value per order. */
+type RecordsAnchor = ScrollAnchor["records"];
+
 /**
- * The list's place is remembered as the sort value of the row under its top edge.
- * Two things can silently break that: putting the position back while the list is
- * already there (a half-scrolled row snapping flush on every re-render), and
+ * The list's place is remembered as the sort value of the first row that is on
+ * screen whole. Two things can silently break that: putting the position back when
+ * the list is already there (a row snapping flush on every re-render), and
  * losing the last scroll because the operator clicked away before the debounce.
  * Both are invisible in a browser and cheap to pin here.
  */
 const DAY = 1_767_225_600_000;
 
-let stored: ScrollAnchor = { day: null, values: {} };
-const writes: ScrollAnchor[] = [];
+let stored: RecordsAnchor = { day: null, values: {} };
+const writes: RecordsAnchor[] = [];
 
 mock.module("~/services", () => ({
   service: {
     scroll: {
       get: () => Effect.sync(() => stored),
-      set: (_container: string, anchor: ScrollAnchor) =>
+      set: (_container: string, anchor: RecordsAnchor) =>
         Effect.sync(() => {
           stored = anchor;
           writes.push(anchor);
@@ -51,7 +54,7 @@ function harness({
   top = 0,
 }: {
   values?: number[];
-  anchor?: ScrollAnchor;
+  anchor?: RecordsAnchor;
   day?: number;
   slot?: string;
   selected?: string | null;

@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { Link } from "~/services/route/react";
 import { ExternalLink, Package } from "lucide-react";
 import { Button } from "~/components/ui/button";
@@ -14,9 +15,16 @@ import {
   priceRange,
 } from "./z-ProductBits";
 
-export function ProductGrid({ items }: { items: Product[] }) {
+export function ProductGrid({
+  items,
+  scrollRef,
+}: {
+  items: Product[];
+  /** The scroll box, so the page can put it back where it was left. */
+  scrollRef?: Ref<HTMLDivElement>;
+}) {
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full overflow-y-auto" ref={scrollRef}>
       <div className="grid grid-cols-2 gap-3 pb-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {items.map((product) => (
           <ProductCard key={product.id} product={product} />
@@ -35,6 +43,10 @@ function ProductCard({ product }: { product: Product }) {
 
   return (
     <div
+      // Which product this card is, for the list's remembered position: the table
+      // marks its rows the same way, so a toggle between the two can carry the
+      // same product over.
+      data-product-id={product.id}
       className={cn(
         "flex flex-col overflow-hidden rounded-xl border bg-card",
         !published && "border-dashed bg-muted/40",

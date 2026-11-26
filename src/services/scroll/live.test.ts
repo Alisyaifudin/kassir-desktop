@@ -33,7 +33,10 @@ function run<A>(
   );
 }
 
-const anchored: ScrollAnchor = { day: DAY, values: { "time:desc": 1_000, "total:asc": 250 } };
+const anchored: ScrollAnchor["records"] = {
+  day: DAY,
+  values: { "time:desc": 1_000, "total:asc": 250 },
+};
 
 describe("ScrollService", () => {
   test("with nothing stored there is no position for any list", async () => {
@@ -54,7 +57,7 @@ describe("ScrollService", () => {
   test("an entry that no longer parses costs the position, not the list", async () => {
     // Every shape a previous build (or a hand-edited entry) can leave behind,
     // with what is still readable in it.
-    const junk: { stored: unknown; readable: ScrollAnchor }[] = [
+    const junk: { stored: unknown; readable: ScrollAnchor["records"] }[] = [
       { stored: "bukan json", readable: { day: null, values: {} } },
       { stored: 42, readable: { day: null, values: {} } },
       { stored: null, readable: { day: null, values: {} } },
@@ -129,5 +132,45 @@ describe("ScrollService", () => {
     // Not ahead of the disk: the next scroll retries instead of skipping.
     expect(result.anchor).toEqual(anchored);
     expect(entries.get("scroll-records")).toEqual(anchored);
+  });
+});
+
+/**
+ * The product list keeps a second shape in the same store: the product it starts at
+ * and the box's offset. Each container is written to its own key, so the two lists
+ * can never read each other's position.
+ */
+describe("ScrollService, the other shapes", () => {
+  const products: ScrollAnchor["products"] = {
+    key: "|cash|all|name|asc|2|20",
+    view: "table",
+    id: "p7",
+    top: 148,
+  };
+
+  test("a product position is persisted under its own key", async () => {
+    const { entries, layer } = setup({ "scroll-records": anchored });
+
+    await run(layer, (scroll) => scroll.set("products", products));
+
+    expect(entries.get("scroll-products")).toEqual(products);
+    // The records' position is untouched by a write to another container.
+    expect(entries.get("scroll-records")).toEqual(anchored);
+    expect(await run(layer, (scroll) => scroll.get("products"))).toEqual(products);
+  });
+
+  test("a product entry that no longer parses falls back to the top", async () => {
+    const junk: { stored: unknown; readable: ScrollAnchor["products"] }[] = [
+      { stored: "bukan json", readable: { key: "", view: "", id: null, top: 0 } },
+      { stored: { key: "k", view: "grid", id: 7, top: "148" }, readable: { key: "k", view: "grid", id: null, top: 0 } },
+      { stored: { key: "k", view: "grid", id: "", top: -20 }, readable: { key: "k", view: "grid", id: null, top: 0 } },
+      { stored: { key: "k", view: "grid", id: "p1", top: Number.POSITIVE_INFINITY }, readable: { key: "k", view: "grid", id: "p1", top: 0 } },
+    ];
+
+    for (const { stored, readable } of junk) {
+      const { layer } = setup({ "scroll-products": stored });
+
+      expect(await run(layer, (scroll) => scroll.get("products"))).toEqual(readable);
+    }
   });
 });

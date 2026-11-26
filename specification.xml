@@ -20,7 +20,7 @@
     SYNC-V2.md — see &lt;sync_system&gt; and &lt;sync_ui_design&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>8.18.16</version>
+  <version>8.18.17</version>
   <language>id</language>
 
   <ui_notes>
@@ -110,7 +110,7 @@
       <file name="package.json">
         <entry key="name">kassir</entry>
         <entry key="private">true</entry>
-        <entry key="version">8.18.16</entry>
+        <entry key="version">8.18.17</entry>
         <entry key="type">module</entry>
         <script name="dev" command="vite" />
         <script name="build" command="tsc &amp;&amp; vite build" />
@@ -126,7 +126,7 @@
       </file>
       <file name="Cargo.toml">
         <entry key="package.name">kassir</entry>
-        <entry key="package.version">8.18.16</entry>
+        <entry key="package.version">8.18.17</entry>
         <entry key="package.edition">2021</entry>
         <entry key="lib.name">kassir_lib</entry>
         <entry key="lib.crate-type">staticlib, cdylib, rlib</entry>
@@ -840,6 +840,7 @@
       <owner service="record">records, record_listings, record_methods, record_extras, record_images, discounts</owner>
       <owner service="transaction">tx_records, tx_listings, tx_discounts, tx_extras, tx_methods, tx_images</owner>
       <owner service="config">localStorage key "product-view"</owner>
+      <owner service="scroll">localStorage keys "scroll-records", "scroll-products"</owner>
       <owner service="zoom">localStorage key "zoom"</owner>
       <owner service="auth">localStorage key "user"</owner>
       <owner service="info">store keys: name, owner, address, header, footer, show-cashier</owner>
@@ -900,7 +901,8 @@
       preferably, through page-data. Typed errors are caught by createErrorBoundary or rendered per key by
       pageData.Gate. src/services/index.ts composes the layers and exports the app-level `service` object.
       Public services: analytics, auth, cashier, category, combo, config, customer, extra, info, listing, log, method,
-      money, printer, product, record, social, supplier, sync, transaction, zoom. Hidden backends: db, store, local-storage.
+      money, printer, product, record, scroll, social, supplier, sync, transaction, zoom. Hidden backends: db, store,
+      local-storage.
       Sync additionally injects its transport (SyncTransportService) so the loops can be tested against an
       in-memory server.
     </description>
@@ -982,6 +984,28 @@
         document root: global.css multiplies every lucide stroke by it, so a 200% interface grows its glyphs without
         turning hairline outlines into marker pens. Per-icon weights (the Record header's 2.5) are declared as
         `--icon-stroke`, never as a `strokeWidth` prop — the prop is an SVG attribute and the CSS rule outranks it.
+      </note>
+    </service>
+
+    <service name="scroll" module="src/services/scroll/">
+      <description>
+        Where each list was left, so coming back to a screen lands on the same row or product. One localStorage key per
+        container ("scroll-records", "scroll-products"), hydrated when the layer is built — the position decides the
+        list's first frame, and there is no await to spend on a read at that point. No `changes` stream: nobody
+        subscribes, the DOM is the live value.
+      </description>
+      <error name="ScrollError" tag="ScrollError" />
+      <interface>
+        <method name="get(container)">The anchor of one list, from memory. `records` → { day, values }: one sort value per order the list can be shown in (time:desc, total:asc, …), stamped with the local day it was read on, so a position is never applied to another day's records. `products` → { key, view, id, top }: the result set it belongs to (filters, sort, page, size — not the view), the view, the product at the top-left, and the box's own offset.</method>
+        <method name="set(container, anchor)">Disk first, memory second. An anchor equal to the stored one is not written at all — a wheel flick inside one tall row settles on the row it started on. A refused write reports ScrollError and leaves memory behind the disk, so the next scroll retries instead of skipping.</method>
+      </interface>
+      <note>
+        Each container validates its own stored shape in live.ts: an entry that no longer parses costs that one list its
+        position, never its screen. The writers are the lists themselves — use-scroll-anchor in src/pages/Record/ (a
+        virtualized, day-scoped table: the first row on screen whole, read back through nearestRow so a filter that took
+        that row away lands on its neighbour) and in src/pages/Product/ (a paginated list: the offset plus the product at
+        the top-left, so grid ⇄ table can share the product while each keeps its own pixel). Writes are synchronous
+        (Effect.runSync) because the restore reads the store on the very next line.
       </note>
     </service>
 
@@ -1423,7 +1447,9 @@
         relevance sort while searching, table or card view, and pagination — all in the URL (useListState) so a link
         reopens the same view; the view alone is also mirrored to the config service's `product-view` preference, so
         a bare `/products` reopens on the last layout. Admins get the floating add button. Rows gate on the key; the
-        toolbar and footer are static.
+        toolbar and footer are static. The list also remembers where it was scrolled to — the box's offset and the
+        product at its top-left, per result set (the scroll service) — so Back returns to the same place and a grid ⇄
+        table toggle opens on the same product rather than on the first page.
       </description>
       <subpages>
         <subpage path="/products/new" guard="in-page admin">The product form: info, one or more listings (code, price, unit, kind), alternative names, properties, images, initial stock lots.</subpage>
@@ -1436,7 +1462,10 @@
         The day's history over the record service, read one local day at a time (useTime) and narrowed by a `query`
         matched in SQL. Two panes: the day's records on the left, the selected record on the right. Refetches keep the
         previous day on screen and fade it instead of blanking. Modes: Masuk (sale: money in, stock consumed) and
-        Keluar (purchase: money out, stock received); the sort column/direction is in the URL (useOrder).
+        Keluar (purchase: money out, stock received); the sort column/direction is in the URL (useOrder). The list
+        remembers where it was scrolled to — the sort value of its first fully visible row, per order (the scroll
+        service) — so Back returns to the same record, and a method filter re-positions the list around that row
+        instead of resetting it to the top.
       </description>
       <subpages>
         <subpage path="/records/search">Comprehensive search across listing lines by name, mode and date range, with a capped page and the total match count.</subpage>
