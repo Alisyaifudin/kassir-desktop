@@ -27,7 +27,9 @@ import { capitalize, cn } from "~/lib/utils";
 import { formatTime } from "~/lib/date";
 import type { Record as RecordModel } from "~/services/record";
 import { useSelected } from "~/hooks/use-selected";
+import { useTime } from "~/hooks/use-time";
 import { useOrder } from "../use-order";
+import { useScrollAnchor } from "../use-scroll-anchor";
 import {
   EMPTY_SELECTION,
   recordPaymentLines,
@@ -62,6 +64,7 @@ export function List({
 }) {
   const [selected, setSelected] = useSelected();
   const [{ order, sort }, setOrder] = useOrder();
+  const [day] = useTime();
 
   // Every record's `Total` column, built once per list and filter: the cell
   // prints the first line, the extra rows stack the rest, and the virtualizer
@@ -179,6 +182,10 @@ export function List({
     getItemKey: (index) => rows[index]?.id ?? index,
     overscan: OVERSCAN,
     scrollMargin: headHeight,
+    // The header is sticky, so the top `headHeight` pixels of the viewport are
+    // covered by it: "scroll this row into view" has to mean *below* the header,
+    // or the row it lands on is the one hidden behind it.
+    scrollPaddingStart: headHeight,
   });
 
   const items = virtualizer.getVirtualItems();
@@ -232,13 +239,38 @@ export function List({
     setFocusTarget(null);
   }, [focusTarget, visible]);
 
-  // Opening a record from elsewhere — a refresh with `?selected=`, the detail
-  // pane's own links — must not leave it below the fold.
-  useEffect(() => {
-    if (selected === null) return;
-    const index = rows.findIndex((row) => row.original.id === selected);
-    if (index !== -1) virtualizer.scrollToIndex(index, { align: "auto" });
-  }, [selected, rows, virtualizer]);
+  // What each row is ordered by, in display order — the value a remembered
+  // position is written as, and the value it is read back through.
+  const anchorRows = useMemo(
+    () =>
+      sorted.map((record) => ({
+        id: record.id,
+        value: order === "time" ? record.date : record.grandTotal,
+      })),
+    [sorted, order],
+  );
+
+  // The list goes back to where it was left — the same record on top — whenever
+  // the rows change: another day, another order, another filter, a refetch. See
+  // `use-scroll-anchor` for why the position is a value and not an offset.
+  //
+  // It also owns opening a record from elsewhere (a refresh with `?selected=`, the
+  // detail pane's own links): that record is revealed when there is no
+  // remembered place to go back to, and does not drag the list away from one
+  // there is.
+  useScrollAnchor({
+    container: "records",
+    // One position per order *and direction*: flipping Waktu to `asc` asks for the
+    // other end of the day, so it starts at the top instead of jumping to the
+    // record that happened to be on top of the descending list.
+    slot: `${order}:${sort}`,
+    day: day.start,
+    rows: anchorRows,
+    selected,
+    inset: headHeight,
+    scrollRef,
+    virtualizer,
+  });
 
   const moveFocus = useCallback(
     (index: number) => {

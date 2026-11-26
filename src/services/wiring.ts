@@ -35,6 +35,8 @@ import { RecordService } from "./record";
 import { RecordLive } from "./record/live";
 import { ReportService } from "./report";
 import { ReportLive } from "./report/live";
+import { ScrollService } from "./scroll";
+import { ScrollLive } from "./scroll/live";
 import { SocialService } from "./social";
 import { SocialLive } from "./social/live";
 import { SyncService } from "./sync";
@@ -80,6 +82,9 @@ export function buildAppLive(hidden: HiddenLive) {
   // The POS catalogue is derived from `product`, so it has no state of its own.
   const listingLive = ListingLive.pipe(Layer.provide(hidden), Layer.provide(productLive));
   const printerLive = PrinterLive.pipe(Layer.provide(hidden));
+  // Where each list was scrolled to. A per-machine preference like `config`, so
+  // it takes nothing but localStorage.
+  const scrollLive = ScrollLive.pipe(Layer.provide(hidden));
   const socialLive = SocialLive.pipe(Layer.provide(hidden));
   const supplierLive = SupplierLive.pipe(Layer.provide(hidden));
   const themeLive = ThemeLive.pipe(Layer.provide(hidden));
@@ -150,6 +155,7 @@ export function buildAppLive(hidden: HiddenLive) {
     productLive,
     recordLive,
     reportLive,
+    scrollLive,
     socialLive,
     supplierLive,
     themeLive,
@@ -190,6 +196,7 @@ export function makeService(live: typeof appLive) {
         product: yield* ProductService,
         record: yield* RecordService,
         report: yield* ReportService,
+        scroll: yield* ScrollService,
         social: yield* SocialService,
         store: yield* StoreService,
         supplier: yield* SupplierService,
