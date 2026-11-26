@@ -75,6 +75,9 @@ export function Draft({
       <CartPanel draftId={draft?.id}>
         <StageBody
           stage={stage}
+          // Which cart the rows belong to: the goods box keeps one scroll position
+          // per tab.
+          cartId={draft?.id ?? null}
           rounding={draft?.rounding ?? 0}
           fix={draft?.fix ?? 0}
           focusSearch={focusSearch}
@@ -99,6 +102,7 @@ export function Draft({
 
 function StageBody({
   stage,
+  cartId,
   rounding,
   fix,
   focusSearch,
@@ -117,6 +121,8 @@ function StageBody({
   onToggle,
 }: {
   stage: Stage;
+  /** The open cart, so its rows come back to the place they were left at. */
+  cartId: string | null;
   rounding: number;
   fix: number;
   focusSearch: number;
@@ -140,6 +146,7 @@ function StageBody({
       <Listing
         mode="sale"
         lines={lines}
+        cartId={cartId}
         loading={loading}
         issues={issues}
         fix={fix}

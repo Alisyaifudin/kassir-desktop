@@ -28,6 +28,14 @@ export type ScrollAnchor = {
     /** The box's scroll offset, reused only in the view it was read in. */
     top: number;
   };
+  /**
+   * Cart: where the goods list of each open cart (tab) was scrolled to. One entry
+   * per cart, because the strip swaps the rows under a single scroll box.
+   */
+  cart: {
+    /** Draft id → the box's scroll offset. */
+    positions: Record<string, number>;
+  };
 };
 
 export type ScrollContainer = keyof ScrollAnchor;

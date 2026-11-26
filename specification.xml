@@ -20,7 +20,7 @@
     SYNC-V2.md — see &lt;sync_system&gt; and &lt;sync_ui_design&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>8.18.17</version>
+  <version>8.18.18</version>
   <language>id</language>
 
   <ui_notes>
@@ -110,7 +110,7 @@
       <file name="package.json">
         <entry key="name">kassir</entry>
         <entry key="private">true</entry>
-        <entry key="version">8.18.17</entry>
+        <entry key="version">8.18.18</entry>
         <entry key="type">module</entry>
         <script name="dev" command="vite" />
         <script name="build" command="tsc &amp;&amp; vite build" />
@@ -126,7 +126,7 @@
       </file>
       <file name="Cargo.toml">
         <entry key="package.name">kassir</entry>
-        <entry key="package.version">8.18.17</entry>
+        <entry key="package.version">8.18.18</entry>
         <entry key="package.edition">2021</entry>
         <entry key="lib.name">kassir_lib</entry>
         <entry key="lib.crate-type">staticlib, cdylib, rlib</entry>
@@ -840,7 +840,7 @@
       <owner service="record">records, record_listings, record_methods, record_extras, record_images, discounts</owner>
       <owner service="transaction">tx_records, tx_listings, tx_discounts, tx_extras, tx_methods, tx_images</owner>
       <owner service="config">localStorage key "product-view"</owner>
-      <owner service="scroll">localStorage keys "scroll-records", "scroll-products"</owner>
+      <owner service="scroll">localStorage keys "scroll-records", "scroll-products", "scroll-cart"</owner>
       <owner service="zoom">localStorage key "zoom"</owner>
       <owner service="auth">localStorage key "user"</owner>
       <owner service="info">store keys: name, owner, address, header, footer, show-cashier</owner>
@@ -990,13 +990,13 @@
     <service name="scroll" module="src/services/scroll/">
       <description>
         Where each list was left, so coming back to a screen lands on the same row or product. One localStorage key per
-        container ("scroll-records", "scroll-products"), hydrated when the layer is built — the position decides the
-        list's first frame, and there is no await to spend on a read at that point. No `changes` stream: nobody
-        subscribes, the DOM is the live value.
+        container ("scroll-records", "scroll-products", "scroll-cart"), hydrated when the layer is built — the position
+        decides the list's first frame, and there is no await to spend on a read at that point. No `changes` stream:
+        nobody subscribes, the DOM is the live value.
       </description>
       <error name="ScrollError" tag="ScrollError" />
       <interface>
-        <method name="get(container)">The anchor of one list, from memory. `records` → { day, values }: one sort value per order the list can be shown in (time:desc, total:asc, …), stamped with the local day it was read on, so a position is never applied to another day's records. `products` → { key, view, id, top }: the result set it belongs to (filters, sort, page, size — not the view), the view, the product at the top-left, and the box's own offset.</method>
+        <method name="get(container)">The anchor of one list, from memory. `records` → { day, values }: one sort value per order the list can be shown in (time:desc, total:asc, …), stamped with the local day it was read on, so a position is never applied to another day's records. `products` → { key, view, id, top }: the result set it belongs to (filters, sort, page, size — not the view), the view, the product at the top-left, and the box's own offset. `cart` → { positions }: draft id → the goods box's offset, one per open cart (tab), capped at the 50 most recently written — a closed draft is deleted for good, so its position is worthless</method>
         <method name="set(container, anchor)">Disk first, memory second. An anchor equal to the stored one is not written at all — a wheel flick inside one tall row settles on the row it started on. A refused write reports ScrollError and leaves memory behind the disk, so the next scroll retries instead of skipping.</method>
       </interface>
       <note>
@@ -1004,8 +1004,9 @@
         position, never its screen. The writers are the lists themselves — use-scroll-anchor in src/pages/Record/ (a
         virtualized, day-scoped table: the first row on screen whole, read back through nearestRow so a filter that took
         that row away lands on its neighbour) and in src/pages/Product/ (a paginated list: the offset plus the product at
-        the top-left, so grid ⇄ table can share the product while each keeps its own pixel). Writes are synchronous
-        (Effect.runSync) because the restore reads the store on the very next line.
+        the top-left, so grid ⇄ table can share the product while each keeps its own pixel), and use-listing-scroll in
+        src/components/cart/ (the cart screen's goods box: one offset per tab, since the strip swaps rows under a single
+        box). Writes are synchronous (Effect.runSync) because the restore reads the store on the very next line.
       </note>
     </service>
 
@@ -1415,8 +1416,9 @@
         `?stage=`); F1/F2/F12, Ctrl+←/→ and Ctrl+0..3 are the operator's path. Listing search also returns active
         combos; choosing one adds ordinary listing rows and transaction-wide Extra snapshots in one draft update.
         Nothing waits as a block: drafts, methods, customers and extras are registered on one page-data provider and
-        start together. Bayar is the shared useSubmitCart flow (mode incoming): submit → transaction.add.draft, then
-        the completion dialog with print and undo. See &lt;cart&gt;.
+        start together. The goods box keeps one scroll position per cart, so switching tabs returns to where that
+        sale was left (use-listing-scroll, the scroll service). Bayar is the shared useSubmitCart flow (mode
+        incoming): submit → transaction.add.draft, then the completion dialog with print and undo. See &lt;cart&gt;.
       </description>
     </page>
 

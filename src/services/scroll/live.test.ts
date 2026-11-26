@@ -174,3 +174,45 @@ describe("ScrollService, the other shapes", () => {
     }
   });
 });
+
+/**
+ * The cart screen keeps a third shape: one offset per open cart (tab). The tabs are
+ * drafts, and a draft is deleted for good when it is closed, so the store is capped —
+ * a position for a cart that no longer exists is worth nothing.
+ */
+describe("ScrollService, cart positions", () => {
+  test("one offset per cart, under its own key", async () => {
+    const { entries, layer } = setup({ "scroll-products": { key: "k", view: "grid", id: "p1", top: 9 } });
+
+    await run(layer, (scroll) =>
+      scroll.set("cart", { positions: { "draft-a": 240, "draft-b": 80 } }),
+    );
+
+    expect(entries.get("scroll-cart")).toEqual({ positions: { "draft-a": 240, "draft-b": 80 } });
+    // The other lists are untouched by a cart's write.
+    expect(entries.get("scroll-products")).toEqual({ key: "k", view: "grid", id: "p1", top: 9 });
+  });
+
+  test("an offset that is not a positive number is dropped", async () => {
+    const { layer } = setup({
+      "scroll-cart": { positions: { a: 240, b: "80", c: -5, d: 0, e: Number.NaN } },
+    });
+
+    expect(await run(layer, (scroll) => scroll.get("cart"))).toEqual({
+      positions: { a: 240 },
+    });
+  });
+
+  test("the store keeps a bounded number of carts, newest last", async () => {
+    const positions: Record<string, number> = {};
+    for (let index = 0; index < 60; index += 1) positions[`draft-${index}`] = index + 1;
+    const { layer } = setup({ "scroll-cart": { positions } });
+
+    const kept = await run(layer, (scroll) => scroll.get("cart"));
+
+    expect(Object.keys(kept.positions)).toHaveLength(50);
+    // The most recently written carts are the ones that survive.
+    expect(kept.positions["draft-59"]).toBe(60);
+    expect(kept.positions["draft-9"]).toBeUndefined();
+  });
+});

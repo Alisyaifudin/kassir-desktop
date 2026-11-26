@@ -47,6 +47,7 @@ import { getComboIndex, searchCombos } from "~/lib/search/combos";
 import { getListingIndex, searchListings } from "~/lib/search/listings";
 import { norm } from "~/lib/search/normalize";
 import { ListingCard } from "~/components/cart/z-ListingCard";
+import { useListingScroll } from "~/components/cart/use-listing-scroll";
 import type { LineIssue } from "~/components/cart/code-issues";
 import { DiscountDialog } from "~/components/cart/z-Discount";
 import { ProductDetailDialog } from "~/components/cart/z-ProductDetail";
@@ -161,6 +162,7 @@ function caretAtEnd(input: HTMLInputElement | null): boolean {
 export function Listing({
   mode,
   lines,
+  cartId = null,
   extraTotal = null,
   issues,
   onChange,
@@ -177,6 +179,11 @@ export function Listing({
   /** A sale reads `Harga Jual` and has a stage toggle; a purchase reads `Harga Beli`. */
   mode: "sale" | "purchase";
   lines: Line[];
+  /**
+   * The cart these rows belong to. The box keeps one place per cart, so switching
+   * tabs does not carry one sale's scrollbar into the next.
+   */
+  cartId?: string | null;
   /** The record's decimal places, so a decimal price is drawn as it was typed. */
   fix?: number;
   /** The draft is still being read: hold three row places under the header. */
@@ -237,6 +244,9 @@ export function Listing({
   // and down arrows move that card in the list instead of moving the cursor.
   const [locked, setLocked] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Where this cart's rows were scrolled to. The box outlives a tab switch, so it is
+  // told which cart it is showing — see `use-listing-scroll`.
+  const scrollRef = useListingScroll(cartId);
   const searchRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const hadDialog = useRef(false);
@@ -1392,7 +1402,7 @@ export function Listing({
       <Show
         when={shown}
         fallback={
-          <div className="min-h-0 flex-1 overflow-y-auto scroll-gutter">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto scroll-gutter">
             {/* // Held back for the anti-flash window, but keeping its places: the
               // rows are the body of a `flex-1` panel, so the frame does not move
               // either way, and the three rows are already the height of the lines

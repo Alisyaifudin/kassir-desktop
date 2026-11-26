@@ -156,6 +156,9 @@ function StageBody({
       <Listing
         mode="purchase"
         lines={lines}
+        // Which cart the rows belong to: the goods box keeps one scroll position
+        // per tab.
+        cartId={draft?.id ?? null}
         loading={loading}
         issues={issues}
         fix={draft?.fix ?? 0}
