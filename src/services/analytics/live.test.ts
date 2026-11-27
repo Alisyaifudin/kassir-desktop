@@ -131,9 +131,9 @@ describe("AnalyticsService", () => {
 
   test("margin believes a stored cost only when it is one, and estimates the rest", async () => {
     const { analyticsLayer, db } = setup();
-    // l4 is the shape the v1 migration left behind: its "cost" is exactly the
-    // price it sold for, which is not a cost at all. Reading it as one is what
-    // made a normal week's chart read zero.
+    // l4 sells at exactly its cost. That is a zero margin — a figure — and it used
+    // to be read as "no cost at all" (a dash on the products table), which is what
+    // hid a whole product that the shop simply sells at cost.
     db.exec(`
       INSERT INTO record_listings (
         record_listing_id, record_listing_group_id, record_id, product_event_id,
@@ -149,12 +149,12 @@ describe("AnalyticsService", () => {
     const sum = (pick: (row: (typeof stats)[number]) => number) =>
       stats.reduce((total, row) => total + pick(row), 0);
 
-    // l1: 100k − 30k×2 = 40k. l2, l3 and l4 have no believable cost: 10% of 20k
-    // each, under the 5k cap.
+    // l1: 100k − 30k×2 = 40k. l4 adds nothing (sold at cost) but *is* costed. l2 and
+    // l3 have no believable cost: 10% of 20k each, under the 5k cap.
     expect(sum((row) => row.margin)).toBe(40000);
-    expect(sum((row) => row.costed)).toBe(1);
-    expect(sum((row) => row.estimatedMargin)).toBe(6000);
-    expect(sum((row) => row.estimated)).toBe(3);
+    expect(sum((row) => row.costed)).toBe(2);
+    expect(sum((row) => row.estimatedMargin)).toBe(4000);
+    expect(sum((row) => row.estimated)).toBe(2);
   });
 
   test("the estimate is capped per line, not per day", async () => {
@@ -241,6 +241,28 @@ describe("AnalyticsService", () => {
     // Counted, never subtracted: the line is revenue, and its margin is 0 with
     // `costed` 0 so the page can print a dash instead of a phantom loss.
     expect(sugar).toMatchObject({ revenue: 120000, margin: 0, costed: 0, lines: 2 });
+  });
+
+  test("a line sold at exactly its cost is a zero margin, not a missing one", async () => {
+    const { analyticsLayer, db } = setup();
+    // `Air Softlens A+ 100ml`, in the shop's own catalogue: listing price 20.000,
+    // lot cost 20.000. Every sale of it carried `capital = price`, and the strict
+    // "below the price" rule left the whole product with no `costed` line at all —
+    // so Laba printed a dash for a product whose margin is exactly zero.
+    db.exec(`
+      INSERT INTO record_listings (
+        record_listing_id, record_listing_group_id, record_id, product_event_id,
+        product_id, record_listing_name, record_listing_kind, record_listing_unit,
+        record_listing_price, record_listing_qty, record_listing_capital,
+        record_listing_total
+      ) VALUES ('l7', 'g7', 'r1', NULL, 'p9', 'Air Softlens', 'retail', 1, 20000, 1, 20000, 20000);
+    `);
+
+    const stats = await run(analyticsLayer, (a) => a.get.productGroups(FROM, TO, "incoming"));
+    const lens = stats.find((row) => row.productId === "p9");
+
+    // Zero is an answer; a dash is "we cannot tell".
+    expect(lens).toMatchObject({ margin: 0, costed: 1, lines: 1 });
   });
 
   test("product instances carry the record and its effective time", async () => {

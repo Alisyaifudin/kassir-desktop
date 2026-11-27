@@ -12,7 +12,6 @@ import {
   useReactTable,
   type ColumnDef,
   type ExpandedState,
-  type SortingState,
 } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, Pencil } from "lucide-react";
 import { Loader, useQuery } from "~/components/Loader";
@@ -42,6 +41,7 @@ import type { ProductGroup, ProductInstance } from "~/services/analytics";
 import type { RecordMode } from "~/services/record";
 import { useRange } from "../use-range";
 import { singleOpen, useOpenLines, useOpenProduct } from "./use-open";
+import { useSort } from "./use-sort";
 import { money } from "../z-Chart";
 import { AnalyticsErrorBoundary, AnalyticsErrorFallback } from "../z-Error";
 import { ChartSkeleton, SummarySkeleton } from "../z-Loading";
@@ -179,10 +179,11 @@ function Body({
         <>
           <Totals groups={groups} />
           <p className="text-sm text-muted-foreground">
-            Laba hanya dijumlah dari baris yang modalnya tercatat dan lebih rendah dari harga
-            jualnya. Baris dengan modal nol, atau modal yang tidak lebih rendah dari harga jualnya —
-            tanda modal yang salah catat — tidak ikut dijumlah dan labanya ditandai —, supaya
-            angkanya tidak terbaca sebagai kerugian.
+            Laba hanya dijumlah dari baris yang modalnya tercatat dan tidak lebih tinggi dari harga
+            jualnya. Baris yang dijual seharga modalnya ikut dijumlah dengan laba nol. Baris dengan
+            modal nol, atau modal yang lebih tinggi dari harga jualnya — tanda modal yang salah
+            catat — tidak ikut dijumlah dan labanya ditandai —, supaya angkanya tidak terbaca
+            sebagai kerugian.
           </p>
           <ProductsTable groups={groups} from={from} to={to} mode={mode} />
         </>
@@ -210,7 +211,9 @@ const ProductsTable = memo(function ProductsTable({
   to: number;
   mode: RecordMode;
 }) {
-  const [sorting, setSorting] = useState<SortingState>([{ id: "revenue", desc: true }]);
+  // Ordered by the URL and not by state: a row opens a product, and stepping back has
+  // to return to the same ordering. See `useSort`.
+  const [sorting, setSorting] = useSort();
   // The accordion is the URL's, one product at a time: the rows behind it are read for
   // that product, and opening its page from the row's pencil and stepping back has to
   // find them still open. See `useOpenProduct`.
@@ -286,6 +289,9 @@ const ProductsTable = memo(function ProductsTable({
     getRowId: (group) => group.key,
     state: { sorting, expanded, globalFilter: settledFilter },
     onSortingChange: setSorting,
+    // A URL names one order; tanstack's third click ("no sort") would leave the
+    // table with none, and there is no param for that.
+    enableSortingRemoval: false,
     // One at a time — see `singleOpen` for why the changed key decides.
     onExpandedChange: (updater) => {
       const next = typeof updater === "function" ? updater(expanded) : updater;
@@ -442,7 +448,7 @@ const ProductsTable = memo(function ProductsTable({
  * cost just cannot be believed, so it is left out of the margin instead.
  */
 function believable(line: ProductInstance): boolean {
-  return line.capital > 0 && line.capital < line.price;
+  return line.capital > 0 && line.capital <= line.price;
 }
 
 /** Column alignment, keyed by column id — money and counts sit right. */
@@ -642,7 +648,7 @@ function InstanceList({
                 ) : (
                   <span
                     className="text-muted-foreground"
-                    title="Modal baris ini tidak tercatat, atau tidak lebih rendah dari harga jualnya — tidak bisa dipercaya sebagai modal"
+                    title="Modal baris ini tidak tercatat, atau lebih tinggi dari harga jualnya — tidak bisa dipercaya sebagai modal"
                   >
                     —
                   </span>

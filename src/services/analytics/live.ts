@@ -65,21 +65,30 @@ type MarginRow = {
 };
 
 /**
- * A line whose stored cost can be believed: a cost above zero, below what the
- * line sold for. `capital >= price` is the fingerprint of the v1 migration that
- * copied the selling price into the cost column (migration-54 repairs what it
- * can from the purchase side and the page estimates the rest) — reading it as a
- * cost is what made every bar read zero or negative.
+ * A line whose stored cost can be believed: a cost above zero that does not exceed
+ * what the line sold for.
  *
- * Written as a function of the two column references so every caller can name
- * them in its own scope: the margin query aliases them inside a CTE, the product
- * groups read them off `record_listings l`. The two must agree — one page saying
- * a line's cost is believable while another says it is not is the bug that made
- * a product read `-4.454.000` on the products table and nothing at all on the
- * profit page.
+ * **Equal counts.** A line sold at exactly its cost is a zero margin, which is a
+ * figure — `Rp 0` — not an unknown one. The rule used to exclude `capital = price`
+ * as the fingerprint of the v1 migration that copied the selling price into the cost
+ * column, and that read as a dash for a shop that simply sells an item at cost: 581
+ * lines in one 90-day period, an entire product (`Air Softlens A+ 100ml`: lot cost
+ * 20.000, listing price 20.000) showing nothing under Laba. Excluding it also has to
+ * be wrong in the safe direction — the worst a copied price can do under this rule is
+ * report 0 instead of an unknown — where treating it as a cost used to report a
+ * phantom loss.
+ *
+ * `capital > price` is still the mis-recorded case (a purchase entered with the wrong
+ * figure, inherited by every sale that drew from its lot) and is still left out.
+ *
+ * Written as a function of the two column references so every caller can name them in
+ * its own scope: the margin query aliases them inside a CTE, the product groups read
+ * them off `record_listings l`. The two must agree — one page saying a line's cost is
+ * believable while another says it is not is the bug that made a product read
+ * `-4.454.000` on the products table and nothing at all on the profit page.
  */
 function believable(capital: string, price: string): string {
-  return `${capital} > 0 AND ${capital} < ${price}`;
+  return `${capital} > 0 AND ${capital} <= ${price}`;
 }
 
 const COSTED = believable("capital", "price");
