@@ -485,16 +485,17 @@ export function EditPaneSkeleton() {
             </Field>
           </div>
 
-          <Section {...NAMES_SECTION} action={<SectionAdd disabled />}>
-            <NameRowSkeleton />
-          </Section>
-
           <Section {...listingsSection(true)} action={<SectionAdd disabled />}>
             <ListingRowSkeleton />
           </Section>
 
           <Section {...STOCKS_SECTION} action={<SectionAdd label="Tambah lot" disabled />}>
             <StockRowSkeleton index={0} />
+          </Section>
+
+          {/* Below the money, where the real pane files them. */}
+          <Section {...NAMES_SECTION} action={<SectionAdd disabled />}>
+            <NameRowSkeleton />
           </Section>
 
           <Section {...PROPERTIES_SECTION} action={<SectionAdd disabled />}>

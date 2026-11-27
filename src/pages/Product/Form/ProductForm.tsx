@@ -12,6 +12,7 @@ import { CategoriesFields } from "./z-CategoriesFields";
 import { InfoFields } from "./z-InfoFields";
 import { ListingsFields } from "./z-ListingsFields";
 import { PropertiesFields } from "./z-PropertiesFields";
+import { FlatSectionSurface } from "./z-Section";
 import { StocksFields } from "./z-StocksFields";
 
 export function ProductForm({
@@ -76,18 +77,32 @@ export function ProductForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <InfoFields form={form} disabled={locked} />
-      <CategoriesFields form={form} disabled={locked} />
-      <ListingsFields form={form} disabled={locked} />
-      <StocksFields form={form} disabled={locked} />
-      <PropertiesFields form={form} disabled={locked} />
-      <TextError>{error}</TextError>
-      <TextError>{categoryError}</TextError>
-      <TextError>
-        {duplicateCode ? `Kode "${duplicateCode}" sudah dipakai produk lain.` : null}
-      </TextError>
-      <div className="sticky bottom-0 z-10 flex justify-end gap-2 border-t bg-background/95 py-3 backdrop-blur">
+    <form onSubmit={handleSubmit} className="flex flex-col border bg-card">
+      {/* One card, one sheet, like the detail pane's edit form: the sections are
+          blocks of it, separated by a thick rule, instead of a card each inside
+          the card. The order is the detail pane's too — priced and stocked first,
+          filed afterwards. */}
+      <FlatSectionSurface>
+        <div className="flex flex-col divide-y-2 divide-border">
+          <div className="px-4 py-4">
+            <InfoFields form={form} disabled={locked} />
+          </div>
+          <ListingsFields form={form} disabled={locked} />
+          <StocksFields form={form} disabled={locked} />
+          <CategoriesFields form={form} disabled={locked} />
+          <PropertiesFields form={form} disabled={locked} />
+        </div>
+      </FlatSectionSurface>
+      {error !== null || categoryError !== null || duplicateCode !== null ? (
+        <div className="flex flex-col gap-1 px-4 pb-2">
+          <TextError>{error}</TextError>
+          <TextError>{categoryError}</TextError>
+          <TextError>
+            {duplicateCode ? `Kode "${duplicateCode}" sudah dipakai produk lain.` : null}
+          </TextError>
+        </div>
+      ) : null}
+      <div className="sticky bottom-0 z-10 flex justify-end gap-2 border-t bg-card/95 px-4 py-3 backdrop-blur">
         {onCancel ? (
           <Button type="button" variant="outline" onClick={onCancel} disabled={locked}>
             Batal

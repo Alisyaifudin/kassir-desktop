@@ -9,10 +9,11 @@ import { cn } from "~/lib/utils";
  *
  * The detail pane draws the whole form as a single sheet: sections are separated
  * by a thick rule, and the rows inside a section by a muted one, so nothing is a
- * card inside a card inside a card. The create screen still wants a card per
- * section. Rather than a `flat` prop on five section components (`Section` plus
- * the four field groups) and again on every row and skeleton inside them, the
- * mode is one context value read where the markup actually is.
+ * card inside a card inside a card. The create screen draws the same sheet, so
+ * the two forms cannot read as two different forms. Rather than a `flat` prop on
+ * five section components (`Section` plus the four field groups) and again on
+ * every row and skeleton inside them, the mode is one context value read where
+ * the markup actually is.
  */
 const FlatSections = createContext(false);
 
