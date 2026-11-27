@@ -19,7 +19,7 @@ import { getProductKind } from "~/lib/constants";
 import { formatDate } from "~/lib/date";
 import { cn } from "~/lib/utils";
 import { rupiah } from "~/components/cart/util-rupiah";
-import { isPublished, type ProductFull, type ProductImage } from "~/services/product";
+import { isPublished, type ProductFull, type ProductImage, type Stock } from "~/services/product";
 import { service } from "~/services";
 
 /**
@@ -204,23 +204,7 @@ export function ProductDetailDialog({
                   {shown.stocks.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Belum ada lot stok.</p>
                   ) : (
-                    <div className="flex flex-col divide-y rounded-md border text-sm tabular-nums">
-                      {shown.stocks.map((stock, index) => (
-                        <div key={stock.id} className="flex flex-col gap-0.5 px-3 py-2">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-muted-foreground">Lot {index + 1}</span>
-                            <span className="font-medium">{stock.value} pcs</span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-muted-foreground">Modal / pcs</span>
-                            <span>{rupiah(stock.capital)}</span>
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDate(stock.createdAt)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                    <StockLots stocks={shown.stocks} />
                   )}
                 </SheetSection>
               </div>
@@ -341,6 +325,58 @@ function SheetSkeleton() {
           </div>
         </SheetSection>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The product's stock lots, as the counter asks for them.
+ *
+ * A product that has been sold down leaves a tail of empty lots — one per
+ * purchase that ran out — and not one of them is a shelf the till can still take
+ * from, so every zero would be a row of noise above the lots that matter. The
+ * list is therefore the lots that still hold something, numbered as the product
+ * numbers them (a lot keeps its number when its neighbours drop out).
+ *
+ * When **every** lot is empty there is no such list, and an empty section would
+ * read as "nothing was ever bought". The one row drawn then is the lot that
+ * moved last: the most recently updated one, whose cost is the price the last
+ * purchase actually paid — the only lot with anything left to say. The footnote
+ * says so, because a single lot under a "Stok" heading otherwise looks like the
+ * product only ever had one.
+ */
+function StockLots({ stocks }: { stocks: Stock[] }) {
+  const numbered = stocks.map((stock, index) => ({ stock, lot: index + 1 }));
+  const held = numbered.filter((row) => row.stock.value > 0);
+  // `reduce` rather than a sort: the newest lot by `updatedAt`, first one wins a
+  // tie — the same "latest" the product's own `updatedAt` reads use.
+  const latest = numbered.reduce((newest, row) =>
+    row.stock.updatedAt > newest.stock.updatedAt ? row : newest,
+  );
+  const rows = held.length > 0 ? held : [latest];
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-col divide-y rounded-md border text-sm tabular-nums">
+        {rows.map(({ stock, lot }) => (
+          <div key={stock.id} className="flex flex-col gap-0.5 px-3 py-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Lot {lot}</span>
+              <span className="font-medium">{stock.value} pcs</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Modal / pcs</span>
+              <span>{rupiah(stock.capital)}</span>
+            </div>
+            <span className="text-xs text-muted-foreground">{formatDate(stock.createdAt)}</span>
+          </div>
+        ))}
+      </div>
+      {held.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Semua lot kosong — yang terakhir diperbarui.
+        </p>
+      ) : null}
     </div>
   );
 }

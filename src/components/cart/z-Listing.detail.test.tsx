@@ -98,6 +98,8 @@ const product: ProductFull = {
 const reads: string[] = [];
 let held: Promise<void> | null = null;
 let release: (() => void) | null = null;
+/** The lots the next read answers with; `null` keeps the fixture's own two. */
+let lots: ProductFull["stocks"] | null = null;
 
 mock.module("~/services", () => ({
   service: {
@@ -111,19 +113,24 @@ mock.module("~/services", () => ({
       get: {
         byId: (id: string) => {
           reads.push(`id:${id}`);
-          return Effect.succeed(product);
+          return Effect.succeed(answer());
         },
         byListing: (id: string) => {
           reads.push(`listing:${id}`);
           const wait = held;
           return wait === null
-            ? Effect.succeed(product)
-            : Effect.flatMap(Effect.promise(() => wait), () => Effect.succeed(product));
+            ? Effect.succeed(answer())
+            : Effect.flatMap(Effect.promise(() => wait), () => Effect.succeed(answer()));
         },
       },
     },
   },
 }));
+
+/** The product, with the lots the test in flight asked for. */
+function answer(): ProductFull {
+  return lots === null ? product : { ...product, stocks: lots };
+}
 
 const { Listing: Goods } = await import("./z-Listing");
 
@@ -185,6 +192,39 @@ describe("the product sheet", () => {
     // The way back is the app's own history now, not a `url_back` the cart had to
     // hand over: the product is pushed onto the stack, so `Back` returns here.
     expect(link.getAttribute("href")).toBe("/products/p1");
+  });
+
+  test("a lot that is sold out is not a row", async () => {
+    // Lot 1 still holds six; lot 2 was sold down to nothing and moved since.
+    lots = [
+      { ...product.stocks[0]!, value: 6, updatedAt: 10 },
+      { ...product.stocks[1]!, value: 0, updatedAt: 90 },
+    ];
+    await openSheet();
+
+    await screen.findByText("Kopi Susu 1L");
+    expect(screen.getByText("Lot 1")).toBeTruthy();
+    // Empty, so it is not drawn — and the numbers are the product's own, not a
+    // fresh count of whatever survived the filter.
+    expect(screen.queryByText("Lot 2")).toBeNull();
+    expect(screen.queryByText(/Semua lot kosong/)).toBeNull();
+    lots = null;
+  });
+
+  test("every lot empty still names the lot that moved last", async () => {
+    lots = [
+      { ...product.stocks[0]!, value: 0, updatedAt: 90 },
+      { ...product.stocks[1]!, value: 0, updatedAt: 10 },
+    ];
+    await openSheet();
+
+    await screen.findByText("Kopi Susu 1L");
+    // Lot 1 is the one updated last, so it is the one row left — with the note
+    // that says why it is alone.
+    expect(screen.getByText("Lot 1")).toBeTruthy();
+    expect(screen.queryByText("Lot 2")).toBeNull();
+    expect(screen.getByText(/Semua lot kosong/)).toBeTruthy();
+    lots = null;
   });
 });
 
