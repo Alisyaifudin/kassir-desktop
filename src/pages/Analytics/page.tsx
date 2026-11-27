@@ -1,9 +1,14 @@
 import { Suspense } from "react";
 import { Outlet } from "react-router";
 import { useLocation } from "~/services/route/react";
+import { useScrollOffset } from "~/hooks/use-scroll-offset";
 import { RangeBar } from "./z-RangeBar";
 import { Rail } from "./z-Rail";
 import { AnalyticsBodyLoading } from "./z-Loading";
+
+/** The one box this shell scrolls. The cart screen passes a slot per tab; there is
+ *  only one of these. */
+const BOX = "box";
 
 /**
  * Analytics is a rail of six questions over one period. The period and the
@@ -19,6 +24,9 @@ export default function Page() {
   const network = path.endsWith("/network");
   const noSeries = week || network || path.endsWith("/payments") || path.endsWith("/products");
   const mode = week ? "week" : path.endsWith("/products") || network ? "product" : "date";
+  // The container's own position, for whichever body is in it: come back to Analytics
+  // and the box is where it was left. See `use-scroll-offset`.
+  const scrollRef = useScrollOffset("analytics", BOX);
 
   return (
     <main className="flex h-full min-h-0 overflow-hidden">
@@ -30,6 +38,7 @@ export default function Page() {
           <RangeBar mode={mode} showInterval={!noSeries} />
         </header>
         <div
+          ref={scrollRef}
           className={
             network ? "min-h-0 flex-1 overflow-hidden" : "min-h-0 flex-1 overflow-y-auto p-2"
           }

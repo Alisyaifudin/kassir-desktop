@@ -26,6 +26,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { ReservedSkeleton } from "~/components/page-data";
 import { Input } from "~/components/ui/input";
 import { useQuery } from "~/components/Loader";
+import { useScrollOffset } from "~/hooks/use-scroll-offset";
 import { cn } from "~/lib/utils";
 import { toast } from "sonner";
 import { SEARCH_DELAY } from "~/lib/constants";
@@ -47,7 +48,6 @@ import { getComboIndex, searchCombos } from "~/lib/search/combos";
 import { getListingIndex, searchListings } from "~/lib/search/listings";
 import { norm } from "~/lib/search/normalize";
 import { ListingCard } from "~/components/cart/z-ListingCard";
-import { useListingScroll } from "~/components/cart/use-listing-scroll";
 import type { LineIssue } from "~/components/cart/code-issues";
 import { DiscountDialog } from "~/components/cart/z-Discount";
 import { ProductDetailDialog } from "~/components/cart/z-ProductDetail";
@@ -245,8 +245,8 @@ export function Listing({
   const [locked, setLocked] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // Where this cart's rows were scrolled to. The box outlives a tab switch, so it is
-  // told which cart it is showing — see `use-listing-scroll`.
-  const scrollRef = useListingScroll(cartId);
+  // told which cart it is showing — see `use-scroll-offset`.
+  const scrollRef = useScrollOffset("cart", cartId);
   const searchRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const hadDialog = useRef(false);

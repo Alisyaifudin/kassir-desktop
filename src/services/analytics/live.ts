@@ -204,7 +204,7 @@ const INSTANCES = `
   WHERE ${SCOPE} AND r.record_mode = $3
     AND COALESCE(l.product_id, 'name:' || l.record_listing_name) = $4
   ORDER BY at DESC
-  LIMIT $5`;
+  LIMIT $5 OFFSET $6`;
 
 type ProductPairRow = {
   a: string;
@@ -383,7 +383,7 @@ export const AnalyticsLive = Layer.effect(
             }));
           });
         },
-        productInstances(from, to, mode, key, limit) {
+        productInstances(from, to, mode, key, limit, offset) {
           return Effect.gen(function* () {
             const rows = yield* db
               .selectMany<ProductInstanceRow>(INSTANCES, [
@@ -392,6 +392,7 @@ export const AnalyticsLive = Layer.effect(
                 mode,
                 key,
                 Math.max(1, Math.trunc(limit)),
+                Math.max(0, Math.trunc(offset)),
               ])
               .pipe(Effect.mapError(failure));
             return rows.map((row): ProductInstance => ({

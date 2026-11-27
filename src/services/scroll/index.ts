@@ -36,6 +36,15 @@ export type ScrollAnchor = {
     /** Draft id → the box's scroll offset. */
     positions: Record<string, number>;
   };
+  /**
+   * Analytics: where the shell's content box was left. The shape is the same map as
+   * the cart's — the hook that reads both takes a slot — but the shell has one box,
+   * so it holds one entry.
+   */
+  analytics: {
+    /** Slot → the content box's scroll offset. */
+    positions: Record<string, number>;
+  };
 };
 
 export type ScrollContainer = keyof ScrollAnchor;

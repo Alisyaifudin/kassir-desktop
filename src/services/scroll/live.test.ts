@@ -216,3 +216,36 @@ describe("ScrollService, cart positions", () => {
     expect(kept.positions["draft-9"]).toBeUndefined();
   });
 });
+
+/**
+ * The Analytics shell's content box is one box, and its position is the container's:
+ * one entry under its own key, so the Products table comes back to where it was left.
+ */
+describe("ScrollService, the analytics box", () => {
+  test("the container's position is persisted under its own key", async () => {
+    const { entries, layer } = setup();
+
+    await run(layer, (scroll) => scroll.set("analytics", { positions: { box: 1_240 } }));
+
+    expect(entries.get("scroll-analytics")).toEqual({ positions: { box: 1_240 } });
+    expect(await run(layer, (scroll) => scroll.get("analytics"))).toEqual({
+      positions: { box: 1_240 },
+    });
+  });
+
+  test("an entry that no longer parses starts the box at the top", async () => {
+    const { layer } = setup({ "scroll-analytics": { positions: { box: "1440" } } });
+
+    expect(await run(layer, (scroll) => scroll.get("analytics"))).toEqual({ positions: {} });
+  });
+
+  test("unlike the cart's tabs, nothing here is capped", async () => {
+    const positions: Record<string, number> = {};
+    for (let index = 0; index < 60; index += 1) positions[`slot-${index}`] = index + 1;
+    const { layer } = setup({ "scroll-analytics": { positions } });
+
+    const kept = await run(layer, (scroll) => scroll.get("analytics"));
+
+    expect(Object.keys(kept.positions)).toHaveLength(60);
+  });
+});

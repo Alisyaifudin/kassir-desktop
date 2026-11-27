@@ -41,6 +41,7 @@ import { service } from "~/services";
 import type { ProductGroup, ProductInstance } from "~/services/analytics";
 import type { RecordMode } from "~/services/record";
 import { useRange } from "../use-range";
+import { singleOpen, useOpenLines, useOpenProduct } from "./use-open";
 import { money } from "../z-Chart";
 import { AnalyticsErrorBoundary, AnalyticsErrorFallback } from "../z-Error";
 import { ChartSkeleton, SummarySkeleton } from "../z-Loading";
@@ -210,7 +211,14 @@ const ProductsTable = memo(function ProductsTable({
   mode: RecordMode;
 }) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "revenue", desc: true }]);
-  const [expanded, setExpanded] = useState<ExpandedState>({});
+  // The accordion is the URL's, one product at a time: the rows behind it are read for
+  // that product, and opening its page from the row's pencil and stepping back has to
+  // find them still open. See `useOpenProduct`.
+  const [open, setOpen] = useOpenProduct();
+  const expanded = useMemo<ExpandedState>(
+    () => (open === null ? {} : { [open]: true }),
+    [open],
+  );
   const [globalFilter, setGlobalFilter] = useState("");
   // `useDebounce` hands back `[value, controls]`; the filter wants the value.
   // Passing the tuple made every row fail the match — the table read "0 dari 0
@@ -272,9 +280,17 @@ const ProductsTable = memo(function ProductsTable({
   const table = useReactTable({
     data: groups,
     columns,
+    // A row's id is the product it stands for, not its place in the list: the
+    // accordion is kept by id, so sorting or filtering the table must not hand the
+    // open state to whichever product happens to land on that index now.
+    getRowId: (group) => group.key,
     state: { sorting, expanded, globalFilter: settledFilter },
     onSortingChange: setSorting,
-    onExpandedChange: setExpanded,
+    // One at a time — see `singleOpen` for why the changed key decides.
+    onExpandedChange: (updater) => {
+      const next = typeof updater === "function" ? updater(expanded) : updater;
+      setOpen(singleOpen(expanded, next));
+    },
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: (row, _columnId, value) =>
       row.original.name.toLowerCase().includes(String(value).toLowerCase()),
@@ -479,7 +495,17 @@ function ProductCell({
   );
 }
 
-/** The accordion body: every record line behind the product, newest first. */
+/** How many of a product's record lines one accordion page holds. */
+const INSTANCE_PAGE_SIZE = 10;
+
+/**
+ * The accordion body: the record lines behind the product, newest first, **a page at a
+ * time** — a product that moved 90 times in the period is 90 rows, and opened inline
+ * under a table row they buried the rest of the list.
+ *
+ * The page lives beside the open product in the URL (`?lines=`), not in state: a line
+ * links to its record, and stepping back has to find the same page of them.
+ */
 function Instances({
   group,
   from,
@@ -491,9 +517,26 @@ function Instances({
   to: number;
   mode: RecordMode;
 }) {
+  const [asked, setPage] = useOpenLines();
+  // The URL can name a page the period no longer has — a narrower range, another
+  // product — so the page the table reads is the one that exists.
+  const pages = Math.max(1, Math.ceil(group.lines / INSTANCE_PAGE_SIZE));
+  const page = Math.min(asked, pages);
   const res = useQuery(
-    () => Stream.fromEffect(service.analytics.get.productInstances(from, to, mode, group.key, 200)),
-    [from, to, mode, group.key],
+    () =>
+      Stream.fromEffect(
+        service.analytics.get.productInstances(
+          from,
+          to,
+          mode,
+          group.key,
+          INSTANCE_PAGE_SIZE,
+          (page - 1) * INSTANCE_PAGE_SIZE,
+        ),
+      ),
+    [from, to, mode, group.key, page],
+    // Paging should not blank the rows and draw them again a beat later.
+    { keepPrevious: true },
   );
 
   return (
@@ -508,78 +551,126 @@ function Instances({
           </div>
         }
       >
-        {({ data }) => <InstanceList lines={data} total={group.lines} />}
+        {({ data }) => (
+          <InstanceList
+            lines={data}
+            total={group.lines}
+            page={page}
+            pages={pages}
+            onPage={setPage}
+          />
+        )}
       </Loader>
     </div>
   );
 }
 
-function InstanceList({ lines, total }: { lines: ProductInstance[]; total: number }) {
+/**
+ * One page of a product's lines.
+ *
+ * A real table, not a grid of fixed columns: a rupiah figure is not 140px, and the
+ * product name has to wrap instead of being squeezed into an ellipsis by a datetime
+ * column that claimed 200px for itself.
+ */
+function InstanceList({
+  lines,
+  total,
+  page,
+  pages,
+  onPage,
+}: {
+  lines: ProductInstance[];
+  total: number;
+  page: number;
+  pages: number;
+  onPage: (page: number) => void;
+}) {
+  const first = (page - 1) * INSTANCE_PAGE_SIZE + 1;
+  const last = first + lines.length - 1;
+
   return (
     <div className="overflow-hidden rounded-md border bg-card">
-      <div className="grid grid-cols-[200px_minmax(0,1fr)_80px_140px_140px_44px] gap-2 border-b bg-muted/40 px-2 py-1 text-sm text-muted-foreground">
-        <span>Waktu</span>
-        <span>Produk</span>
-        <span className="text-right">Qty</span>
-        <span className="text-right">Omzet</span>
-        <span className="text-right">Laba</span>
-        <span />
-      </div>
-      <ul className="divide-y">
-        {lines.map((line, index) => (
-          <li
-            key={`${line.recordId}-${index}`}
-            className="grid grid-cols-[200px_minmax(0,1fr)_80px_140px_140px_44px] items-center gap-2 px-2 py-1"
-          >
-            <span className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
-              {formatDate(line.at)} {formatTime(line.at)}
-            </span>
-            <Link
-              // A step: the record is opened from this line, so `Back` returns here.
-              to={`/records/${line.recordId}`}
-              behavior="push"
-              className="min-w-0 truncate underline-offset-4 hover:text-active hover:underline"
-              title="Buka catatan transaksi"
-            >
-              {line.name}
-            </Link>
-            <span className="text-right text-sm tabular-nums">
-              {line.qty.toLocaleString("id-ID")}
-              {line.unit > 1 ? <span className="text-muted-foreground"> × {line.unit}</span> : null}
-            </span>
-            <span className="text-right tabular-nums">{money(line.total)}</span>
-            <span className="text-right tabular-nums">
-              {believable(line) ? (
-                money(line.total - line.capital * line.qty)
-              ) : (
-                <span
-                  className="text-muted-foreground"
-                  title="Modal baris ini tidak tercatat, atau tidak lebih rendah dari harga jualnya — tidak bisa dipercaya sebagai modal"
-                >
-                  —
-                </span>
-              )}
-            </span>
-            <span className="text-center">
-              {line.productId === null ? null : (
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b bg-muted/40 text-muted-foreground">
+            {/* `w-px` is a table's "as narrow as the content": the four figures keep to
+                themselves and the name gets everything that is left. */}
+            <th scope="col" className="w-px px-2 py-1 text-left font-normal whitespace-nowrap">
+              Waktu
+            </th>
+            <th scope="col" className="px-2 py-1 text-left font-normal">
+              Produk
+            </th>
+            <th scope="col" className="w-px px-2 py-1 text-right font-normal whitespace-nowrap">
+              Qty
+            </th>
+            <th scope="col" className="w-px px-2 py-1 text-right font-normal whitespace-nowrap">
+              Omzet
+            </th>
+            <th scope="col" className="w-px px-2 py-1 text-right font-normal whitespace-nowrap">
+              Laba
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((line, index) => (
+            <tr key={`${line.recordId}-${index}`} className="border-b last:border-0">
+              <td className="px-2 py-1 text-sm text-muted-foreground tabular-nums whitespace-nowrap">
+                {formatDate(line.at)} {formatTime(line.at)}
+              </td>
+              <td className="px-2 py-1">
                 <Link
-                  to={`/products/${line.productId}`}
+                  // A step: the record is opened from this line, so `Back` returns here.
+                  to={`/records/${line.recordId}`}
                   behavior="push"
-                  aria-label={`Buka produk ${line.name}`}
-                  title="Buka produk"
-                  className="inline-flex rounded-sm text-muted-foreground hover:text-active focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  className="underline-offset-4 hover:text-active hover:underline"
+                  title="Buka catatan transaksi"
                 >
-                  <Pencil aria-hidden="true" className="size-5" />
+                  {line.name}
                 </Link>
-              )}
-            </span>
-          </li>
-        ))}
-      </ul>
-      {total > lines.length ? (
-        <p className="border-t px-2 py-1 text-sm text-muted-foreground">
-          Menampilkan {lines.length} baris terbaru dari {total}.
-        </p>
+              </td>
+              <td className="px-2 py-1 text-right text-sm tabular-nums whitespace-nowrap">
+                {line.qty.toLocaleString("id-ID")}
+                {line.unit > 1 ? <span className="text-muted-foreground"> × {line.unit}</span> : null}
+              </td>
+              <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap">
+                {money(line.total)}
+              </td>
+              <td className="px-2 py-1 text-right tabular-nums whitespace-nowrap">
+                {believable(line) ? (
+                  money(line.total - line.capital * line.qty)
+                ) : (
+                  <span
+                    className="text-muted-foreground"
+                    title="Modal baris ini tidak tercatat, atau tidak lebih rendah dari harga jualnya — tidak bisa dipercaya sebagai modal"
+                  >
+                    —
+                  </span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {pages > 1 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t px-2 py-1 text-sm text-muted-foreground">
+          <span className="tabular-nums">
+            {first}–{last} dari {total} baris
+          </span>
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+              Sebelumnya
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={page >= pages}
+              onClick={() => onPage(page + 1)}
+            >
+              Berikutnya
+            </Button>
+          </div>
+        </div>
       ) : null}
     </div>
   );

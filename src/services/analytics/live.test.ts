@@ -246,7 +246,7 @@ describe("AnalyticsService", () => {
   test("product instances carry the record and its effective time", async () => {
     const { analyticsLayer } = setup();
     const rows = await run(analyticsLayer, (a) =>
-      a.get.productInstances(FROM, TO, "incoming", "p1", 10),
+      a.get.productInstances(FROM, TO, "incoming", "p1", 10, 0),
     );
 
     expect(rows).toHaveLength(2);
@@ -262,6 +262,16 @@ describe("AnalyticsService", () => {
       productId: "p1",
     });
     expect(rows[1]!.at).toBe(at(0, 10));
+  });
+
+  test("product instances page from an offset", async () => {
+    const { analyticsLayer } = setup();
+    const rows = await run(analyticsLayer, (a) =>
+      a.get.productInstances(FROM, TO, "incoming", "p1", 1, 1),
+    );
+
+    // One row from the second place: the accordion reads a page at a time.
+    expect(rows.map((row) => row.recordId)).toEqual(["r1"]);
   });
 
   test("a pair that met once is not an edge", async () => {

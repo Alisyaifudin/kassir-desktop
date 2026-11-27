@@ -206,13 +206,18 @@ export class AnalyticsService extends Context.Tag("AnalyticsService")<
         to: number,
         mode: RecordMode,
       ) => Effect.Effect<ProductGroup[], AnalyticsError>;
-      /** The lines behind one product group, newest first. */
+      /**
+       * The lines behind one product group, newest first. Paged: `limit` rows from
+       * `offset`, so the accordion behind a product reads a page at a time instead of
+       * carrying every line it ever had.
+       */
       productInstances: (
         from: number,
         to: number,
         mode: RecordMode,
         key: string,
         limit: number,
+        offset: number,
       ) => Effect.Effect<ProductInstance[], AnalyticsError>;
       /** What was actually tendered, grouped by method kind. */
       payments: (from: number, to: number) => Effect.Effect<PaymentStat[], AnalyticsError>;

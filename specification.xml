@@ -20,7 +20,7 @@
     SYNC-V2.md — see &lt;sync_system&gt; and &lt;sync_ui_design&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>8.18.18</version>
+  <version>8.18.19</version>
   <language>id</language>
 
   <ui_notes>
@@ -110,7 +110,7 @@
       <file name="package.json">
         <entry key="name">kassir</entry>
         <entry key="private">true</entry>
-        <entry key="version">8.18.18</entry>
+        <entry key="version">8.18.19</entry>
         <entry key="type">module</entry>
         <script name="dev" command="vite" />
         <script name="build" command="tsc &amp;&amp; vite build" />
@@ -126,7 +126,7 @@
       </file>
       <file name="Cargo.toml">
         <entry key="package.name">kassir</entry>
-        <entry key="package.version">8.18.18</entry>
+        <entry key="package.version">8.18.19</entry>
         <entry key="package.edition">2021</entry>
         <entry key="lib.name">kassir_lib</entry>
         <entry key="lib.crate-type">staticlib, cdylib, rlib</entry>
@@ -840,7 +840,7 @@
       <owner service="record">records, record_listings, record_methods, record_extras, record_images, discounts</owner>
       <owner service="transaction">tx_records, tx_listings, tx_discounts, tx_extras, tx_methods, tx_images</owner>
       <owner service="config">localStorage key "product-view"</owner>
-      <owner service="scroll">localStorage keys "scroll-records", "scroll-products", "scroll-cart"</owner>
+      <owner service="scroll">localStorage keys "scroll-records", "scroll-products", "scroll-cart", "scroll-analytics"</owner>
       <owner service="zoom">localStorage key "zoom"</owner>
       <owner service="auth">localStorage key "user"</owner>
       <owner service="info">store keys: name, owner, address, header, footer, show-cashier</owner>
@@ -921,7 +921,7 @@
         <method name="get.margins(from, to, estimate?)">Per day: `margin` from lines whose stored cost is a cost (above zero, below the line's price) with `costed` behind it, plus `estimatedMargin` = Σ min(line total × estimate.percent, estimate.raw) over every other line, with `estimated` behind it. Defaults to DEFAULT_MARGIN_ESTIMATE (10%, Rp5.000).</method>
         <method name="get.hours(from, to) / get.weekdays(from, to)">Sales per local hour, and per ISO weekday (1 = Monday).</method>
         <method name="get.productGroups(from, to, mode)">Every product that moved, with qty, revenue, margin, costed lines. `margin` uses the same believable-cost rule as `get.margins` — a stored cost above zero and below the line's price — so the two pages never disagree about whether a line's cost can be read as one; the rest of the lines count towards `lines` only.</method>
-        <method name="get.productInstances(from, to, mode, key, limit)">The lines behind one group, newest first.</method>
+        <method name="get.productInstances(from, to, mode, key, limit, offset)">The lines behind one group, newest first, paged: `limit` rows from `offset`.</method>
         <method name="get.payments(from, to)">What was actually tendered, grouped by method kind.</method>
       </interface>
     </service>
@@ -990,13 +990,13 @@
     <service name="scroll" module="src/services/scroll/">
       <description>
         Where each list was left, so coming back to a screen lands on the same row or product. One localStorage key per
-        container ("scroll-records", "scroll-products", "scroll-cart"), hydrated when the layer is built — the position
+        container ("scroll-records", "scroll-products", "scroll-cart", "scroll-analytics"), hydrated when the layer is built — the position
         decides the list's first frame, and there is no await to spend on a read at that point. No `changes` stream:
         nobody subscribes, the DOM is the live value.
       </description>
       <error name="ScrollError" tag="ScrollError" />
       <interface>
-        <method name="get(container)">The anchor of one list, from memory. `records` → { day, values }: one sort value per order the list can be shown in (time:desc, total:asc, …), stamped with the local day it was read on, so a position is never applied to another day's records. `products` → { key, view, id, top }: the result set it belongs to (filters, sort, page, size — not the view), the view, the product at the top-left, and the box's own offset. `cart` → { positions }: draft id → the goods box's offset, one per open cart (tab), capped at the 50 most recently written — a closed draft is deleted for good, so its position is worthless</method>
+        <method name="get(container)">The anchor of one list, from memory. `records` → { day, values }: one sort value per order the list can be shown in (time:desc, total:asc, …), stamped with the local day it was read on, so a position is never applied to another day's records. `products` → { key, view, id, top }: the result set it belongs to (filters, sort, page, size — not the view), the view, the product at the top-left, and the box's own offset. `cart` → { positions }: draft id → the goods box's offset, one per open cart (tab), capped at the 50 most recently written — a closed draft is deleted for good, so its position is worthless. `analytics` → { positions }: the Analytics content box's offset — one entry, since the shell has one box (the same map shape as the cart's, so one hook reads both)</method>
         <method name="set(container, anchor)">Disk first, memory second. An anchor equal to the stored one is not written at all — a wheel flick inside one tall row settles on the row it started on. A refused write reports ScrollError and leaves memory behind the disk, so the next scroll retries instead of skipping.</method>
       </interface>
       <note>
@@ -1004,9 +1004,12 @@
         position, never its screen. The writers are the lists themselves — use-scroll-anchor in src/pages/Record/ (a
         virtualized, day-scoped table: the first row on screen whole, read back through nearestRow so a filter that took
         that row away lands on its neighbour) and in src/pages/Product/ (a paginated list: the offset plus the product at
-        the top-left, so grid ⇄ table can share the product while each keeps its own pixel), and use-listing-scroll in
-        src/components/cart/ (the cart screen's goods box: one offset per tab, since the strip swaps rows under a single
-        box). Writes are synchronous (Effect.runSync) because the restore reads the store on the very next line.
+        the top-left, so grid ⇄ table can share the product while each keeps its own pixel), and the boxes that keep one
+        plain offset per slot through src/hooks/use-scroll-offset.ts — the cart screen's goods list (a slot per tab,
+        since the strip swaps rows under one box) and the Analytics content box (one slot: the shell has one box).
+        That hook also re-applies a restored offset as the content grows into it: on a screen that mounts behind a
+        skeleton the first write is clamped, and waiting for the next render is not enough — the rows arrive after it. Writes
+        are synchronous (Effect.runSync) because the restore reads the store on the very next line.
       </note>
     </service>
 
@@ -1551,7 +1554,14 @@
         A rail of five questions over one period. The period and bucket width live in the URL (useRange: presets
         7/30/90 days, this month, this year; a hand-picked range clears the preset) and in the header, so switching
         pages never resets what you were looking at. The bodies are the lazy chart chunk; the rail and range bar are
-        static. URLs are English; the visible labels stay Indonesian.
+        static. The content box keeps its scroll position (use-scroll-offset), so Produk's long table comes back to
+        where it was left after opening a product and returning. Produk's row accordion is in the URL too
+        (`?open=&lt;group key&gt;`, one at a time, replaced not pushed), so the lines behind a product survive the same
+        round trip; the table's row ids are the product keys, not indexes, so a sort or a filter cannot hand the
+        open state to another product. The lines behind it are paged (`?lines=`, ten at a time, from a
+        LIMIT/OFFSET in SQL), and they are a real table: the datetime sizes to its content and the product name
+        wraps, where a fixed 200px date column used to squeeze it into an ellipsis. URLs are English; the
+        visible labels stay Indonesian.
       </description>
       <subpages>
         <subpage path="/analytics/">Arus Kas (Cashflow): money in vs out per bucket, with totals.</subpage>

@@ -9,6 +9,7 @@ const EMPTY: ScrollAnchor = {
   records: { day: null, values: {} },
   products: { key: "", view: "", id: null, top: 0 },
   cart: { positions: {} },
+  analytics: { positions: {} },
 };
 
 /**
@@ -59,27 +60,46 @@ function parseProducts(value: unknown): ScrollAnchor["products"] {
   };
 }
 
-/** How many carts keep a position. A draft is deleted for good, so its entry would
- *  otherwise sit in the store for the life of the installation. */
-const KEEP_CARTS = 50;
-
-function parseCart(value: unknown): ScrollAnchor["cart"] {
-  if (typeof value !== "object" || value === null) return EMPTY.cart;
-  const stored = value as { positions?: unknown };
+/**
+ * A box's offset per slot — one per open cart, one per analytics face — read out of
+ * whatever an older build left there. `keep` bounds how many slots survive: a cart
+ * is deleted for good, so its entry would otherwise sit in the store for the life of
+ * the installation, while the rail's faces are a closed set.
+ */
+function parsePositions(raw: unknown, keep: number | null): Record<string, number> {
   const positions: Record<string, number> = {};
-  if (typeof stored.positions === "object" && stored.positions !== null && !Array.isArray(stored.positions)) {
-    for (const [cart, raw] of Object.entries(stored.positions)) {
-      if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) positions[cart] = raw;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return positions;
+  for (const [slot, value] of Object.entries(raw)) {
+    // A non-positive or non-finite offset would put the box above the first row.
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+      positions[slot] = value;
     }
   }
-  // Object key order is insertion order, so this keeps the carts written most
-  // recently. Pruning here rather than in `set` means the store shrinks on the
-  // next write instead of every write paying for it.
-  const drafts = Object.keys(positions);
-  if (drafts.length <= KEEP_CARTS) return { positions };
+  if (keep === null) return positions;
+  // Object key order is insertion order, so this keeps the slots written most
+  // recently. Pruning on the way in means the store shrinks on the next write
+  // instead of every write paying for it.
+  const slots = Object.keys(positions);
+  if (slots.length <= keep) return positions;
   const kept: Record<string, number> = {};
-  for (const draft of drafts.slice(drafts.length - KEEP_CARTS)) kept[draft] = positions[draft];
-  return { positions: kept };
+  for (const slot of slots.slice(slots.length - keep)) kept[slot] = positions[slot];
+  return kept;
+}
+
+/** How many carts keep a position. */
+const KEEP_CARTS = 50;
+
+function positionsOf(value: unknown): unknown {
+  if (typeof value !== "object" || value === null) return undefined;
+  return (value as { positions?: unknown }).positions;
+}
+
+function parseCart(value: unknown): ScrollAnchor["cart"] {
+  return { positions: parsePositions(positionsOf(value), KEEP_CARTS) };
+}
+
+function parseAnalytics(value: unknown): ScrollAnchor["analytics"] {
+  return { positions: parsePositions(positionsOf(value), null) };
 }
 
 /**
@@ -90,6 +110,7 @@ const PARSERS: { [C in ScrollContainer]: (value: unknown) => ScrollAnchor[C] } =
   records: parseRecords,
   products: parseProducts,
   cart: parseCart,
+  analytics: parseAnalytics,
 };
 
 export const ScrollLive = Layer.effect(
@@ -120,6 +141,7 @@ export const ScrollLive = Layer.effect(
       records: yield* readAnchor("records"),
       products: yield* readAnchor("products"),
       cart: yield* readAnchor("cart"),
+      analytics: yield* readAnchor("analytics"),
     };
 
     const ref = yield* Ref.make(initial);
