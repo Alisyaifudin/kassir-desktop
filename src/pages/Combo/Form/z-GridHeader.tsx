@@ -6,6 +6,15 @@ import { Kbd } from "~/components/ui/kdb";
 import { isScreenOwnedByDialog } from "~/hooks/use-dialog-lock";
 import { cn } from "~/lib/utils";
 
+/**
+ * The search-and-toggle header both combo stages draw.
+ *
+ * Twelve tracks, because the model it sits in is thirteen wide with column 0
+ * holding the product's photo — and neither of these stages draws one: the drawn
+ * track *n* is the model's column *n + 1*. The cart's header pays for that column
+ * with an empty first cell; these two have nothing to put there, so the tracks
+ * simply are the columns after it.
+ */
 export function GridHeader({
   input,
   searchRef,

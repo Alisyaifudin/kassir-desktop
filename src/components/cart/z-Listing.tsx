@@ -56,18 +56,17 @@ import { SearchResults, type SearchHit } from "~/components/cart/z-SearchResults
 import {
   cellAt,
   columnIn,
+  headerStartOf,
   horizontalNeighbour,
   partOf,
   rowsFor,
   sameRow,
   startOf,
   type Field,
-  type ImageSide,
   type RowRef,
   type Selection,
   PURCHASE_LISTING_LAYOUT,
   SALE_LISTING_LAYOUT,
-  type ListingLayout,
 } from "~/components/cart/listing-grid";
 import {
   SELECTED_RING,
@@ -94,11 +93,12 @@ type CardHandlers = Pick<
   | "onLock"
 >;
 
-/** The column a fresh selection remembers when the search bar is the start. */
-const NAME_COLUMN = 1;
-/** `+manual` is the header's second (sale) or last (purchase) cell. */
-const manualColumn = (layout: ListingLayout): number => (layout.stageToggle ? 8 : 10);
-const TOGGLE_COLUMN = 10;
+/**
+ * The column a fresh selection remembers when the search bar is the start: the
+ * card's `Nama` column, which is also inside the header's search cell — so the
+ * same number is right on both rows.
+ */
+const NAME_COLUMN = 2;
 
 /**
  * One edit to one line, with its discount stack brought back in step.
@@ -440,13 +440,13 @@ export function Listing({
 
   // Unified grid: when the settle strip hands off upward, land on the code cell
   // of the last row. Named rather than "the first selectable cell": column 0 is
-  // the drag handle, which is selectable but is not where a return lands.
+  // the photo and column 1 the drag handle, and neither is where a return lands.
   useEffect(() => {
     if (focusLast === undefined || focusLast === seenFocusLast.current) return;
     seenFocusLast.current = focusLast;
     const lastRow = rows[rows.length - 1];
     if (lastRow === undefined) return;
-    const cell = cellAt(lastRow, 1, layout);
+    const cell = cellAt(lastRow, 2, layout);
     setSelection({ row: lastRow, col: cell.start });
     setEditing(false);
     containerRef.current?.focus();
@@ -455,25 +455,6 @@ export function Listing({
   useEffect(() => {
     document.getElementById(activeId)?.scrollIntoView({ block: "nearest" });
   }, [activeId]);
-
-  // Which half of the card the cursor came from when it stepped onto the photo.
-  //
-  // The photo is one box standing beside both rows, so the way back out of it to
-  // the right is the row the operator was in: left out of the handle must return
-  // to the handle, not climb to the number above it. Tracked here, off the
-  // selection, rather than in each mover — the photo is reached from the number
-  // and the handle (and, in principle, from a row above or below), and a mover
-  // that forgot to record the side would send the cursor to the wrong half.
-  // Anything that is not a card row leaves the default: the top row.
-  const imageFrom = useRef<ImageSide>("top");
-  const previousRow = useRef<RowRef>(selection.row);
-  useEffect(() => {
-    if (active.field === "image") {
-      const previous = previousRow.current;
-      imageFrom.current = previous.kind === "card" ? previous.part : "top";
-    }
-    previousRow.current = selection.row;
-  }, [selection, active.field]);
 
   const dialogOpen = discountFor !== null || detailFor !== null || imagesFor !== null;
 
@@ -543,8 +524,10 @@ export function Listing({
     if (index === -1) return false;
     const next = rows[index + delta];
     if (next === undefined) return false;
-    // Column 0 is a real column now — the number above, the drag handle below —
-    // so a move keeps it like any other. A wide neighbour still clamps it.
+    // Column 0 is the photo, and the photo is a cell of both rows, so `down` from
+    // its top half lands in its bottom half — same box, and the next `right` leaves
+    // into the handle. Every other column keeps its own like it always did, and a
+    // wide neighbour still clamps it.
     const col = selection.col;
     const cell = cellAt(next, col, layout);
     setSelection({
@@ -589,12 +572,9 @@ export function Listing({
         }
       }
     }
-    // The geometry of the walk — the photo's three neighbours included — is
+    // The geometry of the walk — the photo's two halves included — is
     // `horizontalNeighbour`'s; this only applies the step it chose.
-    const next = horizontalNeighbour(rows, selection, layout, delta, {
-      wrap,
-      imageFrom: imageFrom.current,
-    });
+    const next = horizontalNeighbour(rows, selection, layout, delta, { wrap });
     if (next === undefined) return;
     setSelection({
       row: next.row,
@@ -1257,9 +1237,7 @@ export function Listing({
       ? found
       : {
           ...found,
-          discounts: [
-            { id: generateId(), value: 0, kind: "percent" as const, eff: 0, total: 0 },
-          ],
+          discounts: [{ id: generateId(), value: 0, kind: "percent" as const, eff: 0, total: 0 }],
         };
 
   return (
@@ -1290,7 +1268,11 @@ export function Listing({
       onFocusCapture={onActivate}
       className="flex min-h-0 flex-1 flex-col overflow-hidden outline-none"
     >
-      <div role="row" className="grid shrink-0 grid-cols-12 border-b">
+      {/* The same thirteen tracks the cards use — the photo's column first, then the
+          twelve both rows share — so every label sits over the column it names. The
+          header has no photo, so its first track is left empty. */}
+      <div role="row" className="grid shrink-0 grid-cols-[4rem_repeat(12,minmax(0,1fr))] border-b">
+        <div aria-hidden className="col-span-1 border-r" />
         <div
           id="cell-header-search"
           onClick={() => {
@@ -1331,7 +1313,7 @@ export function Listing({
           role="gridcell"
           aria-selected={focused && manualSelected}
           onClick={() => {
-            setSelection({ row: HEADER, col: manualColumn(layout) });
+            setSelection({ row: HEADER, col: headerStartOf("manual", layout) });
             setEditing(false);
           }}
           className={cn(
@@ -1357,7 +1339,7 @@ export function Listing({
             role="gridcell"
             aria-selected={focused && toggleSelected}
             onClick={() => {
-              setSelection({ row: HEADER, col: TOGGLE_COLUMN });
+              setSelection({ row: HEADER, col: headerStartOf("toggle", layout) });
               setEditing(false);
             }}
             className={cn(

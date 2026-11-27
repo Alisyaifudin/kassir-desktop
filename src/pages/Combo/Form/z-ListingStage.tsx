@@ -27,6 +27,7 @@ import {
   COMBO_LISTING_LAYOUT,
   cellAt,
   columnIn,
+  headerStartOf,
   rowsFor,
   sameRow,
   selectableCells,
@@ -42,7 +43,8 @@ import { deriveComboDiscounts, type ComboComponentDraft, type ComboDiscountDraft
 import { GridHeader } from "./z-GridHeader";
 
 const HEADER: RowRef = { kind: "header" };
-const SEARCH_COLUMN = 1;
+/** Where the header's search cell starts — read off the model, not counted here. */
+const SEARCH_COLUMN = headerStartOf("search", COMBO_LISTING_LAYOUT);
 
 export function ListingStage({
   listings,
@@ -406,7 +408,7 @@ export function ListingStage({
         }}
         onSelectSearch={() => selectField(HEADER, SEARCH_COLUMN)}
         onToggle={onNext}
-        onSelectToggle={() => selectField(HEADER, 10)}
+        onSelectToggle={() => selectField(HEADER, headerStartOf("toggle", COMBO_LISTING_LAYOUT))}
       />
       {shown ? (
         <SearchResults

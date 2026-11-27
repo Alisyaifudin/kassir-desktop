@@ -5,11 +5,14 @@
  * `nama`, and moving up again uses the remembered column to land in the next
  * card's `kuantitas`.
  *
- * Columns are 0-indexed, twelve wide. `no#` and the drag handle are selectable
- * but not editable: the number opens the product's detail sheet, the handle locks
- * the card so the arrows can move it. The product's photo sits at column `-1`,
- * left of both rows: it only exists when the line actually has a cover, and it is
- * selectable so the keyboard can reach the gallery too.
+ * Columns are 0-indexed, thirteen wide. Column 0 is the product's photo — a cell
+ * of **both** rows, because the box is one box drawn beside both of them: the
+ * cursor can stand in the top half of it or the bottom half, and `right` leaves it
+ * into the half it is standing in. The rest is the spreadsheet: `no#` and the drag
+ * handle are selectable but not editable — the number opens the product's detail
+ * sheet, the handle locks the card so the arrows can move it. A card whose goods
+ * have no picture draws the same box with their initials in it, and gives the
+ * cursor no cell to land on, because there is no gallery behind it.
  *
  * One grid for both cart screens: `layout` carries the only real difference —
  * the sale screen ends its header with a stage toggle (`Tambahan`), the purchase
@@ -34,7 +37,7 @@ type AnyField = Field | "search" | "manual" | "toggle";
 
 export type RowRef =
   | { kind: "header" }
-  /** `image` is set on a card's top row when the line has a cover to show. */
+  /** `image` is set on both rows of a card whose line has a cover to show. */
   | { kind: "card"; cardId: string; part: "top" | "bottom"; image?: boolean };
 
 /** The three sub-cells inside `Kuantitas`: `-`, the value, `+`. */
@@ -76,61 +79,82 @@ export const COMBO_LISTING_LAYOUT: ListingLayout = { stageToggle: true, manual: 
 function headerCells(layout: ListingLayout): CellDef[] {
   if (layout.stageToggle && layout.manual === false) {
     return [
-      { field: "search", start: 0, end: 9, selectable: true, editable: true },
-      { field: "toggle", start: 10, end: 11, selectable: true, editable: false },
+      { field: "search", start: 1, end: 10, selectable: true, editable: true },
+      { field: "toggle", start: 11, end: 12, selectable: true, editable: false },
     ];
   }
   if (!layout.stageToggle && layout.manual === false) {
-    return [{ field: "search", start: 0, end: 11, selectable: true, editable: true }];
+    return [{ field: "search", start: 1, end: 12, selectable: true, editable: true }];
   }
   if (layout.stageToggle) {
     return [
-      { field: "search", start: 0, end: 7, selectable: true, editable: true },
-      { field: "manual", start: 8, end: 9, selectable: true, editable: false },
-      { field: "toggle", start: 10, end: 11, selectable: true, editable: false },
+      { field: "search", start: 1, end: 8, selectable: true, editable: true },
+      { field: "manual", start: 9, end: 10, selectable: true, editable: false },
+      { field: "toggle", start: 11, end: 12, selectable: true, editable: false },
     ];
   }
   return [
-    { field: "search", start: 0, end: 9, selectable: true, editable: true },
-    { field: "manual", start: 10, end: 11, selectable: true, editable: false },
+    { field: "search", start: 1, end: 10, selectable: true, editable: true },
+    { field: "manual", start: 11, end: 12, selectable: true, editable: false },
   ];
 }
 
-/** The product photo: left of both rows, so it only lives on the card's top row. */
+/**
+ * The product photo: the card's first column, as tall as both of its rows. It is
+ * part of the grid the cells are in, so the header's first track and the photo
+ * are the same width and the labels sit over the columns they name.
+ */
 const IMAGE_CELL: CellDef = {
   field: "image",
-  start: -1,
-  end: -1,
+  start: 0,
+  end: 0,
   selectable: true,
   editable: false,
 };
 
 const TOP_CELLS: CellDef[] = [
-  { field: "no", start: 0, end: 0, selectable: true, editable: false },
-  { field: "name", start: 1, end: 8, selectable: true, editable: true, textSeed: true },
-  { field: "grandTotal", start: 9, end: 10, selectable: true, editable: false },
-  { field: "x", start: 11, end: 11, selectable: true, editable: false },
+  { field: "no", start: 1, end: 1, selectable: true, editable: false },
+  { field: "name", start: 2, end: 9, selectable: true, editable: true, textSeed: true },
+  { field: "grandTotal", start: 10, end: 11, selectable: true, editable: false },
+  { field: "x", start: 12, end: 12, selectable: true, editable: false },
 ];
 
 const BOTTOM_CELLS: CellDef[] = [
-  { field: "grip", start: 0, end: 0, selectable: true, editable: false },
-  { field: "code", start: 1, end: 4, selectable: true, editable: true, textSeed: true },
-  { field: "qty", start: 5, end: 5, selectable: true, editable: true, numeric: true },
-  { field: "unit", start: 6, end: 6, selectable: true, editable: true, numeric: true },
-  { field: "price", start: 7, end: 8, selectable: true, editable: true, numeric: true },
-  { field: "diskon", start: 9, end: 11, selectable: true, editable: false },
+  { field: "grip", start: 1, end: 1, selectable: true, editable: false },
+  { field: "code", start: 2, end: 5, selectable: true, editable: true, textSeed: true },
+  { field: "qty", start: 6, end: 6, selectable: true, editable: true, numeric: true },
+  { field: "unit", start: 7, end: 7, selectable: true, editable: true, numeric: true },
+  { field: "price", start: 8, end: 9, selectable: true, editable: true, numeric: true },
+  { field: "diskon", start: 10, end: 12, selectable: true, editable: false },
 ];
 
 const CARD_CELLS = [IMAGE_CELL, ...TOP_CELLS, ...BOTTOM_CELLS];
 
 export function cellsForRow(row: RowRef, layout: ListingLayout): CellDef[] {
   if (row.kind === "header") return headerCells(layout);
-  if (row.part === "bottom") return BOTTOM_CELLS;
-  return row.image === true ? [IMAGE_CELL, ...TOP_CELLS] : TOP_CELLS;
+  const cells = row.part === "bottom" ? BOTTOM_CELLS : TOP_CELLS;
+  // Both rows carry the photo: it is one box, but the cursor is in a row while it
+  // stands there, and that row is what `right` leaves into.
+  return row.image === true ? [IMAGE_CELL, ...cells] : cells;
 }
 
 export function selectableCells(row: RowRef, layout: ListingLayout): CellDef[] {
   return cellsForRow(row, layout).filter((cell) => cell.selectable);
+}
+
+/**
+ * The column a header cell starts at, per the layout.
+ *
+ * The header's own numbers used to live in each screen — `manualColumn(8 : 10)`,
+ * `TOGGLE_COLUMN = 10` — and every one of them had to be hand-shifted the day the
+ * card grid grew its photo column; one was missed. They are read off the model
+ * now instead, so the layout is the only place the geometry is written down.
+ */
+export function headerStartOf(
+  field: "search" | "manual" | "toggle",
+  layout: ListingLayout,
+): number {
+  return headerCells(layout).find((cell) => cell.field === field)?.start ?? 1;
 }
 
 function distance(cell: CellDef, col: number): number {
@@ -157,9 +181,6 @@ export function sameRow(a: RowRef, b: RowRef): boolean {
   return a.cardId === b.cardId && a.part === b.part;
 }
 
-/** Which half of its card the cursor was standing in when it stepped onto the photo. */
-export type ImageSide = "top" | "bottom";
-
 /** A cell the cursor can be sent to: the row, the column to remember, and the cell. */
 export type GridTarget = { row: RowRef; col: number; cell: CellDef };
 
@@ -167,8 +188,9 @@ export type GridTarget = { row: RowRef; col: number; cell: CellDef };
  * The vertical order: header, then each card's top and bottom rows.
  *
  * `hasImage` says which cards draw a photo; those get the extra `image` cell at
- * the start of their top row. Only the cards that have one, so the cursor never
- * lands on a photo that is not drawn.
+ * the start of **both** their rows — the box is one box, but a row is what the
+ * cursor is standing in, and that is what `right` leaves into. Only the cards
+ * that have one, so the cursor never lands on a photo that is not drawn.
  */
 export function rowsFor(
   cardIds: readonly string[],
@@ -176,14 +198,18 @@ export function rowsFor(
 ): RowRef[] {
   return [
     { kind: "header" },
-    ...cardIds.flatMap((cardId): RowRef[] => [
-      { kind: "card", cardId, part: "top", ...(hasImage?.(cardId) === true ? { image: true } : {}) },
-      { kind: "card", cardId, part: "bottom" },
-    ]),
+    ...cardIds.flatMap((cardId): RowRef[] => {
+      const image = hasImage?.(cardId) === true ? { image: true } : {};
+      return [
+        { kind: "card", cardId, part: "top", ...image },
+        { kind: "card", cardId, part: "bottom", ...image },
+      ];
+    }),
   ];
 }
 
-/** Which half of a card a field lives in. */
+/** Which half of a card a field lives in. The photo is one box, so a click on it
+ *  puts the cursor on its top half; `down` moves to the bottom half from there. */
 export function partOf(field: Field): "top" | "bottom" {
   if (field === "image") return "top";
   return TOP_CELLS.some((cell) => cell.field === field) ? "top" : "bottom";
@@ -191,18 +217,7 @@ export function partOf(field: Field): "top" | "bottom" {
 
 /** The column a field's cell starts at. */
 export function startOf(field: Field): number {
-  return CARD_CELLS.find((cell) => cell.field === field)?.start ?? 1;
-}
-
-/**
- * The card's top row when it is the one carrying a photo — `undefined` for a card
- * whose goods have no picture, which draws no cell the cursor can reach.
- */
-function photoRowOf(rows: readonly RowRef[], cardId: string): RowRef | undefined {
-  return rows.find(
-    (row) =>
-      row.kind === "card" && row.cardId === cardId && row.part === "top" && row.image === true,
-  );
+  return CARD_CELLS.find((cell) => cell.field === field)?.start ?? 2;
 }
 
 /**
@@ -210,29 +225,24 @@ function photoRowOf(rows: readonly RowRef[], cardId: string): RowRef | undefined
  * none. `wrap` joins the two ends of the grid — which is what an arrow that ran
  * out of an open editor does — so the key never feels ignored.
  *
- * The walk is row-major, the spreadsheet's reading order, with the photo carved
- * out of it. The photo is one box at column `-1` standing beside *both* rows of
- * its card, so it has three neighbours where the reading order knows of two:
+ * The walk is row-major, the spreadsheet's reading order, and the photo is simply
+ * the first cell of **both** rows: one box drawn beside both of them, so the
+ * cursor can stand in its top half or in its bottom half, and what `right` does
+ * depends on which — into the number above, into the handle below.
  *
- * - **left out of column 0** — the number on the top row, the handle on the
- *   bottom row — lands on the photo. Row-major alone takes a handle-left up to
- *   the `x` of the row above, stepping over the box that is visibly right there.
- * - **left out of the photo** goes to the row above (its last cell): nothing in
- *   the card sits further left, so the step leaves the card the way it came in.
- * - **right out of the photo** returns to the half of the card it was entered
- *   from (`imageFrom`), the number when nothing says otherwise. The box spans
- *   both rows, so the row that brought the cursor in is the one it expects to
- *   find again.
- *
- * A card with no photo has none of this: its handle's left neighbour stays the
- * `x` of the row above, exactly as the reading order has it.
+ * `left` out of the photo is the one step the reading order gets wrong. Out of the
+ * top half it already leaves the card (the box is its first cell, so the one
+ * before it is the previous card's last cell); out of the bottom half it would
+ * climb to the `x` of the row above — a hop *into* the card, out of a box that
+ * looks exactly the same in both halves. So `left` leaves the card from either
+ * half, which is the previous card a cursor on the left edge expects.
  */
 export function horizontalNeighbour(
   rows: readonly RowRef[],
   selection: Selection,
   layout: ListingLayout,
   delta: number,
-  { wrap = false, imageFrom = "top" }: { wrap?: boolean; imageFrom?: ImageSide } = {},
+  { wrap = false }: { wrap?: boolean } = {},
 ): GridTarget | undefined {
   const cell = cellAt(selection.row, selection.col, layout);
   // The walkable cells in reading order: the header's, then each card's top row
@@ -246,30 +256,17 @@ export function horizontalNeighbour(
   if (index === -1) return undefined;
 
   const row = selection.row;
-  // The photo lives on the card's top row but stands beside both of them, so
-  // "does this card have one" is a question about the card, not about the row the
-  // cursor happens to be standing in.
-  const photoRow = row.kind === "card" ? photoRowOf(rows, row.cardId) : undefined;
-  if (photoRow !== undefined && delta < 0 && (cell.field === "no" || cell.field === "grip")) {
-    return { row: photoRow, col: startOf("image"), cell: IMAGE_CELL };
-  }
-  if (cell.field === "image" && row.kind === "card") {
-    const cardId = row.cardId;
-    if (delta > 0) {
-      const part: ImageSide = imageFrom === "bottom" ? "bottom" : "top";
-      const field: Field = part === "bottom" ? "grip" : "no";
-      const back = rows.find(
-        (candidate) =>
-          candidate.kind === "card" && candidate.cardId === cardId && candidate.part === part,
-      );
-      if (back === undefined) return undefined;
-      return { row: back, col: startOf(field), cell: cellAt(back, startOf(field), layout) };
-    }
-    // Left of the photo is the row above: the box is the leftmost cell of its card.
-    const above = flat[index - 1] ?? flat[flat.length - 1];
-    return above === undefined
-      ? undefined
-      : { row: above.row, col: above.cell.start, cell: above.cell };
+  if (cell.field === "image" && row.kind === "card" && delta < 0) {
+    // The card's own first cell, whether the cursor stands in the box's top half
+    // or its bottom half: one step back from *there* is out of the card.
+    const first = flat.findIndex(
+      (entry) =>
+        entry.cell.field === "image" &&
+        entry.row.kind === "card" &&
+        entry.row.cardId === row.cardId,
+    );
+    const out = first > 0 ? flat[first - 1] : wrap ? flat[flat.length - 1] : undefined;
+    return out === undefined ? undefined : { row: out.row, col: out.cell.start, cell: out.cell };
   }
 
   const next = flat[index + delta] ?? (wrap ? flat[delta < 0 ? flat.length - 1 : 0] : undefined);

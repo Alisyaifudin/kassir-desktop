@@ -23,7 +23,6 @@ import {
   sameRow,
   selectableCells,
   startOf,
-  type ImageSide,
   type RowRef,
 } from "./listing-grid";
 
@@ -36,16 +35,22 @@ const TOP_WITH_IMAGE = (cardId: string): RowRef => ({
   image: true,
 });
 const BOTTOM = (cardId: string): RowRef => ({ kind: "card", cardId, part: "bottom" });
+const BOTTOM_WITH_IMAGE = (cardId: string): RowRef => ({
+  kind: "card",
+  cardId,
+  part: "bottom",
+  image: true,
+});
 const TOP_CELLS_OF = (cardId: string) => cellsForRow(TOP(cardId), SALE_LISTING_LAYOUT);
 const BOTTOM_CELLS_OF = (cardId: string) => cellsForRow(BOTTOM(cardId), SALE_LISTING_LAYOUT);
 
 describe("listing grid geometry", () => {
   test("combo header uses the stage toggle without reserving a manual cell", () => {
     expect(cellsForRow(HEADER, COMBO_LISTING_LAYOUT)).toEqual([
-      { field: "search", start: 0, end: 9, selectable: true, editable: true },
-      { field: "toggle", start: 10, end: 11, selectable: true, editable: false },
+      { field: "search", start: 1, end: 10, selectable: true, editable: true },
+      { field: "toggle", start: 11, end: 12, selectable: true, editable: false },
     ]);
-    expect(cellAt(HEADER, 10, COMBO_LISTING_LAYOUT).field).toBe("toggle");
+    expect(cellAt(HEADER, 11, COMBO_LISTING_LAYOUT).field).toBe("toggle");
   });
 
   test("a sale's header ends in the stage toggle, a purchase's does not", () => {
@@ -57,79 +62,90 @@ describe("listing grid geometry", () => {
   });
 
   test("`+manual` sits where the layout says, so Tab past `Nama` lands on it", () => {
-    const saleManual = cellAt(HEADER, 8, SALE_LISTING_LAYOUT);
-    const purchaseManual = cellAt(HEADER, 10, PURCHASE_LISTING_LAYOUT);
+    const saleManual = cellAt(HEADER, 9, SALE_LISTING_LAYOUT);
+    const purchaseManual = cellAt(HEADER, 11, PURCHASE_LISTING_LAYOUT);
 
     expect(saleManual.field).toBe("manual");
     expect(purchaseManual.field).toBe("manual");
     // A purchase has no toggle, so the columns the sale gives it are search.
-    expect(cellAt(HEADER, 10, SALE_LISTING_LAYOUT).field).toBe("toggle");
+    expect(cellAt(HEADER, 11, SALE_LISTING_LAYOUT).field).toBe("toggle");
   });
 
   test("a wide cell owns every column it spans", () => {
-    expect(cellAt(TOP("a"), 1, SALE_LISTING_LAYOUT).field).toBe("name");
-    expect(cellAt(TOP("a"), 8, SALE_LISTING_LAYOUT).field).toBe("name");
-    expect(cellAt(TOP("a"), 9, SALE_LISTING_LAYOUT).field).toBe("grandTotal");
-    expect(cellAt(TOP("a"), 11, SALE_LISTING_LAYOUT).field).toBe("x");
-    expect(cellAt(BOTTOM("a"), 9, SALE_LISTING_LAYOUT).field).toBe("diskon");
+    expect(cellAt(TOP("a"), 2, SALE_LISTING_LAYOUT).field).toBe("name");
+    expect(cellAt(TOP("a"), 9, SALE_LISTING_LAYOUT).field).toBe("name");
+    expect(cellAt(TOP("a"), 10, SALE_LISTING_LAYOUT).field).toBe("grandTotal");
+    expect(cellAt(TOP("a"), 12, SALE_LISTING_LAYOUT).field).toBe("x");
+    expect(cellAt(BOTTOM("a"), 10, SALE_LISTING_LAYOUT).field).toBe("diskon");
   });
 
-  test("column 0 is the number above and the drag handle below", () => {
-    expect(cellAt(TOP("a"), 0, SALE_LISTING_LAYOUT).field).toBe("no");
-    expect(cellAt(BOTTOM("a"), 0, SALE_LISTING_LAYOUT).field).toBe("grip");
+  test("column 1 is the number above and the drag handle below, column 0 the photo", () => {
+    expect(cellAt(TOP("a"), 1, SALE_LISTING_LAYOUT).field).toBe("no");
+    expect(cellAt(BOTTOM("a"), 1, SALE_LISTING_LAYOUT).field).toBe("grip");
+    expect(cellAt(TOP_WITH_IMAGE("a"), 0, SALE_LISTING_LAYOUT).field).toBe("image");
   });
 
   test("moving into a cell keeps the column when it is inside, clamps when it is not", () => {
     const name = cellAt(TOP("a"), 5, SALE_LISTING_LAYOUT);
     expect(columnIn(name, 5)).toBe(5);
-    expect(columnIn(name, 10)).toBe(8);
-    expect(columnIn(name, 0)).toBe(1);
+    expect(columnIn(name, 12)).toBe(9);
+    expect(columnIn(name, 0)).toBe(2);
   });
 
   test("the rows are the header then each card's two halves, in order", () => {
     const rows = rowsFor(["a", "b"]);
-    expect(rows).toEqual([HEADER, TOP("a"), { kind: "card", cardId: "a", part: "bottom" }, TOP("b"), { kind: "card", cardId: "b", part: "bottom" }]);
+    expect(rows).toEqual([
+      HEADER,
+      TOP("a"),
+      { kind: "card", cardId: "a", part: "bottom" },
+      TOP("b"),
+      { kind: "card", cardId: "b", part: "bottom" },
+    ]);
     expect(sameRow(TOP("a"), BOTTOM("a"))).toBe(false);
     expect(sameRow(TOP("a"), TOP("a"))).toBe(true);
     expect(sameRow(HEADER, HEADER)).toBe(true);
     expect(sameRow(HEADER, TOP("a"))).toBe(false);
   });
 
-  test("a card with a cover gets an image cell at column -1; one without does not", () => {
+  test("a card with a cover gets an image cell on both rows; one without gets none", () => {
     expect(selectableCells(TOP("a"), SALE_LISTING_LAYOUT).map((cell) => cell.field)).toEqual([
       "no",
       "name",
       "grandTotal",
       "x",
     ]);
-    expect(selectableCells(TOP_WITH_IMAGE("a"), SALE_LISTING_LAYOUT).map((cell) => cell.field)).toEqual([
-      "image",
-      "no",
-      "name",
-      "grandTotal",
-      "x",
-    ]);
-    // Only above both rows: the photo spans the card, so the bottom row has none.
-    expect(selectableCells(BOTTOM("a"), SALE_LISTING_LAYOUT).map((cell) => cell.field)).not.toContain(
-      "image",
-    );
-    expect(startOf("image")).toBe(-1);
+    expect(
+      selectableCells(TOP_WITH_IMAGE("a"), SALE_LISTING_LAYOUT).map((cell) => cell.field),
+    ).toEqual(["image", "no", "name", "grandTotal", "x"]);
+    // The photo is one box drawn beside both rows, so the cursor can stand in its
+    // top half or its bottom half — which is what makes `down` on it stay on it.
+    expect(
+      selectableCells(BOTTOM_WITH_IMAGE("a"), SALE_LISTING_LAYOUT).map((cell) => cell.field),
+    ).toEqual(["image", "grip", "code", "qty", "unit", "price", "diskon"]);
+    expect(
+      selectableCells(BOTTOM("a"), SALE_LISTING_LAYOUT).map((cell) => cell.field),
+    ).not.toContain("image");
+    expect(startOf("image")).toBe(0);
   });
 
-  test("rowsFor only marks the cards the caller says have a cover", () => {
+  test("rowsFor marks both halves of the cards the caller says have a cover", () => {
     const rows = rowsFor(["a", "b"], (id) => id === "b");
 
     expect(rows[1]).not.toHaveProperty("image");
+    expect(rows[2]).not.toHaveProperty("image");
     expect(rows[3]).toEqual({ kind: "card", cardId: "b", part: "top", image: true });
+    expect(rows[4]).toEqual({ kind: "card", cardId: "b", part: "bottom", image: true });
   });
 
   test("every card field starts on a column a card actually has", () => {
-    expect(startOf("no")).toBe(0);
-    expect(startOf("grip")).toBe(0);
-    expect(startOf("name")).toBe(1);
-    expect(startOf("qty")).toBe(5);
-    expect(startOf("price")).toBe(7);
-    expect(startOf("diskon")).toBe(9);
+    expect(startOf("image")).toBe(0);
+    expect(startOf("no")).toBe(1);
+    expect(startOf("grip")).toBe(1);
+    expect(startOf("name")).toBe(2);
+    expect(startOf("qty")).toBe(6);
+    expect(startOf("unit")).toBe(7);
+    expect(startOf("price")).toBe(8);
+    expect(startOf("diskon")).toBe(10);
   });
 
   test("only selectable cells are walkable, and the header always has two", () => {
@@ -160,76 +176,91 @@ describe("listing grid geometry", () => {
 });
 
 /**
- * The photo's three neighbours.
+ * The photo's neighbours.
  *
- * The photo is one box at column `-1` standing beside *both* rows of its card,
- * and the row-major walk only knows two of its neighbours: it would take a
- * handle-left up to the `x` of the row above, stepping over the box that is
- * visibly right there, and it would always hand the photo back to the number.
- * These pin the exception — and that a card without a photo keeps the plain
- * reading order, since it has no box to step onto.
+ * The photo is one box drawn beside *both* rows of its card, and the walk treats
+ * it as the first cell of each: `right` leaves into the half the cursor stands in
+ * (the number above, the handle below), `left` leaves the card from either half —
+ * the reading order would climb from the bottom half into the `x` of the row
+ * above, a hop into the card out of a box that looks the same both ways.
  */
-describe("the photo's three neighbours", () => {
-  // `a` has a cover, `b` does not: only `a`'s top row carries the photo cell.
-  const ROWS = rowsFor(["a", "b"], (id) => id === "a");
-  const step = (
-    row: RowRef,
-    col: number,
-    delta: number,
-    options: { imageFrom?: ImageSide; wrap?: boolean } = {},
-  ) => horizontalNeighbour(ROWS, { row, col }, SALE_LISTING_LAYOUT, delta, options);
+describe("the photo's neighbours", () => {
+  // `a` has no cover, `b` does: only `b`'s rows carry the photo cell.
+  const ROWS = rowsFor(["a", "b"], (id) => id === "b");
+  const step = (row: RowRef, col: number, delta: number, wrap = false) =>
+    horizontalNeighbour(ROWS, { row, col }, SALE_LISTING_LAYOUT, delta, { wrap });
 
-  test("left out of the handle lands on the photo, not on the row above", () => {
-    const next = step(BOTTOM("a"), 0, -1);
+  test("right out of the top half is the number", () => {
+    const next = step(TOP_WITH_IMAGE("b"), 0, 1);
+
+    expect(next?.cell.field).toBe("no");
+    expect(next?.col).toBe(1);
+    expect(next?.row).toEqual(TOP_WITH_IMAGE("b"));
+  });
+
+  test("right out of the bottom half is the handle", () => {
+    const next = step(BOTTOM_WITH_IMAGE("b"), 0, 1);
+
+    expect(next?.cell.field).toBe("grip");
+    expect(next?.col).toBe(1);
+    expect(next?.row).toEqual(BOTTOM_WITH_IMAGE("b"));
+  });
+
+  test("left out of the number lands back on the photo", () => {
+    const next = step(TOP("b"), 1, -1);
 
     expect(next?.cell.field).toBe("image");
-    expect(next?.col).toBe(-1);
-    expect(next?.row).toEqual(TOP_WITH_IMAGE("a"));
+    expect(next?.row).toEqual(TOP_WITH_IMAGE("b"));
   });
 
-  test("left out of the number lands on the photo as well", () => {
-    expect(step(TOP_WITH_IMAGE("a"), 0, -1)?.cell.field).toBe("image");
+  test("left out of the handle lands back on the photo too", () => {
+    const next = step(BOTTOM("b"), 1, -1);
+
+    expect(next?.cell.field).toBe("image");
+    expect(next?.row).toEqual(BOTTOM_WITH_IMAGE("b"));
   });
 
-  test("right out of the photo returns to the half it was entered from", () => {
-    // Entered along the top (the default, and where the number sits): the number.
-    const fromTop = step(TOP_WITH_IMAGE("a"), -1, 1);
-    expect(fromTop?.cell.field).toBe("no");
-    expect(fromTop?.col).toBe(0);
+  test("left out of the photo leaves for the previous card, from either half", () => {
+    // Out of the card the photo opens — `a`'s last cell is the row above it.
+    const fromTop = step(TOP_WITH_IMAGE("b"), 0, -1);
+    expect(fromTop?.cell.field).toBe("diskon");
+    expect(fromTop?.row).toEqual(BOTTOM("a"));
 
-    // Entered by stepping left out of the handle: the handle, on the bottom row.
-    const fromBottom = step(TOP_WITH_IMAGE("a"), -1, 1, { imageFrom: "bottom" });
-    expect(fromBottom?.cell.field).toBe("grip");
-    expect(fromBottom?.col).toBe(0);
+    // The bottom half is the same box: the same step, not a climb into `x`.
+    const fromBottom = step(BOTTOM_WITH_IMAGE("b"), 0, -1);
+    expect(fromBottom?.cell.field).toBe("diskon");
     expect(fromBottom?.row).toEqual(BOTTOM("a"));
   });
 
-  test("left out of the photo steps up to the row above", () => {
-    // The photo is the leftmost cell of its card, so the step leaves the card the
-    // way it came in: here, back up into the header's last cell.
-    const next = step(TOP_WITH_IMAGE("a"), -1, -1);
+  test("the first card's photo leaves for the header", () => {
+    const first = rowsFor(["b"], () => true);
+    const next = horizontalNeighbour(
+      first,
+      { row: TOP_WITH_IMAGE("b"), col: 0 },
+      SALE_LISTING_LAYOUT,
+      -1,
+    );
 
     expect(next?.row).toEqual(HEADER);
     expect(next?.cell.field).toBe("toggle");
   });
 
   test("a card without a photo keeps the plain reading order", () => {
-    const next = step(BOTTOM("b"), 0, -1);
+    const next = step(BOTTOM("a"), 1, -1);
 
-    expect(next?.row).toEqual(TOP("b"));
+    expect(next?.row).toEqual(TOP("a"));
     expect(next?.cell.field).toBe("x");
   });
 
   test("the photo does not disturb the rest of either row", () => {
-    expect(step(TOP_WITH_IMAGE("a"), 0, 1)?.cell.field).toBe("name");
-    expect(step(BOTTOM("a"), 0, 1)?.cell.field).toBe("code");
-    expect(step(BOTTOM("a"), 0, -1)?.cell.field).toBe("image");
+    expect(step(TOP_WITH_IMAGE("b"), 1, 1)?.cell.field).toBe("name");
+    expect(step(BOTTOM_WITH_IMAGE("b"), 1, 1)?.cell.field).toBe("code");
   });
 
   test("an arrow that ran out of an editor still wraps the ends of the grid", () => {
-    const next = step(HEADER, 0, -1, { wrap: true });
+    const next = step(HEADER, 1, -1, true);
 
-    expect(next?.row).toEqual(BOTTOM("b"));
+    expect(next?.row).toEqual(BOTTOM_WITH_IMAGE("b"));
     expect(next?.cell.field).toBe("diskon");
   });
 });
