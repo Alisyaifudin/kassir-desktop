@@ -20,7 +20,7 @@
     SYNC-V2.md — see &lt;sync_system&gt; and &lt;sync_ui_design&gt;.
   </description>
   <backend_docs href="backend-docs/openapi.yaml" />
-  <version>8.18.21</version>
+  <version>8.18.22</version>
   <language>id</language>
 
   <ui_notes>
@@ -110,7 +110,7 @@
       <file name="package.json">
         <entry key="name">kassir</entry>
         <entry key="private">true</entry>
-        <entry key="version">8.18.21</entry>
+        <entry key="version">8.18.22</entry>
         <entry key="type">module</entry>
         <script name="dev" command="vite" />
         <script name="build" command="tsc &amp;&amp; vite build" />
@@ -126,7 +126,7 @@
       </file>
       <file name="Cargo.toml">
         <entry key="package.name">kassir</entry>
-        <entry key="package.version">8.18.21</entry>
+        <entry key="package.version">8.18.22</entry>
         <entry key="package.edition">2021</entry>
         <entry key="lib.name">kassir_lib</entry>
         <entry key="lib.crate-type">staticlib, cdylib, rlib</entry>
@@ -140,7 +140,7 @@
         <entry key="build.beforeBuildCommand">bun run build</entry>
         <entry key="build.frontendDist">../dist</entry>
         <entry key="app.windows[0]">title kassir, 800x600, resizable, maximized, dragDropEnabled false (HTML5 drag/drop is used by the cart)</entry>
-        <entry key="app.security.csp">default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data: blob:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost</entry>
+        <entry key="app.security.csp">default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data: blob:; font-src 'self' data:; frame-src 'self' blob:; object-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost — frame-src/object-src carry blob: because the report preview is a blob PDF in an iframe (src/pages/Report/use-pdf.ts); without them WebView2 replaces the PDF with a "konten ini diblokir" error page</entry>
         <entry key="app.security.capabilities">["default"] — the dev config adds "mcp-bridge"</entry>
         <entry key="plugins.sql.preload">["sqlite:data.db"] — one database; the cart tables live inside it</entry>
         <entry key="bundle.createUpdaterArtifacts">false (no updater plugin is wired)</entry>
