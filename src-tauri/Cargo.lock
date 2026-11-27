@@ -2550,7 +2550,7 @@ dependencies = [
 
 [[package]]
 name = "kassir"
-version = "8.18.20"
+version = "8.18.21"
 dependencies = [
  "allsorts-azul",
  "bcrypt",

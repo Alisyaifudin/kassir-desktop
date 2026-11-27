@@ -249,3 +249,25 @@ describe("ScrollService, the analytics box", () => {
     expect(Object.keys(kept.positions)).toHaveLength(60);
   });
 });
+
+/**
+ * The ledger of a record — the goods, charges, parties and shelf in one scroll — keeps
+ * one place for the app, not one per record: it is the same box read by the pane on
+ * /records and by the full page.
+ */
+describe("ScrollService, the record ledger", () => {
+  test("the box's position is persisted under its own key", async () => {
+    const { entries, layer } = setup();
+
+    await run(layer, (scroll) => scroll.set("ledger", { positions: { box: 640 } }));
+
+    expect(entries.get("scroll-ledger")).toEqual({ positions: { box: 640 } });
+    expect(await run(layer, (scroll) => scroll.get("ledger"))).toEqual({ positions: { box: 640 } });
+  });
+
+  test("an entry that no longer parses starts the ledger at the top", async () => {
+    const { layer } = setup({ "scroll-ledger": { positions: { box: "640" } } });
+
+    expect(await run(layer, (scroll) => scroll.get("ledger"))).toEqual({ positions: {} });
+  });
+});

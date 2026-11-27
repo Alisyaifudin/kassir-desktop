@@ -2,19 +2,16 @@ import { useCallback, useLayoutEffect, useRef, useState, type RefCallback } from
 import { Effect } from "effect";
 import { log } from "~/lib/log";
 import { service } from "~/services";
-import type { ScrollContainer } from "~/services/scroll";
+import type { OffsetContainer } from "~/services/scroll";
 
 /** How long the box has to stand still before its place is written. */
 const SAVE_DELAY_MS = 150;
 
-/** The lists whose anchor is one plain offset per slot — no row, no product. */
-type OffsetContainer = Extract<ScrollContainer, "cart" | "analytics">;
-
 type Pending = { slot: string; top: number };
 
 /**
- * Remembers a scroll box's offset, one per **slot**: a tab, a face of a rail,
- * anything one box is re-used for.
+ * Remembers a scroll box's offset, one per **slot**: a tab, a face of a rail, a
+ * record, anything one box is re-used for.
  *
  * Those two lists have the same problem and it is not the virtualized ones': the box
  * outlives what it is showing, so the operator who switches tab (or rail face) finds

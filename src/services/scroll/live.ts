@@ -10,6 +10,7 @@ const EMPTY: ScrollAnchor = {
   products: { key: "", view: "", id: null, top: 0 },
   cart: { positions: {} },
   analytics: { positions: {} },
+  ledger: { positions: {} },
 };
 
 /**
@@ -94,6 +95,10 @@ function positionsOf(value: unknown): unknown {
   return (value as { positions?: unknown }).positions;
 }
 
+function parseLedger(value: unknown): ScrollAnchor["ledger"] {
+  return { positions: parsePositions(positionsOf(value), null) };
+}
+
 function parseCart(value: unknown): ScrollAnchor["cart"] {
   return { positions: parsePositions(positionsOf(value), KEEP_CARTS) };
 }
@@ -111,6 +116,7 @@ const PARSERS: { [C in ScrollContainer]: (value: unknown) => ScrollAnchor[C] } =
   products: parseProducts,
   cart: parseCart,
   analytics: parseAnalytics,
+  ledger: parseLedger,
 };
 
 export const ScrollLive = Layer.effect(
@@ -142,6 +148,7 @@ export const ScrollLive = Layer.effect(
       products: yield* readAnchor("products"),
       cart: yield* readAnchor("cart"),
       analytics: yield* readAnchor("analytics"),
+      ledger: yield* readAnchor("ledger"),
     };
 
     const ref = yield* Ref.make(initial);

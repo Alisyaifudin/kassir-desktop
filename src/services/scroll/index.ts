@@ -45,9 +45,28 @@ export type ScrollAnchor = {
     /** Slot → the content box's scroll offset. */
     positions: Record<string, number>;
   };
+  /**
+   * A record's page: the ledger (goods, charges, parties, shelf) and the receipt are
+   * one scroll each, and each keeps one place — not one per record.
+   */
+  ledger: {
+    /** Slot → the box's scroll offset: `box` for the ledger, `receipt` for the Resi tab. */
+    positions: Record<string, number>;
+  };
 };
 
 export type ScrollContainer = keyof ScrollAnchor;
+
+/**
+ * The containers that keep one plain offset per slot — no row, no product to name,
+ * only where the box was. Derived from the shapes above, so a list that stores a
+ * `positions` map can use the shared offset hook without a second list to maintain.
+ */
+export type OffsetContainer = {
+  [C in ScrollContainer]: ScrollAnchor[C] extends { positions: Record<string, number> }
+    ? C
+    : never;
+}[ScrollContainer];
 
 export class ScrollService extends Context.Tag("ScrollService")<
   ScrollService,

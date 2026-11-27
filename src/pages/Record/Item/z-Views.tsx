@@ -1,3 +1,4 @@
+import { useScrollOffset } from "~/hooks/use-scroll-offset";
 import { cn } from "~/lib/utils";
 import { pageData } from "./data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -8,6 +9,9 @@ import { ItemErrorFallback } from "./z-Error";
 import { Loading } from "./z-Loading";
 import { useTab } from "./use-tab";
 
+/** The receipt's own box. The ledger's place is kept by `Ledger` itself. */
+const RECEIPT = "receipt";
+
 /**
  * A record's two faces: the receipt it prints, and the ledger it came from.
  *
@@ -16,6 +20,9 @@ import { useTab } from "./use-tab";
  */
 export function Views({ busy }: { busy: boolean }) {
   const [tab, setTab] = useTab();
+  // The receipt scrolls in this pane, and it keeps one place for every record — the
+  // same rule the ledger follows, not one position per record.
+  const receiptRef = useScrollOffset("ledger", RECEIPT);
   // Both faces fade together while the record re-reads, so the stale one is not
   // the one you act on.
   const stale = busy && "opacity-50 pointer-events-none";
@@ -54,6 +61,7 @@ export function Views({ busy }: { busy: boolean }) {
         </pageData.Gate>
       </TabsContent>
       <TabsContent
+        ref={receiptRef}
         value="receipt"
         className={cn("flex-1 min-h-0 overflow-y-auto transition-opacity", stale)}
       >

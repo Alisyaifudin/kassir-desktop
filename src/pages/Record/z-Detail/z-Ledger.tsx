@@ -1,9 +1,13 @@
 import type { ReactNode } from "react";
 import { Show } from "~/components/Show";
+import { useScrollOffset } from "~/hooks/use-scroll-offset";
 import type { RecordFull } from "~/services/record";
 import { ExtrasTable } from "./ExtrasTable";
 import { Listings } from "./z-Listings";
 import { Parties } from "./z-Parties";
+
+/** The one ledger box this app scrolls — the pane and the page both use it. */
+const BOX = "box";
 
 /**
  * The ledger, read the same way by both faces of a record: the identity band on
@@ -37,11 +41,14 @@ export function Ledger({
   editableCapital?: boolean;
 }) {
   const empty = record.listings.length === 0 && record.extras.length === 0;
+  // One place for the ledger, whoever read it last: a record is a record, and the
+  // pane and the page show the same goods, charges and shelf in the same order.
+  const scrollRef = useScrollOffset("ledger", BOX);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
       {identity}
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-1 pr-2">
+      <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto py-1 pr-2">
         {empty ? (
           <p className="px-1 text-sm text-muted-foreground">
             Catatan ini tidak punya barang maupun biaya.
