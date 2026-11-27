@@ -315,8 +315,6 @@ export function EditPane({ product }: { product: ProductFull }) {
           <div className="px-4 py-4">
             <InfoFields form={form} disabled={busy} />
           </div>
-          <CategoriesFields form={form} disabled={busy} />
-          <ProductNamesFields form={form} disabled={busy} />
           <ListingsFields form={form} disabled={busy} />
           <StocksFields
             form={form}
@@ -327,6 +325,8 @@ export function EditPane({ product }: { product: ProductFull }) {
               if (lot !== undefined) setAdjustLot(lot);
             }}
           />
+          <CategoriesFields form={form} disabled={busy} />
+          <ProductNamesFields form={form} disabled={busy} />
           <PropertiesFields form={form} disabled={busy} />
         </div>
       </FlatSectionSurface>
