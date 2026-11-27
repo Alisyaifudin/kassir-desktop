@@ -114,9 +114,12 @@ describe("arrow keys inside an editor", () => {
 
     expect(editor(cell("name"))).toBeNull();
     expect(writes.at(-1)?.[0]?.name).toBe("Teh");
-    // The first press backs out of `Nama` onto `no#`; the next walks on into the
+    // The first press backs out of `Nama` onto `no#`, the next onto the card's
+    // photo — every card has that box — and only then out of the card into the
     // header, because the flat order wraps across rows.
     expect(selected()).toEqual([`cell-${writes.at(-1)?.[0]?.id}-no`]);
+    fireEvent.keyDown(grid, { key: "ArrowLeft" });
+    expect(selected()).toEqual([`cell-${writes.at(-1)?.[0]?.id}-image`]);
     fireEvent.keyDown(grid, { key: "ArrowLeft" });
     expect(selected()).toEqual(["cell-header-toggle"]);
   });
@@ -182,10 +185,9 @@ describe("arrow keys inside an editor", () => {
     // The line's last editable row is the bottom half; put the cursor on `Harga`.
     fireEvent.click(document.getElementById(`cell-${line.id}-price`) as HTMLElement);
     fireEvent.keyDown(grid, { key: "Enter" });
-    fireEvent.keyDown(
-      document.querySelector(`#cell-${line.id}-price input`) as HTMLInputElement,
-      { key: "ArrowDown" },
-    );
+    fireEvent.keyDown(document.querySelector(`#cell-${line.id}-price input`) as HTMLInputElement, {
+      key: "ArrowDown",
+    });
 
     expect(exits).toBe(1);
   });

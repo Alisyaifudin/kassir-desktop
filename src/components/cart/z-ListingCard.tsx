@@ -175,7 +175,12 @@ export const ListingCard = memo(function ListingCard({
           // No photo: the box is still drawn, with the goods' own initial in it,
           // so every line's number column starts at the same place whether the
           // catalogue had a picture or not.
-          <LineThumbEmpty name={line.name} />
+          <LineThumbEmpty
+            id={`cell-${line.id}-image`}
+            name={line.name}
+            selected={selected === "image"}
+            onSelect={() => onSelect("image")}
+          />
         )}
         <div
           id={`cell-${line.id}-no`}
@@ -446,18 +451,35 @@ function LineThumb({
  * The same box as `LineThumb`, for a line whose product has no photo: a letter
  * or two from the goods' name where the picture would be (`listingInitials`).
  *
- * Decoration, not a cell — there is no gallery behind it, so it is hidden from
- * the grid's model (`listing-grid.ts` gives a photo cell only to a card with a
- * cover) and from assistive tech, which hears the line's name anyway. It keeps
- * the box, though: the left column of every card is one width, so a cart of
- * coverless goods still reads as a column rather than a ragged edge.
+ * It is a cell all the same — the same column, the same id, the same place in the
+ * arrows' walk, and a click puts the cursor on it. Skating over it would make the
+ * photo a cell only some cards have, and every step out of `no#` or the handle
+ * would have to ask which kind of card it was in. What it does not have is anything
+ * behind it: no gallery, so no `Enter`, and no zoom cursor, title or hover icon to
+ * promise one.
  */
-function LineThumbEmpty({ name }: { name: string }) {
+function LineThumbEmpty({
+  id,
+  name,
+  selected,
+  onSelect,
+}: {
+  id: string;
+  name: string;
+  selected: boolean;
+  onSelect: () => void;
+}) {
   return (
     <div
+      id={id}
+      role="gridcell"
+      aria-selected={selected}
       data-testid="cart-line-thumb-empty"
-      aria-hidden
-      className="col-start-1 row-span-2 row-start-1 flex items-center justify-center overflow-hidden border-r bg-muted/40"
+      onClick={onSelect}
+      className={cn(
+        "col-start-1 row-span-2 row-start-1 flex items-center justify-center overflow-hidden border-r bg-muted/40",
+        selected && SELECTED_RING,
+      )}
     >
       <span className="text-base font-semibold tracking-wide text-muted-foreground select-none">
         {listingInitials(name)}

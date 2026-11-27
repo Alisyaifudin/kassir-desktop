@@ -145,7 +145,9 @@ function Harness({ writes }: { writes: Line[][] }) {
 async function openGallery() {
   const writes: Line[][] = [];
   render(<Harness writes={writes} />);
-  const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
+  const search = screen.getByPlaceholderText(
+    "Cari barang atau kombo untuk dijual...",
+  ) as HTMLInputElement;
   fireEvent.change(search, { target: { value: "899123" } });
   fireEvent.keyDown(search, { key: "Enter" });
   await waitFor(() => expect(writes).toHaveLength(1));
@@ -180,7 +182,9 @@ describe("the card's photo", () => {
   test("clicking the photo does not move the cart's cursor", async () => {
     const writes: Line[][] = [];
     render(<Harness writes={writes} />);
-    const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
+    const search = screen.getByPlaceholderText(
+      "Cari barang atau kombo untuk dijual...",
+    ) as HTMLInputElement;
     fireEvent.change(search, { target: { value: "899123" } });
     fireEvent.keyDown(search, { key: "Enter" });
     await waitFor(() => expect(writes).toHaveLength(1));
@@ -198,7 +202,9 @@ describe("the card's photo", () => {
   test("the arrows reach the photo and Enter opens the gallery", async () => {
     const writes: Line[][] = [];
     render(<Harness writes={writes} />);
-    const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
+    const search = screen.getByPlaceholderText(
+      "Cari barang atau kombo untuk dijual...",
+    ) as HTMLInputElement;
     fireEvent.change(search, { target: { value: "899123" } });
     fireEvent.keyDown(search, { key: "Enter" });
     await waitFor(() => expect(writes).toHaveLength(1));
@@ -229,7 +235,9 @@ describe("the card's photo", () => {
 async function addPlainLine() {
   const writes: Line[][] = [];
   render(<Harness writes={writes} />);
-  const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
+  const search = screen.getByPlaceholderText(
+    "Cari barang atau kombo untuk dijual...",
+  ) as HTMLInputElement;
   fireEvent.change(search, { target: { value: "899124" } });
   fireEvent.keyDown(search, { key: "Enter" });
   await waitFor(() => expect(writes).toHaveLength(1));
@@ -247,15 +255,109 @@ describe("the card without a photo", () => {
     expect(screen.getByTestId("cart-line-thumb-empty").textContent).toBe("TM");
   });
 
-  test("has no gallery to open, so it is not a cell either", async () => {
+  test("is a cell the arrows reach, with no gallery behind it", async () => {
     const line = await addPlainLine();
 
-    // No photo title to click, and no photo cell for the arrows to land on.
+    // Every card has the photo's column, so the box is a cell like any other —
+    // there is nothing to click and nothing to open, which is all the missing
+    // title and cursor say.
+    const box = document.getElementById(`cell-${line.id}-image`);
+    expect(box).not.toBeNull();
+    expect(box?.getAttribute("role")).toBe("gridcell");
     expect(screen.queryByTitle("Lihat gambar produk (Enter)")).toBeNull();
-    expect(document.getElementById(`cell-${line.id}-image`)).toBeNull();
 
+    // A click puts the cursor on the box — it is a cell — and opens nothing.
     fireEvent.click(screen.getByTestId("cart-line-thumb-empty"));
+    await act(async () => {});
+    expect(box?.getAttribute("aria-selected")).toBe("true");
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  test("Enter on the empty box opens nothing", async () => {
+    const line = await addPlainLine();
+    const grid = screen.getByRole("grid", { name: "Barang yang dijual" });
+
+    // Down into the goods, then left twice: `Nama` → `no#` → the box, which is
+    // a stop on the walk whether or not there is a picture in it.
+    fireEvent.keyDown(grid, { key: "ArrowDown" });
+    fireEvent.keyDown(grid, { key: "ArrowLeft" });
+    fireEvent.keyDown(grid, { key: "ArrowLeft" });
+    expect(document.getElementById(`cell-${line.id}-image`)?.getAttribute("aria-selected")).toBe(
+      "true",
+    );
+
+    fireEvent.keyDown(grid, { key: "Enter" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
+/**
+ * Down and up on the photo.
+ *
+ * The box is drawn beside both of its card's rows, so the row model carries it
+ * twice — and a plain step moved the cursor from its top half into its bottom half,
+ * one press that changed nothing on screen before the next one finally left the
+ * card. A step off the photo leaves for the neighbouring card instead, and arrives
+ * in the half the direction came from, which is the half `right` then leaves into.
+ */
+describe("up and down on the photo", () => {
+  /** Two cards: one with a cover, one without — both have the box. */
+  async function twoCards() {
+    const writes: Line[][] = [];
+    render(<Harness writes={writes} />);
+    const search = screen.getByPlaceholderText(
+      "Cari barang atau kombo untuk dijual...",
+    ) as HTMLInputElement;
+
+    for (const code of ["899123", "899124"]) {
+      fireEvent.change(search, { target: { value: code } });
+      fireEvent.keyDown(search, { key: "Enter" });
+      await waitFor(() => expect(writes).toHaveLength(code === "899123" ? 1 : 2));
+    }
+    const lines = writes.at(-1) ?? [];
+    if (lines.length !== 2) throw new Error(`expected two cards, got ${lines.length}`);
+    return lines;
+  }
+
+  /** Into the first card, and onto its photo. */
+  function ontoFirstPhoto(lineId: string) {
+    const grid = screen.getByRole("grid", { name: "Barang yang dijual" });
+    fireEvent.keyDown(grid, { key: "ArrowDown" });
+    fireEvent.keyDown(grid, { key: "ArrowLeft" });
+    fireEvent.keyDown(grid, { key: "ArrowLeft" });
+    expect(shown()).toEqual([`cell-${lineId}-image`]);
+    return grid;
+  }
+
+  test("down leaves for the next card's photo, in one press", async () => {
+    const [first, second] = await twoCards();
+    const grid = ontoFirstPhoto(first!.id);
+
+    fireEvent.keyDown(grid, { key: "ArrowDown" });
+    expect(shown()).toEqual([`cell-${second!.id}-image`]);
+
+    // Arrived from above, so the box's top half is where the cursor stands: right
+    // opens into the number.
+    fireEvent.keyDown(grid, { key: "ArrowRight" });
+    expect(shown()).toEqual([`cell-${second!.id}-no`]);
+    await settledThumb();
+  });
+
+  test("up leaves for the previous card's photo, in one press", async () => {
+    const [first, second] = await twoCards();
+    const grid = ontoFirstPhoto(first!.id);
+
+    fireEvent.keyDown(grid, { key: "ArrowDown" });
+    expect(shown()).toEqual([`cell-${second!.id}-image`]);
+
+    fireEvent.keyDown(grid, { key: "ArrowUp" });
+    expect(shown()).toEqual([`cell-${first!.id}-image`]);
+
+    // Arrived from below, so the cursor stands in the box's bottom half: right
+    // opens into the handle.
+    fireEvent.keyDown(grid, { key: "ArrowRight" });
+    expect(shown()).toEqual([`cell-${first!.id}-grip`]);
+    await settledThumb();
   });
 });
 
@@ -263,7 +365,9 @@ describe("the card without a photo", () => {
 async function addCoverLine() {
   const writes: Line[][] = [];
   render(<Harness writes={writes} />);
-  const search = screen.getByPlaceholderText("Cari barang atau kombo untuk dijual...") as HTMLInputElement;
+  const search = screen.getByPlaceholderText(
+    "Cari barang atau kombo untuk dijual...",
+  ) as HTMLInputElement;
   fireEvent.change(search, { target: { value: "899123" } });
   fireEvent.keyDown(search, { key: "Enter" });
   await waitFor(() => expect(writes).toHaveLength(1));

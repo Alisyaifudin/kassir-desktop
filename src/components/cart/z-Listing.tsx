@@ -55,13 +55,12 @@ import { ProductImagesDialog } from "~/components/cart/z-ProductImages";
 import { SearchResults, type SearchHit } from "~/components/cart/z-SearchResults";
 import {
   cellAt,
-  columnIn,
   headerStartOf,
   horizontalNeighbour,
   partOf,
   rowsFor,
-  sameRow,
   startOf,
+  verticalNeighbour,
   type Field,
   type RowRef,
   type Selection,
@@ -382,10 +381,10 @@ export function Listing({
     wantListFocus.current = false;
     list.focus();
   }, [shown, results]);
-  const rows = useMemo(() => {
-    const withCover = new Set(lines.filter((line) => line.cover != null).map((line) => line.id));
-    return rowsFor(shown ? [] : ids, (id) => withCover.has(id));
-  }, [shown, ids, lines]);
+  // Every card has the photo cell, cover or not: the box is drawn either way (a
+  // line without a picture shows the goods' initials in it), so the cursor can
+  // stand on it — there is simply nothing behind it to open. The layout says so.
+  const rows = useMemo(() => rowsFor(shown ? [] : ids), [shown, ids]);
 
   const active = cellAt(selection.row, selection.col, layout);
   const isSearch = selection.row.kind === "header" && active.field === "search";
@@ -520,20 +519,13 @@ export function Listing({
   }, []);
 
   function moveVertical(delta: number): boolean {
-    const index = rows.findIndex((row) => sameRow(row, selection.row));
-    if (index === -1) return false;
-    const next = rows[index + delta];
-    if (next === undefined) return false;
-    // Column 0 is the photo, and the photo is a cell of both rows, so `down` from
-    // its top half lands in its bottom half — same box, and the next `right` leaves
-    // into the handle. Every other column keeps its own like it always did, and a
-    // wide neighbour still clamps it.
-    const col = selection.col;
-    const cell = cellAt(next, col, layout);
+    // The geometry — the photo's two halves included — is `verticalNeighbour`'s.
+    const target = verticalNeighbour(rows, selection, layout, delta);
+    if (target === undefined) return false;
     setSelection({
-      row: next,
-      col: columnIn(cell, col),
-      qtySub: cell.field === "qty" ? "value" : undefined,
+      row: target.row,
+      col: target.col,
+      qtySub: target.cell.field === "qty" ? "value" : undefined,
     });
     setEditing(false);
     return true;
@@ -1005,8 +997,11 @@ export function Listing({
         if (selection.row.kind === "card") openDetail(selection.row.cardId);
         return;
       case "image":
-        // The photo is a cell the cursor can stand on; Enter opens the gallery.
-        if (selection.row.kind === "card") openImages(selection.row.cardId);
+        // The photo is a cell the cursor can stand on; Enter opens the gallery —
+        // unless the line has no picture, in which case there is nothing behind it.
+        if (selection.row.kind === "card" && photoOf(selection.row.cardId)) {
+          openImages(selection.row.cardId);
+        }
         return;
       case "grip":
         if (selection.row.kind === "card") lockCard(selection.row.cardId);
@@ -1042,6 +1037,10 @@ export function Listing({
    * looking at, and it opens before the read: the cover is a photo of the product
    * whether or not the rest of the gallery answers.
    */
+  function photoOf(cardId: string): boolean {
+    return latest.current.lines.find((line) => line.id === cardId)?.cover != null;
+  }
+
   function openImages(cardId: string) {
     const line = latest.current.lines.find((candidate) => candidate.id === cardId);
     if (line === undefined) return;
@@ -1268,11 +1267,11 @@ export function Listing({
       onFocusCapture={onActivate}
       className="flex min-h-0 flex-1 flex-col overflow-hidden outline-none"
     >
-      {/* The same thirteen tracks the cards use — the photo's column first, then the
-          twelve both rows share — so every label sits over the column it names. The
-          header has no photo, so its first track is left empty. */}
+      {/* The same thirteen tracks the cards use, so every label sits over the column
+          it names. The search bar is the list's width rather than a column's, so it
+          starts at the very first track — over the photo's — and takes `no#` with
+          it. */}
       <div role="row" className="grid shrink-0 grid-cols-[4rem_repeat(12,minmax(0,1fr))] border-b">
-        <div aria-hidden className="col-span-1 border-r" />
         <div
           id="cell-header-search"
           onClick={() => {
@@ -1283,7 +1282,7 @@ export function Listing({
           aria-selected={focused && isSearch}
           className={cn(
             "flex items-center px-1 ",
-            layout.stageToggle ? "col-span-8" : "col-span-10",
+            layout.stageToggle ? "col-span-9" : "col-span-11",
             focused && isSearch && SELECTED_RING,
           )}
         >

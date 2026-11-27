@@ -35,10 +35,7 @@ export type Field =
 /** Every cell, including the header's, which only draw. */
 type AnyField = Field | "search" | "manual" | "toggle";
 
-export type RowRef =
-  | { kind: "header" }
-  /** `image` is set on both rows of a card whose line has a cover to show. */
-  | { kind: "card"; cardId: string; part: "top" | "bottom"; image?: boolean };
+export type RowRef = { kind: "header" } | { kind: "card"; cardId: string; part: "top" | "bottom" };
 
 /** The three sub-cells inside `Kuantitas`: `-`, the value, `+`. */
 export type QtySub = "left" | "value" | "right";
@@ -64,18 +61,42 @@ type CellDef = {
   textSeed?: boolean;
 };
 
-/** Which optional header cells the grid has. */
-export type ListingLayout = { stageToggle: boolean; manual?: boolean };
+/**
+ * Which optional cells the grid has.
+ *
+ * `photo` is the card's first column: the cart draws the product's picture there —
+ * or the goods' initials in the same box — on every card, cover or not. The combo
+ * stage draws no such box, and its cards are the twelve columns after it.
+ *
+ * It lives here, on the layout, rather than on each `RowRef`: a row is built in a
+ * dozen places (a click, a scan, a step of the walk), and one of them forgetting
+ * the flag put the cursor on the wrong cell. The screen knows; the row does not
+ * have to be told.
+ */
+export type ListingLayout = { stageToggle: boolean; manual?: boolean; photo: boolean };
 
-/** The sale screen: search, `+manual`, and the `Tambahan` stage toggle. */
-export const SALE_LISTING_LAYOUT: ListingLayout = { stageToggle: true };
+/** The sale screen: search, `+manual`, the `Tambahan` stage toggle, the photo. */
+export const SALE_LISTING_LAYOUT: ListingLayout = { stageToggle: true, photo: true };
 
-/** The purchase screen: search and `+manual` only. */
-export const PURCHASE_LISTING_LAYOUT: ListingLayout = { stageToggle: false };
+/** The purchase screen: search and `+manual` only, and the photo. */
+export const PURCHASE_LISTING_LAYOUT: ListingLayout = { stageToggle: false, photo: true };
 
-/** Combo templates have the POS stage toggle but no manual-line action. */
-export const COMBO_LISTING_LAYOUT: ListingLayout = { stageToggle: true, manual: false };
+/** Combo templates have the POS stage toggle but no manual-line action — nor a photo. */
+export const COMBO_LISTING_LAYOUT: ListingLayout = {
+  stageToggle: true,
+  manual: false,
+  photo: false,
+};
 
+/**
+ * The header's cells.
+ *
+ * On the cart screens the search bar runs from the **very first column**, over the
+ * photo's, because the bar is the width of the list rather than of one column: a
+ * card's cells start at column 1, and the search box that labels them starts one to
+ * the left. The combo stage draws no photo, so its columns are the twelve after the
+ * photo's and its header starts at 1 (see `GridHeader`).
+ */
 function headerCells(layout: ListingLayout): CellDef[] {
   if (layout.stageToggle && layout.manual === false) {
     return [
@@ -84,17 +105,17 @@ function headerCells(layout: ListingLayout): CellDef[] {
     ];
   }
   if (!layout.stageToggle && layout.manual === false) {
-    return [{ field: "search", start: 1, end: 12, selectable: true, editable: true }];
+    return [{ field: "search", start: 0, end: 12, selectable: true, editable: true }];
   }
   if (layout.stageToggle) {
     return [
-      { field: "search", start: 1, end: 8, selectable: true, editable: true },
+      { field: "search", start: 0, end: 8, selectable: true, editable: true },
       { field: "manual", start: 9, end: 10, selectable: true, editable: false },
       { field: "toggle", start: 11, end: 12, selectable: true, editable: false },
     ];
   }
   return [
-    { field: "search", start: 1, end: 10, selectable: true, editable: true },
+    { field: "search", start: 0, end: 10, selectable: true, editable: true },
     { field: "manual", start: 11, end: 12, selectable: true, editable: false },
   ];
 }
@@ -135,7 +156,7 @@ export function cellsForRow(row: RowRef, layout: ListingLayout): CellDef[] {
   const cells = row.part === "bottom" ? BOTTOM_CELLS : TOP_CELLS;
   // Both rows carry the photo: it is one box, but the cursor is in a row while it
   // stands there, and that row is what `right` leaves into.
-  return row.image === true ? [IMAGE_CELL, ...cells] : cells;
+  return layout.photo ? [IMAGE_CELL, ...cells] : cells;
 }
 
 export function selectableCells(row: RowRef, layout: ListingLayout): CellDef[] {
@@ -187,24 +208,16 @@ export type GridTarget = { row: RowRef; col: number; cell: CellDef };
 /**
  * The vertical order: header, then each card's top and bottom rows.
  *
- * `hasImage` says which cards draw a photo; those get the extra `image` cell at
- * the start of **both** their rows — the box is one box, but a row is what the
- * cursor is standing in, and that is what `right` leaves into. Only the cards
- * that have one, so the cursor never lands on a photo that is not drawn.
+ * Every card of a layout with a photo column has the same cells, cover or not, so
+ * this needs no callback to say which cards draw one — the layout already does.
  */
-export function rowsFor(
-  cardIds: readonly string[],
-  hasImage?: (cardId: string) => boolean,
-): RowRef[] {
+export function rowsFor(cardIds: readonly string[]): RowRef[] {
   return [
     { kind: "header" },
-    ...cardIds.flatMap((cardId): RowRef[] => {
-      const image = hasImage?.(cardId) === true ? { image: true } : {};
-      return [
-        { kind: "card", cardId, part: "top", ...image },
-        { kind: "card", cardId, part: "bottom", ...image },
-      ];
-    }),
+    ...cardIds.flatMap((cardId): RowRef[] => [
+      { kind: "card", cardId, part: "top" },
+      { kind: "card", cardId, part: "bottom" },
+    ]),
   ];
 }
 
@@ -271,4 +284,46 @@ export function horizontalNeighbour(
 
   const next = flat[index + delta] ?? (wrap ? flat[delta < 0 ? flat.length - 1 : 0] : undefined);
   return next === undefined ? undefined : { row: next.row, col: next.cell.start, cell: next.cell };
+}
+
+/**
+ * The cell one row up or down from `selection`, or `undefined` at the ends of the
+ * list.
+ *
+ * The photo is the one cell the vertical walk treats differently. It is drawn
+ * beside both rows, so the row model carries it twice, and a plain step would move
+ * the cursor from the top half of the box into the bottom half of the same box —
+ * one press that changes nothing on screen, then another that finally leaves the
+ * card. So a step off the photo skips its other half and lands on the neighbouring
+ * card's photo, which is the only place that press was ever going to.
+ *
+ * The half it lands in is decided by the direction: arriving from above means the
+ * top half, arriving from below the bottom half. That is what `right` then reads —
+ * out of the top half into the number, out of the bottom half into the handle — so
+ * the box answers the same way whether it was reached by a click, by `left` from a
+ * row, or by a step from the card next door.
+ */
+export function verticalNeighbour(
+  rows: readonly RowRef[],
+  selection: Selection,
+  layout: ListingLayout,
+  delta: number,
+): GridTarget | undefined {
+  const index = rows.findIndex((row) => sameRow(row, selection.row));
+  if (index === -1) return undefined;
+
+  const cell = cellAt(selection.row, selection.col, layout);
+  const half = cell.field === "image" && selection.row.kind === "card" ? selection.row.part : null;
+  // Down out of the top half and up out of the bottom half are the two steps whose
+  // next row is the other half of the same box.
+  const skip = half === (delta > 0 ? "top" : "bottom") ? 1 : 0;
+  const next = rows[index + delta * (1 + skip)];
+  if (next === undefined) return undefined;
+
+  const landed = cellAt(next, selection.col, layout);
+  const row: RowRef =
+    landed.field === "image" && next.kind === "card"
+      ? { ...next, part: delta > 0 ? "top" : "bottom" }
+      : next;
+  return { row, col: columnIn(landed, selection.col), cell: landed };
 }
